@@ -1041,7 +1041,8 @@ function renderList(){
       '<div class="card-meta">'+(co?(fac.fixedCount?'<span style="font-size:13px;color:#aaa">'+co.minLabel+'</span>　':'<span style="font-size:20px;font-weight:600">'+co.minLabel+'</span>　'):'')+price.toLocaleString()+'円/1'+fac.priceUnit+(fac.note?'　<span style="font-size:13px;color:#aaa">（'+fac.note+'）</span>':'')+'</div>'+
       (r.ninzu?'<div class="card-meta">'+(fac.fixedCount?'人数：'+r.ninzu+'人':'<span style="font-size:20px;font-weight:600">'+r.ninzu+'人</span>')+'</div>':'')+
       (rental.length?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee">'+rental.map(i=>'<div class="card-meta" style="font-size:13px;color:#633806">'+i.name+(i.qty>1?' × '+i.qty:'')+'　'+(i.price*i.qty).toLocaleString()+'円</div>').join('')+'</div>':'')+
-      totH+linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('');
+      totH+linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
+      (r.memo?'<div class="card-meta" style="font-size:13px;color:#888;margin-top:4px">📝 '+r.memo+'</div>':'');
     c.appendChild(div);
   });
 }
