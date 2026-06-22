@@ -11,7 +11,7 @@
 var DAY_SHEET  = '予約_日帰り';
 var STAY_SHEET = '予約_宿泊';
 var DAY_COLS   = ['日付','施設','コース','時間','名前','人数','予約サイト','メモ','_id','_json'];
-var STAY_COLS  = ['チェックイン','チェックアウト','カテゴリ','棟','名前','人数','予約サイト','メモ','_id','_json'];
+var STAY_COLS  = ['チェックイン','チェックアウト','泊数','カテゴリ','棟','名前','人数','予約サイト','メモ','_id','_json'];
 
 // 施設ID→表示名（スプレッドシートを読みやすく）
 var FAC_LABELS = {
@@ -28,6 +28,15 @@ var SRC_LABELS = {
 };
 function facLabel(id){ return FAC_LABELS[id] || id || ''; }
 function srcLabel(k){ return k ? (SRC_LABELS[k] || k) : ''; }
+// 'YYYY-MM-DD' → '6/13㈯'（曜日は丸囲み）
+function fmtMD(ds){
+  if(!ds) return '';
+  var p = String(ds).split('-');
+  if(p.length < 3) return ds;
+  var dt = new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+  var w = '㈰㈪㈫㈬㈭㈮㈯'.charAt(dt.getDay());
+  return Number(p[1]) + '/' + Number(p[2]) + w;
+}
 
 function doPost(e){
   try{
@@ -68,20 +77,32 @@ function courseLabel(c){
 }
 
 function writeAll(reservations, stays){
-  writeRows(getSheet(DAY_SHEET), DAY_COLS, reservations.map(function(r){
-    return [r.date||'', facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', r.id||'', JSON.stringify(r)];
-  }));
-  writeRows(getSheet(STAY_SHEET), STAY_COLS, stays.map(function(s){
-    return [s.checkin||'', s.checkout||'', s.facGroup||'', (s.facility?facLabel(s.facility):'（棟未選択）'), s.name||'', s.ninzu||'', srcLabel(s.source), s.memo||'', s.id||'', JSON.stringify(s)];
-  }));
+  var days = reservations.slice().sort(function(a,b){
+    return String(a.date||'').localeCompare(String(b.date||'')) || String(a.startTime||'').localeCompare(String(b.startTime||''));
+  });
+  var st = stays.slice().sort(function(a,b){ return String(a.checkin||'').localeCompare(String(b.checkin||'')); });
+  writeRows(getSheet(DAY_SHEET), DAY_COLS, days.map(function(r){
+    return [fmtMD(r.date), facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', r.id||'', JSON.stringify(r)];
+  }), days.map(function(r){ return r.date||''; }));
+  writeRows(getSheet(STAY_SHEET), STAY_COLS, st.map(function(s){
+    return [fmtMD(s.checkin), fmtMD(s.checkout), s.nights||'', s.facGroup||'', (s.facility?facLabel(s.facility):'（棟未選択）'), s.name||'', s.ninzu||'', srcLabel(s.source), s.memo||'', s.id||'', JSON.stringify(s)];
+  }), st.map(function(s){ return s.checkin||''; }));
 }
 
-function writeRows(sh, cols, rows){
+function writeRows(sh, cols, rows, groupKeys){
   sh.clear();
   sh.getRange(1,1,1,cols.length).setValues([cols]).setFontWeight('bold').setBackground('#f0f0f0');
-  if(rows.length) sh.getRange(2,1,rows.length,cols.length).setValues(rows);
-  // _json列は隠す（人が見る用ではないため）
-  sh.hideColumns(cols.length);
+  if(rows.length){
+    sh.getRange(2,1,rows.length,cols.length).setValues(rows);
+    // 日付（グループキー）が変わる行の下に下線を引く
+    if(groupKeys){
+      for(var i=0;i<rows.length;i++){
+        var isLast = (i === rows.length-1) || (groupKeys[i] !== groupKeys[i+1]);
+        if(isLast){ sh.getRange(2+i,1,1,cols.length).setBorder(null,null,true,null,null,null,'#888888',SpreadsheetApp.BorderStyle.SOLID_MEDIUM); }
+      }
+    }
+  }
+  sh.hideColumns(cols.length); // _json列を隠す
   sh.setFrozenRows(1);
 }
 
