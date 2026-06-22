@@ -251,6 +251,11 @@ textarea{resize:vertical;min-height:60px}
       <div id="cal-title" style="flex:1;text-align:center;font-size:16px;font-weight:600"></div>
       <button class="btn-sm" onclick="calNext()">＞</button>
     </div>
+    <div style="display:flex;gap:6px;margin:0 4px 8px;justify-content:center">
+      <button class="btn-sm" id="calf-all" onclick="setCalFilter('all')">全て</button>
+      <button class="btn-sm" id="calf-day" onclick="setCalFilter('day')">日帰り</button>
+      <button class="btn-sm" id="calf-stay" onclick="setCalFilter('stay')">宿泊</button>
+    </div>
     <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px"></div>
     <div id="cal-detail" style="padding:0 4px;margin-top:4px"></div>
   </div>
@@ -1644,6 +1649,11 @@ function copyHandover(){
 
 // ---- カレンダー ----
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calSelDate=null;
+let calFilter='all';
+// カレンダー略称・カテゴリ順（日帰り→宿泊）
+const CAL_DAY_ABBR={walk:{abbr:'空ウォ',color:'#224466',order:1},tree:{abbr:'ツリ昼',color:'#633806',order:2},bbq:{abbr:'BBQ',color:'#555',order:3}};
+const CAL_STAY_ABBR={'ツリーハウス':{abbr:'ツリ泊',color:'#7a1030',order:4},'透明ドーム':{abbr:'ドーム',color:'#9b3060',order:5},'空中テント':{abbr:'テント',color:'#c05080',order:6},'空中ハンモック':{abbr:'ハンモ',color:'#d07090',order:7}};
+function setCalFilter(f){calFilter=f;renderCal();}
 
 function initCal(){calYear=new Date().getFullYear();calMonth=new Date().getMonth();calSelDate=null;renderCal();}
 function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCal();}
@@ -1674,31 +1684,8 @@ function renderCal(){
   const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
   for(let i=0;i<first;i++){grid.appendChild(document.createElement('div'));}
 
-  // 施設ラベル定義（順番固定）
-  const FAC_LABELS=[
-    {key:'st_th',  label:'ツリー宿泊', type:'stay'},
-    {key:'st_dm',  label:'ドーム宿泊', type:'stay'},
-    {key:'st_dt',  label:'ドーム宿泊', type:'stay'},
-    {key:'st_dg',  label:'ドーム宿泊', type:'stay'},
-    {key:'st_t1',  label:'テント宿泊', type:'stay'},
-    {key:'st_t2',  label:'テント宿泊', type:'stay'},
-    {key:'st_t3',  label:'テント宿泊', type:'stay'},
-    {key:'st_h1', label:'ハンモック宿泊',type:'stay'},
-    {key:'st_h2', label:'ハンモック宿泊',type:'stay'},
-    {key:'walk',   label:'空中ウォーク',  type:'day'},
-    {key:'tree',   label:'ツリー昼',      type:'day'},
-    {key:'bbq',    label:'BBQ',           type:'day'},
-  ];
-  // 表示用にグループ集約
-  const DISP_ORDER=[
-    {label:'ツリー宿泊', keys:['st_th'],              color:'#7a1030'},
-    {label:'ドーム',     keys:['st_dm','st_dt','st_dg'],color:'#9b3060'},
-    {label:'テント',     keys:['st_t1','st_t2','st_t3'],color:'#c05080'},
-    {label:'ハンモック', keys:['st_h1','st_h2'],color:'#d07090'},
-    {label:'空中ウォーク',keys:['walk'],              color:'#224466'},
-    {label:'ツリー昼',   keys:['tree'],               color:'#633806'},
-    {label:'BBQ',        keys:['bbq'],                color:'#555'},
-  ];
+  // 絞込ボタンのハイライト
+  ['all','day','stay'].forEach(function(f){var b=document.getElementById('calf-'+f);if(b){var on=calFilter===f;b.style.background=on?'#7a1030':'';b.style.color=on?'#fff':'';b.style.borderColor=on?'#7a1030':'';}});
 
   for(let d=1;d<=daysInMonth;d++){
     const dateStr=getDateStr(calYear,calMonth,d);
@@ -1706,38 +1693,46 @@ function renderCal(){
     const isSel=dateStr===calSelDate;
     const dow=new Date(calYear,calMonth,d).getDay();
 
-    // 件数集計
-    const counts={};
-    reservations.filter(r=>r.date===dateStr).forEach(r=>{counts[r.facility]=(counts[r.facility]||0)+1;});
-    stays.filter(s=>s.checkin<=dateStr&&s.checkout>dateStr).forEach(s=>{counts[s.facility]=(counts[s.facility]||0)+1;});
+    // この日のエントリをカテゴリ順（日帰り→宿泊）で
+    const entries=[];
+    if(calFilter!=='stay'){
+      reservations.filter(r=>r.date===dateStr).forEach(r=>{
+        const ab=CAL_DAY_ABBR[r.facility]; if(!ab)return;
+        entries.push({order:ab.order,color:ab.color,abbr:ab.abbr,time:r.startTime||'',ppl:parseInt(r.ninzu)||0,name:r.name||''});
+      });
+    }
+    if(calFilter!=='day'){
+      stays.filter(s=>s.checkin<=dateStr&&s.checkout>dateStr).forEach(s=>{
+        const grp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
+        const ab=CAL_STAY_ABBR[grp]; if(!ab)return;
+        const ppl=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));
+        entries.push({order:ab.order,color:ab.color,abbr:ab.abbr,time:'',ppl:ppl,name:s.name||''});
+      });
+    }
+    entries.sort((a,b)=>a.order-b.order);
 
     const cell=document.createElement('div');
-    cell.style.cssText='border-radius:6px;padding:3px 2px;cursor:pointer;border:1px solid '+(isSel?'#d06080':'#eee')+';background:'+(isSel?'#fff0f4':isToday?'#f5f5f5':'#fff')+';min-height:80px;vertical-align:top';
-    // 日付
+    cell.style.cssText='border-radius:6px;padding:3px;cursor:pointer;border:1px solid '+(isSel?'#d06080':'#eee')+';background:'+(isSel?'#fff0f4':isToday?'#f7f7f7':'#fff')+';min-height:118px;overflow:hidden';
     const dayDiv=document.createElement('div');
-    dayDiv.style.cssText='font-size:13px;font-weight:600;text-align:center;padding:2px 0;color:'+(isToday?'#fff':dow===0?'#c00':dow===6?'#226':'#111');
-    if(isToday){dayDiv.style.cssText+='background:#111;border-radius:50%;width:22px;height:22px;margin:0 auto;display:flex;align-items:center;justify-content:center';}
+    dayDiv.style.cssText='font-size:13px;font-weight:600;text-align:center;padding:1px 0;margin-bottom:2px;color:'+(isToday?'#fff':dow===0?'#c00':dow===6?'#226':'#111');
+    if(isToday){dayDiv.style.cssText+='background:#111;border-radius:50%;width:22px;height:22px;margin:0 auto 2px;display:flex;align-items:center;justify-content:center';}
     dayDiv.textContent=d;
     cell.appendChild(dayDiv);
-    // 施設ごとの件数
-    DISP_ORDER.forEach(g=>{
-      const cnt=g.keys.reduce((s,k)=>s+(counts[k]||0),0);
-      if(cnt===0)return;
+    const SHOW=5;
+    entries.slice(0,SHOW).forEach(e=>{
+      const tt=e.time?(e.time.slice(-3)===':00'?(parseInt(e.time,10)+'時 '):(e.time+' ')):'';
       const row=document.createElement('div');
-      row.style.cssText='font-size:10px;line-height:1.4;color:'+g.color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-      row.textContent=g.label+' '+cnt;
+      row.style.cssText='font-size:11px;line-height:1.5;color:'+e.color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      row.textContent=e.abbr+' '+tt+(e.ppl?e.ppl+'名 ':'')+e.name;
       cell.appendChild(row);
     });
-    cell.onclick=()=>{
-      calSelDate=dateStr;
-      const hasCnt=Object.values(counts).some(v=>v>0);
-      if(hasCnt){
-        dateFilter=dateStr;
-        switchTab('list',true);
-      }else{
-        renderCal();renderCalDetail(dateStr);
-      }
-    };
+    if(entries.length>SHOW){
+      const more=document.createElement('div');
+      more.style.cssText='font-size:10px;color:#999;text-align:right';
+      more.textContent='＋'+(entries.length-SHOW)+'件';
+      cell.appendChild(more);
+    }
+    cell.onclick=()=>{ calSelDate=dateStr; dateFilter=dateStr; switchTab('list',true); };
     grid.appendChild(cell);
   }
   if(calSelDate)renderCalDetail(calSelDate);
