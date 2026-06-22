@@ -1654,6 +1654,15 @@ let calFilter='all';
 const CAL_DAY_ABBR={walk:{abbr:'空ウ',color:'#224466',order:1},tree:{abbr:'ツ昼',color:'#633806',order:2},bbq:{abbr:'BBQ',color:'#555',order:3}};
 const CAL_STAY_ABBR={'ツリーハウス':{abbr:'ツ泊',color:'#7a1030',order:4},'透明ドーム':{abbr:'ドーム',color:'#9b3060',order:5},'空中テント':{abbr:'テント',color:'#c05080',order:6},'空中ハンモック':{abbr:'ハンモ',color:'#d07090',order:7}};
 function setCalFilter(f){calFilter=f;renderCal();}
+// 火曜定休。例外的に営業する日（臨時営業）を保存
+let specialOpen=ld('yv_special_open')||[];
+function toggleSpecialOpen(ds){
+  const i=specialOpen.indexOf(ds);
+  if(i>=0) specialOpen.splice(i,1); else specialOpen.push(ds);
+  sv('yv_special_open',specialOpen);
+  renderCal();
+  showToast(specialOpen.indexOf(ds)>=0?'臨時営業に設定しました':'定休に戻しました');
+}
 // 日本の祝日（祝日法に基づく計算・1980〜2099想定）。年ごとにキャッシュ
 let _holidayCache={};
 function getHolidays(year){
@@ -1708,7 +1717,7 @@ function renderCal(){
   // 曜日ヘッダー
   ['日','月','火','水','木','金','土'].forEach((h,i)=>{
     const el=document.createElement('div');el.className='cal-head';
-    el.textContent=h;el.style.color=i===0?'#c00':i===6?'#226':'#888';
+    el.textContent=h;el.style.color=i===0?'#c00':i===6?'#1565c0':'#888';
     grid.appendChild(el);
   });
   const first=new Date(calYear,calMonth,1).getDay();
@@ -1743,20 +1752,22 @@ function renderCal(){
     }
     entries.sort((a,b)=>a.order-b.order);
 
-    const cell=document.createElement('div');
-    cell.style.cssText='border-radius:6px;padding:3px;cursor:pointer;border:1px solid '+(isSel?'#d06080':'#eee')+';background:'+(isSel?'#fff0f4':isToday?'#f7f7f7':'#fff')+';min-height:118px;overflow:hidden';
     const hol=holidays[dateStr];
+    const isTue=dow===2, sOpen=specialOpen.indexOf(dateStr)>=0, closed=isTue&&!sOpen;
+    const cell=document.createElement('div');
+    cell.style.cssText='border-radius:6px;padding:2px 1px;cursor:pointer;border:1px solid '+(isSel?'#d06080':'#eee')+';background:'+(isSel?'#fff0f4':isToday?'#f7f7f7':closed?'#f1f1f1':'#fff')+';min-height:118px;overflow:hidden';
     const dayDiv=document.createElement('div');
-    dayDiv.style.cssText='font-size:13px;font-weight:600;text-align:center;padding:1px 0;margin-bottom:2px;color:'+(isToday?'#fff':(dow===0||hol)?'#c00':dow===6?'#226':'#111');
-    if(isToday){dayDiv.style.cssText+='background:#111;border-radius:50%;width:22px;height:22px;margin:0 auto 2px;display:flex;align-items:center;justify-content:center';}
+    dayDiv.style.cssText='font-size:13px;font-weight:600;text-align:center;padding:1px 0;margin-bottom:1px;color:'+(isToday?'#fff':(dow===0||hol)?'#c00':dow===6?'#1565c0':'#111');
+    if(isToday){dayDiv.style.cssText+='background:#111;border-radius:50%;width:22px;height:22px;margin:0 auto 1px;display:flex;align-items:center;justify-content:center';}
     dayDiv.textContent=d;
     cell.appendChild(dayDiv);
-    if(hol){const hn=document.createElement('div');hn.style.cssText='font-size:9px;line-height:1.2;color:#c00;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px';hn.textContent=hol;cell.appendChild(hn);}
+    if(hol){const hn=document.createElement('div');hn.style.cssText='font-size:8px;line-height:1.2;color:#c00;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';hn.textContent=hol;cell.appendChild(hn);}
+    if(isTue){const chip=document.createElement('div');chip.textContent=sOpen?'臨時営業':'定休';chip.style.cssText='font-size:9px;text-align:center;border-radius:5px;margin:1px 0;padding:1px 0;cursor:pointer;'+(sOpen?'background:#e6f4ea;color:#1a7a3a;border:1px solid #9cc8ad':'background:#e8e8e8;color:#888;border:1px solid #ddd');chip.onclick=function(ev){ev.stopPropagation();toggleSpecialOpen(dateStr);};cell.appendChild(chip);}
     const SHOW=5;
     entries.slice(0,SHOW).forEach(e=>{
       const tt=e.time?(e.time.slice(-3)===':00'?(parseInt(e.time,10)+'時'):e.time):'';
       const row=document.createElement('div');
-      row.style.cssText='font-size:11px;line-height:1.5;color:'+e.color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      row.style.cssText='font-size:9px;line-height:1.45;color:'+e.color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
       row.textContent=e.abbr+tt+(e.ppl?e.ppl+'名':'')+e.name;
       cell.appendChild(row);
     });
