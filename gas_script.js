@@ -13,6 +13,22 @@ var STAY_SHEET = '予約_宿泊';
 var DAY_COLS   = ['日付','施設','コース','時間','名前','人数','予約サイト','メモ','_id','_json'];
 var STAY_COLS  = ['チェックイン','チェックアウト','カテゴリ','棟','名前','人数','予約サイト','メモ','_id','_json'];
 
+// 施設ID→表示名（スプレッドシートを読みやすく）
+var FAC_LABELS = {
+  walk:'空中ウォーク', tree:'ツリーハウス昼', bbq:'BBQスペース',
+  st_th:'ツリーハウス',
+  st_dm:'ドーム（ミラー）', st_dt:'ドーム（クリア）', st_dg:'ドーム（グレー）',
+  st_t1:'テント①オレンジ', st_t2:'テント②ホワイト', st_t3:'テント③ベージュ',
+  st_h1:'ハンモック①', st_h2:'ハンモック②'
+};
+var SRC_LABELS = {
+  rakuten:'楽天トラベル', jalan:'じゃらん', sou:'SOUエクスペリエンス',
+  other1:'外部サイト①', other2:'外部サイト②', other3:'外部サイト③',
+  pass_day:'年間パス（昼）', pass_night:'年間パス（夜）'
+};
+function facLabel(id){ return FAC_LABELS[id] || id || ''; }
+function srcLabel(k){ return k ? (SRC_LABELS[k] || k) : ''; }
+
 function doPost(e){
   try{
     var data = JSON.parse(e.postData.contents);
@@ -53,10 +69,10 @@ function courseLabel(c){
 
 function writeAll(reservations, stays){
   writeRows(getSheet(DAY_SHEET), DAY_COLS, reservations.map(function(r){
-    return [r.date||'', r.facility||'', courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', r.source||'', r.memo||'', r.id||'', JSON.stringify(r)];
+    return [r.date||'', facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', r.id||'', JSON.stringify(r)];
   }));
   writeRows(getSheet(STAY_SHEET), STAY_COLS, stays.map(function(s){
-    return [s.checkin||'', s.checkout||'', s.facGroup||'', s.facility||'', s.name||'', s.ninzu||'', s.source||'', s.memo||'', s.id||'', JSON.stringify(s)];
+    return [s.checkin||'', s.checkout||'', s.facGroup||'', (s.facility?facLabel(s.facility):'（棟未選択）'), s.name||'', s.ninzu||'', srcLabel(s.source), s.memo||'', s.id||'', JSON.stringify(s)];
   }));
 }
 
