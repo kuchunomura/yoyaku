@@ -364,13 +364,13 @@ const FKEY='yv_f',RKEY='yv_r',STKEY='yv_st',SKKEY='yv_sk',SNKEY='yv_sn';
 
 const FACILITIES=[
   {id:'walk',label:'空中ウォーク',cls:'aw',badgeCls:'badge-walk',
-   courses:[{min:55,minLabel:'55分'},{min:115,minLabel:'115分'},{min:0,minLabel:'終日'}],
+   courses:[{min:55,minLabel:'55分'},{min:115,minLabel:'115分'},{min:0,minLabel:'1DAY'}],
    prices:{55:2000,115:2500,0:3000},close:'17:00',priceUnit:'人',fixedCount:false},
   {id:'tree',label:'ツリーハウス',cls:'th',badgeCls:'badge-tree',
-   courses:[{min:55,minLabel:'55分'},{min:115,minLabel:'115分'},{min:0,minLabel:'終日'}],
+   courses:[{min:55,minLabel:'55分'},{min:115,minLabel:'115分'},{min:0,minLabel:'1DAY'}],
    prices:{55:2000,115:3000,0:4000},close:'16:00',priceUnit:'人',fixedCount:false},
   {id:'bbq',label:'BBQスペース',cls:'bb',badgeCls:'badge-bbq',
-   courses:[{min:0,minLabel:'終日'}],
+   courses:[{min:0,minLabel:'1DAY'}],
    prices:{0:3000},close:'15:00',fixedEnd:'15:00',priceUnit:'か所',fixedCount:true,note:'受付14時まで'}
 ];
 
@@ -984,7 +984,8 @@ function renderList(){
       ((s.rental||[]).length?'<div style="margin-top:4px">'+s.rental.map(i=>'<div class="card-meta" style="font-size:13px;color:#633806">'+i.name+(i.qty>1?' × '+i.qty:'')+'　'+(i.price*i.qty).toLocaleString()+'円</div>').join('')+'</div>':'')+
       '<div class="card-total">合計　'+grand.toLocaleString()+'円</div>'+
       linkedH+
-      (s.memo?'<div class="card-meta" style="font-size:13px;color:#888;margin-top:4px">'+s.memo+'</div>':'');
+      (s.addr?'<div class="card-meta" style="font-size:13px;color:#666;margin-top:4px">🏠 '+s.addr+'</div>':'')+
+      (s.memo?'<div class="card-meta" style="font-size:13px;color:#888">📝 '+s.memo+'</div>':'');
     c.appendChild(div);
   });
 
@@ -1035,14 +1036,26 @@ function renderList(){
           '<button class="btn-sm btn-danger" data-act="delDay" data-id="'+r.id+'">削除</button>'+
         '</div>'+
       '</div>'+
-      (r.date?'<div style="font-size:13px;color:#888;margin-bottom:2px">'+fmtDate(r.date)+'</div>':'')+
-      '<div class="card-time">'+r.startTime+' 〜 '+end+(fac.note?'　<span style="font-size:13px;font-weight:400;color:#888">（'+fac.note+'）</span>':'')+'</div>'+
-      (r.name?'<div class="card-name">'+r.name+'</div>':'')+
-      '<div class="card-meta">'+(co?(fac.fixedCount?'<span style="font-size:13px;color:#aaa">'+co.minLabel+'</span>　':'<span style="font-size:20px;font-weight:600">'+co.minLabel+'</span>　'):'')+price.toLocaleString()+'円/1'+fac.priceUnit+(fac.note?'　<span style="font-size:13px;color:#aaa">（'+fac.note+'）</span>':'')+'</div>'+
-      (r.ninzu?'<div class="card-meta">'+(fac.fixedCount?'人数：'+r.ninzu+'人':'<span style="font-size:20px;font-weight:600">'+r.ninzu+'人</span>')+'</div>':'')+
+      // 1行目: 日付 時間 1DAY 人数 名前
+      '<div class="card-meta" style="font-size:14px;color:#333;margin-bottom:2px;line-height:1.6">'+
+        (r.date?fmtDate(r.date)+'　':'')+
+        r.startTime+'〜'+end+'　'+
+        (co?'<b>'+co.minLabel+'</b>　':'')+
+        (ninzu>0?'<b>'+ninzu+fac.priceUnit+'</b>　':'')+
+        (r.name?'<b>'+r.name+'</b>':'')+
+        (fac.note?'<span style="font-size:12px;color:#aaa">（'+fac.note+'）</span>':'')+
+      '</div>'+
+      // 金額×人数（改行はここから）
+      (fac.fixedCount
+        ? '<div class="card-meta">'+price.toLocaleString()+'円／'+fac.priceUnit+'</div>'
+        : (ninzu>0
+            ? '<div class="card-meta">'+price.toLocaleString()+'円 × '+ninzu+fac.priceUnit+'</div>'
+            : '<div class="card-meta">'+price.toLocaleString()+'円／'+fac.priceUnit+'</div>'))+
+      totH+
       (rental.length?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee">'+rental.map(i=>'<div class="card-meta" style="font-size:13px;color:#633806">'+i.name+(i.qty>1?' × '+i.qty:'')+'　'+(i.price*i.qty).toLocaleString()+'円</div>').join('')+'</div>':'')+
-      totH+linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
-      (r.memo?'<div class="card-meta" style="font-size:13px;color:#888;margin-top:4px">📝 '+r.memo+'</div>':'');
+      linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
+      (r.addr?'<div class="card-meta" style="font-size:13px;color:#666;margin-top:4px">🏠 '+r.addr+'</div>':'')+
+      (r.memo?'<div class="card-meta" style="font-size:13px;color:#888">📝 '+r.memo+'</div>':'');
     c.appendChild(div);
   });
 }
@@ -1508,12 +1521,10 @@ function importCSV(){
   var parts=sel.split(':'), type=parts[0], facId=parts[1];
   var includeCancel=document.getElementById('csv-include-cancel').checked;
   var fileInput=document.getElementById('csv-file');
-  function buildMemo(addr,amount,status,extra){
+  function buildMemo(status,extra){
     var p=[];
-    if(addr) p.push('住所:'+addr);
-    if(amount) p.push('WP金額:¥'+amount.toLocaleString());
-    if(extra) p.push('備考:'+extra);
     if(/cancel/.test(status)) p.push('★キャンセル');
+    if(extra) p.push(extra);
     return p.join(' / ');
   }
   // 既知項目以外の自由記述（備考・レンタル品など）を集約。電話・メール・同意は除外
@@ -1561,8 +1572,8 @@ function importCSV(){
         [dIdx,cIdx,ninIdx].forEach(function(ii){ if(ii>=0) consumed[ii]=true; });
         rec={ wpId:wpId, id:'r_wp'+wpId, facility:facId, course:parseCourse(cIdx>=0?f[cIdx]:''),
           date:dt.date, startTime:dt.time, name:name, ninzu:String(ninzu), source:source,
-          linkedStayIds:[], linkedDayIds:[], mura:false, discountedPrice:amount,
-          memo:buildMemo(addr,amount,status,leftoverText(f,consumed)), rental:[], customValues:{}, done:false, changed:false, createdAt:Date.now() };
+          linkedStayIds:[], linkedDayIds:[], mura:false, discountedPrice:amount, addr:addr,
+          memo:buildMemo(status,leftoverText(f,consumed)), rental:[], customValues:{}, done:false, changed:false, createdAt:Date.now() };
       } else {
         var dates=[];
         for(var k2=0;k2<f.length;k2++){ var p2=parseWpDateTime(f[k2]); if(p2.date){ dates.push(p2.date); consumed[k2]=true; } }
@@ -1578,8 +1589,8 @@ function importCSV(){
         var fac=getSFac(facId); var unit=fac?getSPrice(fac,adults):0;
         rec={ wpId:wpId, id:'s_wp'+wpId, facility:facId, checkin:checkin, checkout:checkout, nights:nights,
           name:name, ninzu:adults, child:String(children), petCount:petCount, petFee:petCount*3000*nights,
-          unitPrice:unit, totalPpl:adults, source:source, mura:false, rental:[], linkedDayIds:[], bed:bed,
-          memo:buildMemo(addr,amount,status,leftoverText(f,consumed)), done:false, changed:false, createdAt:Date.now() };
+          unitPrice:unit, totalPpl:adults, source:source, mura:false, rental:[], linkedDayIds:[], bed:bed, addr:addr,
+          memo:buildMemo(status,leftoverText(f,consumed)), done:false, changed:false, createdAt:Date.now() };
       }
       var arr = type==='day' ? reservations : stays;
       var exIdx = arr.findIndex(function(x){ return x.wpId===wpId; });
