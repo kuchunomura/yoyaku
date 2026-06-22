@@ -297,6 +297,24 @@ textarea{resize:vertical;min-height:60px}
       <div id="sync-status" style="font-size:12px;color:#555;margin-top:6px"></div>
     </div>
     <div class="separator"></div>
+    <div class="section-title">📥 WordPress予約CSV取込</div>
+    <div style="background:#fff7e6;border:1px solid #e8c878;border-radius:8px;padding:12px;margin-top:4px">
+      <div style="font-size:12px;color:#6b4f20;margin-bottom:8px;line-height:1.6">
+        商品ごとのCSVを選んで取り込みます。文字コードは自動判定（UTF-8/Shift-JIS）。<b>メール・電話は取り込まず</b>、住所は<b>市区町村まで</b>に丸めます。予約IDで<b>重複は自動更新</b>。
+      </div>
+      <label>取込先の施設（このCSVの商品）</label>
+      <select id="csv-fac" style="font-size:13px"></select>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;cursor:pointer;font-weight:normal">
+        <input type="checkbox" id="csv-include-cancel"> キャンセル分も取り込む（既定は除外）
+      </label>
+      <label style="margin-top:8px">CSVファイル</label>
+      <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
+      <div style="font-size:11px;color:#888;margin:6px 0">または↓に貼り付け（スプレッドシートからコピペ可）</div>
+      <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px"></textarea>
+      <button class="btn-primary" style="background:#6b4f20;margin-top:6px" onclick="importCSV()">この施設として取り込む</button>
+      <div id="csv-result" style="font-size:12px;color:#555;margin-top:8px;line-height:1.6"></div>
+    </div>
+    <div class="separator"></div>
     <div class="section-title">新チャットへの引き継ぎ</div>
     <div class="handover-box">
       <div style="font-size:13px;color:#4a2080;font-weight:500;margin-bottom:6px">📋 引き継ぎ手順</div>
@@ -357,17 +375,15 @@ const FACILITIES=[
 ];
 
 const STAY_FACS=[
-  {id:'st_th', label:'ツリーハウス',      group:'ツリーハウス',   maxA:4,maxT:5,pet:'可',          ci:'16:30〜18:00',co:'9:30',    bat:'large',prices:{1:14000,2:12000,3:10000,4:8000}},
-  {id:'st_dm', label:'ドーム（ミラー）',  group:'透明ドーム',     maxA:4,maxT:5,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'large',prices:{1:12000,2:10000,3:8000,4:7000}},
-  {id:'st_dt', label:'ドーム（透明）',    group:'透明ドーム',     maxA:4,maxT:5,pet:'ドーム内ケージ可',ci:'14:00〜16:00',co:'翌10:00',bat:'large',prices:{1:12000,2:10000,3:8000,4:7000}},
-  {id:'st_dg', label:'ドーム（グレー）',  group:'透明ドーム',     maxA:4,maxT:5,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'large',prices:{1:12000,2:10000,3:8000,4:7000}},
-  {id:'st_t1', label:'テント①オレンジ',  group:'空中テント',     maxA:2,maxT:3,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:9000,2:7000}},
-  {id:'st_t2', label:'テント②ホワイト',  group:'空中テント',     maxA:2,maxT:3,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:9000,2:7000}},
-  {id:'st_t3', label:'テント③ベージュ',  group:'空中テント',     maxA:2,maxT:3,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:9000,2:7000}},
-  {id:'st_h1a',label:'①ハンモック大',    group:'空中ハンモック', maxA:3,maxT:5,pet:'ケージ可',    ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:6000,2:5000,3:4000,4:4000,5:4000}},
-  {id:'st_h1b',label:'①ハンモック小',    group:'空中ハンモック', maxA:2,maxT:5,pet:'ケージ可',    ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:6000,2:5000}},
-  {id:'st_h2a',label:'②ハンモック大',    group:'空中ハンモック', maxA:3,maxT:5,pet:'ケージ可',    ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:6000,2:5000,3:4000,4:4000,5:4000}},
-  {id:'st_h2b',label:'②ハンモック小',    group:'空中ハンモック', maxA:2,maxT:5,pet:'ケージ可',    ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:6000,2:5000}},
+  {id:'st_th', label:'ツリーハウス',      group:'ツリーハウス',   maxA:4,maxT:5,pet:'可',          ci:'16:30〜18:00',co:'9:30',    bat:'large',prices:{1:14000,2:12000,3:10000,4:8000,5:8000}},
+  {id:'st_dm', label:'ドーム（ミラー）',  group:'透明ドーム',     maxA:4,maxT:5,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'large',prices:{1:12000,2:10000,3:8000,4:7000,5:7000}},
+  {id:'st_dt', label:'ドーム（クリア）',  group:'透明ドーム',     maxA:4,maxT:5,pet:'ドーム内ケージ可',ci:'14:00〜16:00',co:'翌10:00',bat:'large',prices:{1:12000,2:10000,3:8000,4:7000,5:7000}},
+  {id:'st_dg', label:'ドーム（グレー）',  group:'透明ドーム',     maxA:4,maxT:5,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'large',prices:{1:12000,2:10000,3:8000,4:7000,5:7000}},
+  {id:'st_t1', label:'テント①オレンジ',  group:'空中テント',     maxA:2,maxT:3,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:9000,2:7000,3:7000}},
+  {id:'st_t2', label:'テント②ホワイト',  group:'空中テント',     maxA:2,maxT:3,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:9000,2:7000,3:7000}},
+  {id:'st_t3', label:'テント③ベージュ',  group:'空中テント',     maxA:2,maxT:3,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:9000,2:7000,3:7000}},
+  {id:'st_h1', label:'ハンモック①',      group:'空中ハンモック', maxA:3,maxT:5,pet:'ケージ可',    ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:6000,2:5000,3:4000,4:4000,5:4000}},
+  {id:'st_h2', label:'ハンモック②',      group:'空中ハンモック', maxA:3,maxT:5,pet:'ケージ可',    ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:6000,2:5000,3:4000,4:4000,5:4000}},
 ];
 
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
@@ -409,6 +425,13 @@ function loadStock(){const d=ld(SKKEY);if(d&&typeof d==='object')return d;const 
 function loadSN(){const d=ld(SNKEY);return d||{}}
 
 let fields=loadFields(),reservations=loadReservations(),stays=loadStays(),stock=loadStock(),sn=loadSN();
+// 旧施設ID→新ID移行（ハンモック大小をレジ準拠の①②に統合）
+(function migrateStayFacIds(){
+  const map={st_h1a:'st_h1',st_h1b:'st_h1',st_h2a:'st_h2',st_h2b:'st_h2'};
+  let changed=false;
+  stays.forEach(s=>{if(map[s.facility]){s.facility=map[s.facility];changed=true;}});
+  if(changed)sv(STKEY,stays);
+})();
 let facFilter='all',addFacId='walk',addCourse=55,editId=null,editType='day';
 let rentalSt={},stayRentalSt={};
 let dateFilter=null;
@@ -443,7 +466,7 @@ function switchTab(t,keepDateFilter){
   if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();setTimeout(refreshDateDisps,0);}
   if(t==='stay'){initStay();setTimeout(refreshDateDisps,0);}
   if(t==='cal')initCal();
-  if(t==='settings'){renderSettings();renderStock();loadSNUI();loadGasUrl();}
+  if(t==='settings'){renderSettings();renderStock();loadSNUI();loadGasUrl();renderCsvFacOptions();}
 }
 
 function updDayDateDisp(){
@@ -1408,6 +1431,175 @@ function importData(){
   }catch{showToast('⚠ データの形式が正しくありません','#c00');}
 }
 
+// ==================== WordPress予約CSV取込 ====================
+function renderCsvFacOptions(){
+  var sel=document.getElementById('csv-fac'); if(!sel) return;
+  sel.innerHTML='';
+  var og1=document.createElement('optgroup');og1.label='日帰り';
+  FACILITIES.forEach(function(f){var o=document.createElement('option');o.value='day:'+f.id;o.textContent=f.label;og1.appendChild(o);});
+  sel.appendChild(og1);
+  var og2=document.createElement('optgroup');og2.label='宿泊';
+  STAY_FACS.forEach(function(f){var o=document.createElement('option');o.value='stay:'+f.id;o.textContent=f.label;og2.appendChild(o);});
+  sel.appendChild(og2);
+}
+// 文字コード自動判定（UTF-8優先、化けたらShift_JIS）
+function decodeBytes(buf){
+  var bytes=new Uint8Array(buf);
+  if(bytes.length>=3&&bytes[0]===0xEF&&bytes[1]===0xBB&&bytes[2]===0xBF) bytes=bytes.subarray(3);
+  var utf8='';
+  try{ utf8=new TextDecoder('utf-8',{fatal:false}).decode(bytes); }catch(e){}
+  if(!utf8 || utf8.indexOf('�')!==-1){
+    try{ return new TextDecoder('shift_jis').decode(bytes); }catch(e2){ return utf8; }
+  }
+  return utf8;
+}
+// CSV/TSV トークナイザ（ダブルクォート対応）。タブがあればTSV、無ければCSV
+function parseDelimited(text){
+  var delim = text.indexOf('\t')!==-1 ? '\t' : ',';
+  var rows=[],row=[],field='',inQ=false;
+  for(var i=0;i<text.length;i++){
+    var ch=text[i];
+    if(inQ){ if(ch==='"'){ if(text[i+1]==='"'){field+='"';i++;} else inQ=false; } else field+=ch; }
+    else{
+      if(ch==='"') inQ=true;
+      else if(ch===delim){ row.push(field); field=''; }
+      else if(ch==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else if(ch==='\r'){}
+      else field+=ch;
+    }
+  }
+  if(field!==''||row.length){ row.push(field); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(c){return String(c).trim()!=='';}); });
+}
+function trimAddr(s){ s=String(s||'').trim(); var m=s.match(/^(.*?[市区町村])/); return m?m[1]:s; }
+function parseWpDateTime(s){
+  s=String(s||'');
+  var m=s.match(/(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日/);
+  if(!m) return {date:'',time:''};
+  var dt=m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
+  var t=s.match(/(\d{1,2}):(\d{2})/);
+  return {date:dt, time:t?(('0'+t[1]).slice(-2)+':'+t[2]):''};
+}
+function detectSource(fields){
+  var orig=fields.join(' '), low=orig.toLowerCase();
+  if(low.indexOf('sou')!==-1||orig.indexOf('ソウ')!==-1||orig.indexOf('そう')!==-1) return 'sou';
+  if(orig.indexOf('楽天')!==-1||low.indexOf('rakuten')!==-1) return 'rakuten';
+  if(orig.indexOf('じゃらん')!==-1||low.indexOf('jalan')!==-1) return 'jalan';
+  return '';
+}
+function parseCourse(s){
+  s=String(s||'');
+  if(/1\s*day|1-day|終日|1日|ワンデー/i.test(s)) return 0;
+  if(/11[05]|115|110/.test(s)) return 115;
+  if(/55/.test(s)) return 55;
+  return 0;
+}
+function parseAmount(fields){
+  for(var i=0;i<fields.length;i++){ var f=String(fields[i]); if(/[¥￥]/.test(f)){ var n=parseInt(f.replace(/[^\d]/g,''),10); if(!isNaN(n)) return n; } }
+  return 0;
+}
+function csvFindIdx(fields,re){ for(var i=0;i<fields.length;i++){ if(re.test(String(fields[i]))) return i; } return -1; }
+
+function importCSV(){
+  var res=document.getElementById('csv-result');
+  var sel=document.getElementById('csv-fac').value;
+  if(!sel){ res.style.color='#c00'; res.textContent='⚠ 取込先の施設を選んでください'; return; }
+  var parts=sel.split(':'), type=parts[0], facId=parts[1];
+  var includeCancel=document.getElementById('csv-include-cancel').checked;
+  var fileInput=document.getElementById('csv-file');
+  function buildMemo(addr,amount,status,extra){
+    var p=[];
+    if(addr) p.push('住所:'+addr);
+    if(amount) p.push('WP金額:¥'+amount.toLocaleString());
+    if(extra) p.push('備考:'+extra);
+    if(/cancel/.test(status)) p.push('★キャンセル');
+    return p.join(' / ');
+  }
+  // 既知項目以外の自由記述（備考・レンタル品など）を集約。電話・メール・同意は除外
+  function leftoverText(f,consumed){
+    var out=[];
+    for(var xi=0;xi<f.length;xi++){
+      if(consumed[xi]) continue;
+      var v=String(f[xi]||'').trim();
+      if(!v) continue;
+      if(/同意/.test(v)) continue;
+      if(v.indexOf('@')!==-1) continue;            // メール
+      if(/^[\d\-+()\s]{9,}$/.test(v)) continue;     // 電話
+      out.push(v);
+    }
+    return out.join(' / ');
+  }
+  function proceed(text){
+    if(!text||!text.trim()){ res.style.color='#c00'; res.textContent='⚠ CSVを選択するか貼り付けてください'; return; }
+    var rows=parseDelimited(text);
+    var added=0,updated=0,cancelled=0;
+    rows.forEach(function(f){
+      var wpId=String(f[0]||'').trim();
+      if(!/^\d+$/.test(wpId)) return; // ヘッダー/空行/不正行スキップ
+      var statusIdx=csvFindIdx(f,/^(approved|canceled|cancelled|pending|completed|on-hold)$/i);
+      var status=statusIdx>=0?String(f[statusIdx]).toLowerCase():'approved';
+      if(/cancel/.test(status) && !includeCancel){ cancelled++; return; }
+      var emailIdx=csvFindIdx(f,/@/);
+      var name=emailIdx>0?String(f[emailIdx-1]||'').trim():'';
+      var addrIdx=csvFindIdx(f,/[市区町村]/);
+      var addr=addrIdx>=0?trimAddr(f[addrIdx]):'';
+      var amountIdx=csvFindIdx(f,/[¥￥]/);
+      var phoneIdx=csvFindIdx(f,/^[\d\-+()\s]{9,}$/);
+      var consentIdx=csvFindIdx(f,/同意/);
+      var source=detectSource(f);
+      var amount=parseAmount(f);
+      var consumed={}; consumed[0]=true;
+      [statusIdx,emailIdx,emailIdx-1,addrIdx,amountIdx,phoneIdx,consentIdx].forEach(function(ii){ if(ii>=0) consumed[ii]=true; });
+      var rec;
+      if(type==='day'){
+        var dt={date:'',time:''}, dIdx=-1;
+        for(var k=0;k<f.length;k++){ var p=parseWpDateTime(f[k]); if(p.date){ dt=p; dIdx=k; break; } }
+        var cIdx=csvFindIdx(f,/利用|分|day|終日|minutes/i);
+        var ninIdx=csvFindIdx(f,/人数|名（|名\(|people|persons/i);
+        var ninM=f.join(' ').match(/(\d+)\s*名/); var ninzu=ninM?parseInt(ninM[1],10):1;
+        [dIdx,cIdx,ninIdx].forEach(function(ii){ if(ii>=0) consumed[ii]=true; });
+        rec={ wpId:wpId, id:'r_wp'+wpId, facility:facId, course:parseCourse(cIdx>=0?f[cIdx]:''),
+          date:dt.date, startTime:dt.time, name:name, ninzu:String(ninzu), source:source,
+          linkedStayIds:[], linkedDayIds:[], mura:false, discountedPrice:amount,
+          memo:buildMemo(addr,amount,status,leftoverText(f,consumed)), rental:[], customValues:{}, done:false, changed:false, createdAt:Date.now() };
+      } else {
+        var dates=[];
+        for(var k2=0;k2<f.length;k2++){ var p2=parseWpDateTime(f[k2]); if(p2.date){ dates.push(p2.date); consumed[k2]=true; } }
+        var adIdx=csvFindIdx(f,/Adults?/i), chIdx=csvFindIdx(f,/Children?/i), petIdx=csvFindIdx(f,/ペット連れ/), bedIdx=csvFindIdx(f,/ベッド/);
+        [adIdx,chIdx,petIdx,bedIdx].forEach(function(ii){ if(ii>=0) consumed[ii]=true; });
+        var aM=f.join(' ').match(/Adults?\s*[:：]\s*(\d+)/i); var adults=aM?parseInt(aM[1],10):1;
+        var cM=f.join(' ').match(/Children?\s*[:：]\s*(\d+)/i); var children=cM?parseInt(cM[1],10):0;
+        var checkin=dates[0]||''; var checkout=dates[1]||(checkin?addDays(checkin,1):'');
+        var nights=(checkin&&checkout)?Math.max(1,Math.round((new Date(checkout)-new Date(checkin))/86400000)):1;
+        var petM=f.join(' ').match(/ペット連れ\s*[:：]\s*(\S+)/); var petCount=0;
+        if(petM){ var pn=parseInt(petM[1],10); if(!isNaN(pn)) petCount=pn; }
+        var bed=bedIdx>=0?String(f[bedIdx]).trim():'';
+        var fac=getSFac(facId); var unit=fac?getSPrice(fac,adults):0;
+        rec={ wpId:wpId, id:'s_wp'+wpId, facility:facId, checkin:checkin, checkout:checkout, nights:nights,
+          name:name, ninzu:adults, child:String(children), petCount:petCount, petFee:petCount*3000*nights,
+          unitPrice:unit, totalPpl:adults, source:source, mura:false, rental:[], linkedDayIds:[], bed:bed,
+          memo:buildMemo(addr,amount,status,leftoverText(f,consumed)), done:false, changed:false, createdAt:Date.now() };
+      }
+      var arr = type==='day' ? reservations : stays;
+      var exIdx = arr.findIndex(function(x){ return x.wpId===wpId; });
+      if(exIdx>=0){ rec.done=arr[exIdx].done; rec.changed=arr[exIdx].changed; arr[exIdx]=rec; updated++; }
+      else { arr.push(rec); added++; }
+    });
+    sv(RKEY,reservations); sv(STKEY,stays);
+    res.style.color='#1a7a3a';
+    res.innerHTML='✓ 取込完了：追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'');
+    showToast('✓ CSV取込：追加'+added+'・更新'+updated);
+    document.getElementById('csv-text').value=''; document.getElementById('csv-file').value='';
+    renderList();
+  }
+  if(fileInput.files&&fileInput.files[0]){
+    var fr=new FileReader();
+    fr.onload=function(e){ proceed(decodeBytes(e.target.result)); };
+    fr.onerror=function(){ res.style.color='#c00'; res.textContent='⚠ ファイル読み込みエラー'; };
+    fr.readAsArrayBuffer(fileInput.files[0]);
+  } else { proceed(document.getElementById('csv-text').value); }
+}
+
 function copyHandover(){
   const spec='====================================================\n予約メモアプリ　新チャット引き継ぎ資料\n====================================================\n【アプリ概要】\n奈良県山間部のアウトドア施設（空中ウォーク・日帰りツリーハウス・BBQスペース・宿泊施設11棟）の予約管理アプリ。\nAndroidのChromeで動作するスタンドアロンHTMLファイル（yoyaku.html）。localStorage保存。PWA対応（manifest.json + sw.js）。\n\n【タブ構成】\n一覧 / 宿泊 / 日帰り / カレンダー / 設定\n\n【日帰り施設】\n●空中ウォーク：55分2000円/115分2500円/1DAY3000円、9〜17時（受付〜16時）\n●ツリーハウス（昼）：55分2000円/115分3000円/1DAY4000円、10〜16時（受付〜15時） ※時間帯重複検知あり\n●BBQスペース：1DAY3000円/1か所、10〜15時（受付14時まで）終了時刻固定\n\n【宿泊施設（順：ツリーハウス→ドーム→テント→ハンモック）】\n・ツリーハウス：大人4（計5）、ペット可、CI16:30〜18:00、CO9:30、バッテリー大無料\n  料金：1人14000/2人12000/3人10000/4人8000\n・透明ドーム（ミラー/透明/グレー）：大人4（計5）、透明のみペット可、CI14〜16、CO翌10、バッテリー大無料\n  料金：1人12000/2人10000/3人8000/4人7000\n・空中テント（オレンジ/ホワイト/ベージュ）：大人2（計3）、ペット不可、CI14〜16、CO翌10、バッテリー小無料\n  料金：1人9000/2人7000\n・空中ハンモック（①大/①小/②大/②小）：最大5名、ペット：ケージ可、CI14〜16、CO翌10、バッテリー小無料\n  料金（大）：1人6000/2人5000/3〜5人4000　（小）：1人6000/2人5000\n・ペット料金：3000円/匹/泊\n・ポータブル電源・ランタンは施設ごとに無料付属\n\n【備品レンタル（BBQ・宿泊共通、在庫管理あり）】\n焚火台7/ローテーブル4/チェア・ベンチ5/スキレット＋鍋6/木炭2kg5/ガスコンロ＋ガス3/バーナー1/マッチ5/ランタン5/薪割1/コーヒーセット1/天体望遠鏡2\n折りたたみ内：ポータブル電源大3・小4/ケトル5/飯ごう5/ホットサンドクッカー2/カイト5/火起こし器1/カート5/BBQ焼き網5\n価格：焚火台1500/ローテーブル600/チェア500/スキレット500/木炭500/ガスコンロ900/バーナー1200/マッチ200/ランタン500/薪割800/コーヒー1500/望遠鏡1500/電源大1400/電源小900/ケトル500/飯ごう500/ホットサンド400/カイト500/火起こし600/カート600/焼き網70\n\n【主な機能】\n・日付選択（予約日/チェックイン日）、開始時刻＋コース→終了時刻自動計算\n・ツリーハウス昼：時間帯重複検知（赤表示）\n・宿泊：CI日＋泊数→CO日自動計算（曜日付き）、定員超過・ペット不可警告\n・宿泊「変更」ボタン→「変更済み」赤バッジ（トグル）\n・日帰り↔宿泊の紐付け（双方向）\n・予約サイト選択（楽天/じゃらん/SOU/外部①②③）→メモ自動入力\n・保存成功トースト通知、未入力バリデーション\n・在庫管理：備品ごと在庫設定、残数表示、超過赤表示\n・カレンダー：施設別件数表示、タップで詳細表示\n・設定タブ：カスタム項目/在庫設定/予約サイト名/バックアップ/引き継ぎ\n・子供も大人と同料金（合算して単価決定）\n・localStorageキー：yv_f/yv_r/yv_st/yv_sk/yv_sn\n・PWA対応（manifest.json + sw.js が同フォルダに必要）\n\n====================================================\n新チャットへの依頼文\n====================================================\n予約メモアプリの続きをお願いします。\n上の引き継ぎ資料を読んでください。\n現在のyoyaku.htmlを添付します。\n\n【次にやりたいこと】\n（ここに要望を書いてください）\n====================================================';
   const ta=document.getElementById('import-text');
@@ -1464,10 +1656,8 @@ function renderCal(){
     {key:'st_t1',  label:'テント宿泊', type:'stay'},
     {key:'st_t2',  label:'テント宿泊', type:'stay'},
     {key:'st_t3',  label:'テント宿泊', type:'stay'},
-    {key:'st_h1a', label:'ハンモック宿泊',type:'stay'},
-    {key:'st_h1b', label:'ハンモック宿泊',type:'stay'},
-    {key:'st_h2a', label:'ハンモック宿泊',type:'stay'},
-    {key:'st_h2b', label:'ハンモック宿泊',type:'stay'},
+    {key:'st_h1', label:'ハンモック宿泊',type:'stay'},
+    {key:'st_h2', label:'ハンモック宿泊',type:'stay'},
     {key:'walk',   label:'空中ウォーク',  type:'day'},
     {key:'tree',   label:'ツリー昼',      type:'day'},
     {key:'bbq',    label:'BBQ',           type:'day'},
@@ -1477,7 +1667,7 @@ function renderCal(){
     {label:'ツリー宿泊', keys:['st_th'],              color:'#7a1030'},
     {label:'ドーム',     keys:['st_dm','st_dt','st_dg'],color:'#9b3060'},
     {label:'テント',     keys:['st_t1','st_t2','st_t3'],color:'#c05080'},
-    {label:'ハンモック', keys:['st_h1a','st_h1b','st_h2a','st_h2b'],color:'#d07090'},
+    {label:'ハンモック', keys:['st_h1','st_h2'],color:'#d07090'},
     {label:'空中ウォーク',keys:['walk'],              color:'#224466'},
     {label:'ツリー昼',   keys:['tree'],               color:'#633806'},
     {label:'BBQ',        keys:['bbq'],                color:'#555'},
