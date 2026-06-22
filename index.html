@@ -1755,7 +1755,7 @@ function renderCal(){
     const hol=holidays[dateStr];
     const isTue=dow===2, sOpen=specialOpen.indexOf(dateStr)>=0, closed=isTue&&!sOpen;
     const cell=document.createElement('div');
-    cell.style.cssText='border-radius:6px;padding:2px 1px;cursor:pointer;border:1px solid '+(isSel?'#d06080':'#eee')+';background:'+(isSel?'#fff0f4':isToday?'#f7f7f7':closed?'#f1f1f1':'#fff')+';min-height:118px;overflow:hidden';
+    cell.style.cssText='border-radius:6px;padding:2px 1px;cursor:pointer;border:1px solid '+(isSel?'#d06080':'#eee')+';background:'+(isSel?'#fff0f4':isToday?'#f7f7f7':'#fff')+';min-height:118px;overflow:hidden';
     const dayDiv=document.createElement('div');
     dayDiv.style.cssText='font-size:13px;font-weight:600;text-align:center;padding:1px 0;margin-bottom:1px;color:'+(isToday?'#fff':(dow===0||hol)?'#c00':dow===6?'#1565c0':'#111');
     if(isToday){dayDiv.style.cssText+='background:#111;border-radius:50%;width:22px;height:22px;margin:0 auto 1px;display:flex;align-items:center;justify-content:center';}
