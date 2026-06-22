@@ -1768,7 +1768,7 @@ function renderCal(){
       const tt=e.time?(e.time.slice(-3)===':00'?(parseInt(e.time,10)+'時'):e.time):'';
       const row=document.createElement('div');
       row.style.cssText='font-size:9px;line-height:1.45;color:'+e.color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-      row.textContent=e.abbr+tt+(e.ppl?e.ppl+'名':'')+e.name;
+      row.textContent='・'+e.abbr+tt+(e.ppl?e.ppl+'名':'')+e.name;
       cell.appendChild(row);
     });
     if(entries.length>SHOW){
