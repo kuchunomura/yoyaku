@@ -1650,10 +1650,41 @@ function copyHandover(){
 // ---- カレンダー ----
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calSelDate=null;
 let calFilter='all';
-// カレンダー略称・カテゴリ順（日帰り→宿泊）
-const CAL_DAY_ABBR={walk:{abbr:'空ウォ',color:'#224466',order:1},tree:{abbr:'ツリ昼',color:'#633806',order:2},bbq:{abbr:'BBQ',color:'#555',order:3}};
-const CAL_STAY_ABBR={'ツリーハウス':{abbr:'ツリ泊',color:'#7a1030',order:4},'透明ドーム':{abbr:'ドーム',color:'#9b3060',order:5},'空中テント':{abbr:'テント',color:'#c05080',order:6},'空中ハンモック':{abbr:'ハンモ',color:'#d07090',order:7}};
+// カレンダー略称・カテゴリ順（日帰り→宿泊）。狭いので短縮・スペース無し
+const CAL_DAY_ABBR={walk:{abbr:'空ウ',color:'#224466',order:1},tree:{abbr:'ツ昼',color:'#633806',order:2},bbq:{abbr:'BBQ',color:'#555',order:3}};
+const CAL_STAY_ABBR={'ツリーハウス':{abbr:'ツ泊',color:'#7a1030',order:4},'透明ドーム':{abbr:'ドーム',color:'#9b3060',order:5},'空中テント':{abbr:'テント',color:'#c05080',order:6},'空中ハンモック':{abbr:'ハンモ',color:'#d07090',order:7}};
 function setCalFilter(f){calFilter=f;renderCal();}
+// 日本の祝日（祝日法に基づく計算・1980〜2099想定）。年ごとにキャッシュ
+let _holidayCache={};
+function getHolidays(year){
+  if(_holidayCache[year]) return _holidayCache[year];
+  const h={};
+  const fmt=(y,m,d)=>y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  const add=(m,d,n)=>{h[fmt(year,m,d)]=n;};
+  const nthMon=(m,n)=>{const first=new Date(year,m-1,1).getDay();return 1+((1-first+7)%7)+(n-1)*7;};
+  add(1,1,'元日');
+  add(1,nthMon(1,2),'成人の日');
+  add(2,11,'建国記念の日');
+  add(2,23,'天皇誕生日');
+  add(3,Math.floor(20.8431+0.242194*(year-1980)-Math.floor((year-1980)/4)),'春分の日');
+  add(4,29,'昭和の日');
+  add(5,3,'憲法記念日');
+  add(5,4,'みどりの日');
+  add(5,5,'こどもの日');
+  add(7,nthMon(7,3),'海の日');
+  add(8,11,'山の日');
+  add(9,nthMon(9,3),'敬老の日');
+  add(9,Math.floor(23.2488+0.242194*(year-1980)-Math.floor((year-1980)/4)),'秋分の日');
+  add(10,nthMon(10,2),'スポーツの日');
+  add(11,3,'文化の日');
+  add(11,23,'勤労感謝の日');
+  // 振替休日：日曜と重なる祝日の次の平日（祝日でない日）
+  Object.keys(h).slice().forEach(ds=>{
+    const p=ds.split('-').map(Number); const dt=new Date(p[0],p[1]-1,p[2]);
+    if(dt.getDay()===0){ let nx=new Date(dt); do{ nx.setDate(nx.getDate()+1); }while(h[fmt(nx.getFullYear(),nx.getMonth()+1,nx.getDate())]); h[fmt(nx.getFullYear(),nx.getMonth()+1,nx.getDate())]='振替休日'; }
+  });
+  _holidayCache[year]=h; return h;
+}
 
 function initCal(){calYear=new Date().getFullYear();calMonth=new Date().getMonth();calSelDate=null;renderCal();}
 function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCal();}
@@ -1686,6 +1717,7 @@ function renderCal(){
 
   // 絞込ボタンのハイライト
   ['all','day','stay'].forEach(function(f){var b=document.getElementById('calf-'+f);if(b){var on=calFilter===f;b.style.background=on?'#7a1030':'';b.style.color=on?'#fff':'';b.style.borderColor=on?'#7a1030':'';}});
+  const holidays=getHolidays(calYear);
 
   for(let d=1;d<=daysInMonth;d++){
     const dateStr=getDateStr(calYear,calMonth,d);
@@ -1713,17 +1745,19 @@ function renderCal(){
 
     const cell=document.createElement('div');
     cell.style.cssText='border-radius:6px;padding:3px;cursor:pointer;border:1px solid '+(isSel?'#d06080':'#eee')+';background:'+(isSel?'#fff0f4':isToday?'#f7f7f7':'#fff')+';min-height:118px;overflow:hidden';
+    const hol=holidays[dateStr];
     const dayDiv=document.createElement('div');
-    dayDiv.style.cssText='font-size:13px;font-weight:600;text-align:center;padding:1px 0;margin-bottom:2px;color:'+(isToday?'#fff':dow===0?'#c00':dow===6?'#226':'#111');
+    dayDiv.style.cssText='font-size:13px;font-weight:600;text-align:center;padding:1px 0;margin-bottom:2px;color:'+(isToday?'#fff':(dow===0||hol)?'#c00':dow===6?'#226':'#111');
     if(isToday){dayDiv.style.cssText+='background:#111;border-radius:50%;width:22px;height:22px;margin:0 auto 2px;display:flex;align-items:center;justify-content:center';}
     dayDiv.textContent=d;
     cell.appendChild(dayDiv);
+    if(hol){const hn=document.createElement('div');hn.style.cssText='font-size:9px;line-height:1.2;color:#c00;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px';hn.textContent=hol;cell.appendChild(hn);}
     const SHOW=5;
     entries.slice(0,SHOW).forEach(e=>{
-      const tt=e.time?(e.time.slice(-3)===':00'?(parseInt(e.time,10)+'時 '):(e.time+' ')):'';
+      const tt=e.time?(e.time.slice(-3)===':00'?(parseInt(e.time,10)+'時'):e.time):'';
       const row=document.createElement('div');
       row.style.cssText='font-size:11px;line-height:1.5;color:'+e.color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-      row.textContent=e.abbr+' '+tt+(e.ppl?e.ppl+'名 ':'')+e.name;
+      row.textContent=e.abbr+tt+(e.ppl?e.ppl+'名':'')+e.name;
       cell.appendChild(row);
     });
     if(entries.length>SHOW){
