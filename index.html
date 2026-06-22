@@ -949,7 +949,15 @@ function renderList(){
   if(!dl.length&&!sl.length){c.innerHTML='<div class="empty">'+(dateFilter?fmtDate(dateFilter)+'の予約はありません':'予約がありません')+'</div>';return;}
 
   sl.forEach(s=>{
-    const fac=getSFac(s.facility);if(!fac)return;
+    const grp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
+    const grpFacs=STAY_FACS.filter(x=>x.group===grp);
+    const fac=getSFac(s.facility)||grpFacs[0];if(!fac)return;
+    const unitToggle=grpFacs.length>1
+      ? '<div style="margin:4px 0;display:flex;flex-wrap:wrap;gap:4px;align-items:center">'+
+          '<span style="font-size:12px;color:#888">棟選択:</span>'+
+          grpFacs.map(u=>'<button class="btn-sm" data-act="setStayUnit" data-id="'+s.id+'" data-unit="'+u.id+'" style="padding:3px 9px;font-size:12px;'+(u.id===s.facility?'background:#7a1030;color:#fff;border-color:#7a1030':'')+'">'+u.label+'</button>').join('')+
+        '</div>'
+      : '';
     const rt=(s.rental||[]).reduce((sum,i)=>sum+i.price*i.qty,0);
     const totalPpl=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));
     const base=s.unitPrice*totalPpl*s.nights;
@@ -964,7 +972,7 @@ function renderList(){
     div.innerHTML=
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
-        '<span style="font-size:12px;font-weight:600;color:#7a1030">'+fac.label+'</span>'+
+        '<span style="font-size:12px;font-weight:600;color:#7a1030">'+(s.facility?fac.label:(grp+'（棟未選択）'))+'</span>'+
         (s.changed?'<span class="badge-changed">変更済み</span>':'')+
         (s.done?'<span class="badge badge-done">対応済み</span>':'')+
         (srcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+srcL+'</span>':'')+
@@ -976,6 +984,7 @@ function renderList(){
           '<button class="btn-sm btn-danger" data-act="delStay" data-id="'+s.id+'">削除</button>'+
         '</div>'+
       '</div>'+
+      unitToggle+
       '<div class="card-time" style="font-size:17px">'+fmtDate(s.checkin)+' 〜 '+fmtDate(s.checkout)+'</div>'+
       '<div class="card-meta" style="font-size:13px;color:#888">'+s.nights+'泊　チェックイン: '+fac.ci+'　チェックアウト: '+fac.co+'</div>'+
       (s.name?'<div class="card-name">'+s.name+'</div>':'')+
@@ -1062,6 +1071,7 @@ function renderList(){
 
 function toggleDD(id){const r=reservations.find(x=>x.id===id);if(r){r.done=!r.done;sv(RKEY,reservations);renderList();}}
 function toggleSD(id){const s=stays.find(x=>x.id===id);if(s){s.done=!s.done;sv(STKEY,stays);renderList();}}
+function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;const u=getSFac(unitId);if(!u)return;s.facility=unitId;const tp=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));s.unitPrice=getSPrice(u,tp);sv(STKEY,stays);renderList();showToast('棟を「'+u.label+'」に設定');}
 function markChanged(id){const s=stays.find(x=>x.id===id);if(s){s.changed=!s.changed;sv(STKEY,stays);renderList();showToast(s.changed?'変更済みにしました':'変更済みを解除しました',s.changed?'#c00':'#555');}}
 function markChangedDay(id){const r=reservations.find(x=>x.id===id);if(r){r.changed=!r.changed;sv(RKEY,reservations);renderList();showToast(r.changed?'変更済みにしました':'変更済みを解除しました',r.changed?'#c00':'#555');}}
 let _confirmCb=null;
@@ -1452,8 +1462,9 @@ function renderCsvFacOptions(){
   var og1=document.createElement('optgroup');og1.label='日帰り';
   FACILITIES.forEach(function(f){var o=document.createElement('option');o.value='day:'+f.id;o.textContent=f.label;og1.appendChild(o);});
   sel.appendChild(og1);
-  var og2=document.createElement('optgroup');og2.label='宿泊';
-  STAY_FACS.forEach(function(f){var o=document.createElement('option');o.value='stay:'+f.id;o.textContent=f.label;og2.appendChild(o);});
+  var og2=document.createElement('optgroup');og2.label='宿泊（カテゴリー）';
+  var seenG={};
+  STAY_FACS.forEach(function(f){ if(seenG[f.group])return; seenG[f.group]=true; var o=document.createElement('option');o.value='staygroup:'+f.group;o.textContent=f.group;og2.appendChild(o);});
   sel.appendChild(og2);
 }
 // 文字コード自動判定（UTF-8優先、化けたらShift_JIS）
@@ -1586,8 +1597,12 @@ function importCSV(){
         var petM=f.join(' ').match(/ペット連れ\s*[:：]\s*(\S+)/); var petCount=0;
         if(petM){ var pn=parseInt(petM[1],10); if(!isNaN(pn)) petCount=pn; }
         var bed=bedIdx>=0?String(f[bedIdx]).trim():'';
-        var fac=getSFac(facId); var unit=fac?getSPrice(fac,adults):0;
-        rec={ wpId:wpId, id:'s_wp'+wpId, facility:facId, checkin:checkin, checkout:checkout, nights:nights,
+        // facId＝カテゴリー(グループ名)。棟は未割当（1棟しかなければ自動割当）。料金はグループ共通なので代表棟で算出
+        var grpFacsImp=STAY_FACS.filter(function(x){return x.group===facId;});
+        var repFac=grpFacsImp[0];
+        var assignedFac=grpFacsImp.length===1?grpFacsImp[0].id:'';
+        var unit=repFac?getSPrice(repFac,adults):0;
+        rec={ wpId:wpId, id:'s_wp'+wpId, facility:assignedFac, facGroup:facId, checkin:checkin, checkout:checkout, nights:nights,
           name:name, ninzu:adults, child:String(children), petCount:petCount, petFee:petCount*3000*nights,
           unitPrice:unit, totalPpl:adults, source:source, mura:false, rental:[], linkedDayIds:[], bed:bed, addr:addr,
           memo:buildMemo(status,leftoverText(f,consumed)), done:false, changed:false, createdAt:Date.now() };
@@ -1778,6 +1793,7 @@ document.addEventListener('click',function(e){
   else if(act==='openEditStay')openEditStay(id);
   else if(act==='delDay')delDay(id);
   else if(act==='delStay')delStay(id);
+  else if(act==='setStayUnit')setStayUnit(id,btn.dataset.unit);
 });
 
 // PWA無効化
