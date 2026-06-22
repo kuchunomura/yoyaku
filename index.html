@@ -298,7 +298,10 @@ textarea{resize:vertical;min-height:60px}
       <label>GAS WebアプリURL</label>
       <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/..." style="font-size:13px">
       <button class="btn-primary" onclick="saveGasUrl()" style="background:#224466;margin-top:6px;margin-bottom:8px">URLを保存</button>
-      <button class="btn-primary" onclick="syncToSheet()" style="background:#1a7a3a">📊 スプレッドシートへ同期</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn-primary" onclick="syncToSheet()" style="background:#1a7a3a;flex:1">📤 シートへ保存</button>
+        <button class="btn-primary" onclick="loadFromSheet()" style="background:#224466;flex:1">📥 シートから読込</button>
+      </div>
       <div id="sync-status" style="font-size:12px;color:#555;margin-top:6px"></div>
     </div>
     <div class="separator"></div>
@@ -919,7 +922,7 @@ function saveStay(){
     const r=reservations.find(x=>x.id===rid);
     if(r&&!(r.linkedStayIds||[]).includes(sid)){r.linkedStayIds=[...(r.linkedStayIds||[]),sid];}
   });
-  sv(STKEY,stays);sv(RKEY,reservations);stayRentalSt={};
+  sv(STKEY,stays);sv(RKEY,reservations);autoPush();stayRentalSt={};
   ['stay-name','stay-memo'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('stay-ninzu').value='';document.getElementById('stay-child').value='';
   document.getElementById('stay-pet').value='0';document.getElementById('stay-source').value='';
@@ -1074,11 +1077,11 @@ function renderList(){
   });
 }
 
-function toggleDD(id){const r=reservations.find(x=>x.id===id);if(r){r.done=!r.done;sv(RKEY,reservations);renderList();}}
-function toggleSD(id){const s=stays.find(x=>x.id===id);if(s){s.done=!s.done;sv(STKEY,stays);renderList();}}
-function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;const u=getSFac(unitId);if(!u)return;s.facility=unitId;const tp=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));s.unitPrice=getSPrice(u,tp);sv(STKEY,stays);renderList();showToast('棟を「'+u.label+'」に設定');}
-function markChanged(id){const s=stays.find(x=>x.id===id);if(s){s.changed=!s.changed;sv(STKEY,stays);renderList();showToast(s.changed?'変更済みにしました':'変更済みを解除しました',s.changed?'#c00':'#555');}}
-function markChangedDay(id){const r=reservations.find(x=>x.id===id);if(r){r.changed=!r.changed;sv(RKEY,reservations);renderList();showToast(r.changed?'変更済みにしました':'変更済みを解除しました',r.changed?'#c00':'#555');}}
+function toggleDD(id){const r=reservations.find(x=>x.id===id);if(r){r.done=!r.done;sv(RKEY,reservations);autoPush();renderList();}}
+function toggleSD(id){const s=stays.find(x=>x.id===id);if(s){s.done=!s.done;sv(STKEY,stays);autoPush();renderList();}}
+function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;const u=getSFac(unitId);if(!u)return;s.facility=unitId;const tp=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));s.unitPrice=getSPrice(u,tp);sv(STKEY,stays);autoPush();renderList();showToast('棟を「'+u.label+'」に設定');}
+function markChanged(id){const s=stays.find(x=>x.id===id);if(s){s.changed=!s.changed;sv(STKEY,stays);autoPush();renderList();showToast(s.changed?'変更済みにしました':'変更済みを解除しました',s.changed?'#c00':'#555');}}
+function markChangedDay(id){const r=reservations.find(x=>x.id===id);if(r){r.changed=!r.changed;sv(RKEY,reservations);autoPush();renderList();showToast(r.changed?'変更済みにしました':'変更済みを解除しました',r.changed?'#c00':'#555');}}
 let _confirmCb=null;
 function showConfirm(msg,cb){
   _confirmCb=cb;
@@ -1097,8 +1100,8 @@ function confirmCancel(){
   _confirmCb=null;
 }
 
-function delDay(id){showConfirm('この予約を削除しますか？',function(){reservations=reservations.filter(x=>x.id!==id);sv(RKEY,reservations);renderList();});}
-function delStay(id){showConfirm('この予約を削除しますか？',function(){stays=stays.filter(x=>x.id!==id);sv(STKEY,stays);renderList();});}
+function delDay(id){showConfirm('この予約を削除しますか？',function(){reservations=reservations.filter(x=>x.id!==id);sv(RKEY,reservations);autoPush();renderList();});}
+function delStay(id){showConfirm('この予約を削除しますか？',function(){stays=stays.filter(x=>x.id!==id);sv(STKEY,stays);autoPush();renderList();});}
 
 // 日帰り保存
 function renderCFAdd(vals={}){
@@ -1145,7 +1148,7 @@ function saveReservation(){
     const o=reservations.find(x=>x.id===oid);
     if(o&&!(o.linkedDayIds||[]).includes(rid)){o.linkedDayIds=[...(o.linkedDayIds||[]),rid];}
   });
-  sv(RKEY,reservations);sv(STKEY,stays);
+  sv(RKEY,reservations);sv(STKEY,stays);autoPush();
   document.getElementById('add-ninzu').value='';document.getElementById('add-name').value='';document.getElementById('day-date').value='';
   document.getElementById('day-source').value='';
   if(document.getElementById('day-mura'))document.getElementById('day-mura').checked=false;
@@ -1320,7 +1323,7 @@ function saveEdit(){
       .map(item=>({id:item.id,name:item.name,price:item.price,qty:parseInt(document.getElementById('ers_'+item.id).textContent)||1}));
   }
   const v={};fields.forEach(f=>{const el=document.getElementById('ef_'+f.id);if(el)v[f.id]=el.value;});
-  r.customValues=v;sv(RKEY,reservations);sv(STKEY,stays);closeModal();renderList();showToast('日帰り予約を更新しました');
+  r.customValues=v;sv(RKEY,reservations);sv(STKEY,stays);autoPush();closeModal();renderList();showToast('日帰り予約を更新しました');
 }
 
 function saveEditStay(){
@@ -1355,7 +1358,7 @@ function saveEditStay(){
     if(rv&&!(rv.linkedStayIds||[]).includes(s.id))rv.linkedStayIds=[...(rv.linkedStayIds||[]),s.id];
   });
   s.linkedDayIds=newLinked;
-  sv(STKEY,stays);sv(RKEY,reservations);closeModal();renderList();showToast('宿泊予約を更新しました');
+  sv(STKEY,stays);sv(RKEY,reservations);autoPush();closeModal();renderList();showToast('宿泊予約を更新しました');
 }
 
 function closeModal(){document.getElementById('edit-modal').classList.remove('open');document.body.style.overflow='';editId=null;}
@@ -1416,11 +1419,11 @@ function saveGasUrl(){
   sv(GAS_KEY,url);showToast('✓ GAS URLを保存しました');
 }
 
-async function syncToSheet(){
-  const url=ld(GAS_KEY)||(document.getElementById('gas-url').value.trim());
-  if(!url){showToast('⚠ GAS URLを先に設定してください','#c00');return;}
+async function syncToSheet(silent){
+  const url=ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value.trim():'');
+  if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
   const st=document.getElementById('sync-status');
-  st.textContent='同期中...';
+  if(st)st.textContent='同期中...';
   try{
     const res=await fetch(url,{
       method:'POST',
@@ -1429,17 +1432,38 @@ async function syncToSheet(){
     });
     const json=await res.json();
     if(json.status==='ok'){
-      st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 同期完了';
-      showToast('✓ スプレッドシートに同期しました','#1a7a3a');
+      if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 同期完了';
+      if(!silent)showToast('✓ スプレッドシートに同期しました','#1a7a3a');
     }else{
-      st.textContent='⚠ エラー: '+json.message;
-      showToast('⚠ 同期失敗','#c00');
+      if(st)st.textContent='⚠ エラー: '+json.message;
+      if(!silent)showToast('⚠ 同期失敗','#c00');
     }
   }catch(e){
-    st.textContent='⚠ 通信エラー: '+e.message;
-    showToast('⚠ 通信エラー','#c00');
+    if(st)st.textContent='⚠ 通信エラー: '+e.message;
+    if(!silent)showToast('⚠ 通信エラー','#c00');
   }
 }
+// シートから読込（端末間同期）。silent=trueで通知控えめ
+async function loadFromSheet(silent){
+  const url=ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value.trim():'');
+  if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
+  const st=document.getElementById('sync-status');
+  if(st)st.textContent='読み込み中...';
+  try{
+    const res=await fetch(url,{method:'GET',redirect:'follow'});
+    const json=await res.json();
+    if(json.status==='ok'){
+      if(Array.isArray(json.reservations))reservations=json.reservations;
+      if(Array.isArray(json.stays))stays=json.stays;
+      sv(RKEY,reservations);sv(STKEY,stays);
+      if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 読込完了';
+      showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）','#1a7a3a');
+      renderList();
+    }else{ if(st)st.textContent='⚠ エラー: '+json.message; if(!silent)showToast('⚠ 読込失敗','#c00'); }
+  }catch(e){ if(st)st.textContent='⚠ 通信エラー: '+e.message; if(!silent)showToast('⚠ 通信エラー','#c00'); }
+}
+// 変更を自動でシートへ保存（GAS URL未設定なら何もしない）
+function autoPush(){ if(ld(GAS_KEY)) syncToSheet(true); }
 
 function exportData(){
   const data={reservations,stays,fields,stock,sn,exportedAt:new Date().toISOString()};
@@ -1454,7 +1478,7 @@ function importData(){
     const data=JSON.parse(text);
     if(data.reservations)reservations=data.reservations;if(data.stays)stays=data.stays;
     if(data.fields)fields=data.fields;if(data.stock)stock=data.stock;if(data.sn)sn=data.sn;
-    sv(RKEY,reservations);sv(STKEY,stays);sv(FKEY,fields);sv(SKKEY,stock);sv(SNKEY,sn);
+    sv(RKEY,reservations);sv(STKEY,stays);sv(FKEY,fields);sv(SKKEY,stock);sv(SNKEY,sn);autoPush();
     document.getElementById('import-text').value='';showToast('インポート完了しました');
     renderList();renderSettings();renderStock();
   }catch{showToast('⚠ データの形式が正しくありません','#c00');}
@@ -1617,7 +1641,7 @@ function importCSV(){
       if(exIdx>=0){ rec.done=arr[exIdx].done; rec.changed=arr[exIdx].changed; arr[exIdx]=rec; updated++; }
       else { arr.push(rec); added++; }
     });
-    sv(RKEY,reservations); sv(STKEY,stays);
+    sv(RKEY,reservations); sv(STKEY,stays); autoPush();
     res.style.color='#1a7a3a';
     res.innerHTML='✓ 取込完了：追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'');
     showToast('✓ CSV取込：追加'+added+'・更新'+updated);
@@ -1820,6 +1844,8 @@ function renderCalDetail(dateStr){
 
 // 起動
 renderFltTabs();renderList();
+// GAS URL設定済みなら、起動時に最新をシートから取得（端末間同期）
+if(ld(GAS_KEY)) loadFromSheet(true);
 
 // カードボタンのイベントデリゲーション（起動後に登録）
 document.addEventListener('click',function(e){
