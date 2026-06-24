@@ -37,6 +37,29 @@ function fmtMD(ds){
   var w = '㈰㈪㈫㈬㈭㈮㈯'.charAt(dt.getDay());
   return Number(p[1]) + '/' + Number(p[2]) + w;
 }
+// ---- 逆変換（手動編集された読みやすい列 → 内部値）。全角入力も許容 ----
+function toHalf(s){
+  return String(s==null?'':s)
+    .replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0)-0xFEE0); })
+    .replace(/／/g,'/').replace(/：/g,':').replace(/　/g,' ').trim();
+}
+function invMap(m){ var o={}; for(var k in m){ o[m[k]]=k; } return o; }
+var FAC_REV = invMap(FAC_LABELS);
+var SRC_REV = invMap(SRC_LABELS);
+function facId(label){ label=String(label||'').trim(); if(!label || label==='（棟未選択）') return ''; return (FAC_REV[label]!==undefined)?FAC_REV[label]:label; }
+function srcKey(label){ label=String(label||'').trim(); if(!label) return ''; return (SRC_REV[label]!==undefined)?SRC_REV[label]:label; }
+function courseVal(label){ var s=toHalf(label); if(String(label).indexOf('1DAY')>=0||String(label).indexOf('終日')>=0||s.indexOf('1DAY')>=0) return 0; var m=s.match(/(\d+)\s*分/); return m?Number(m[1]):0; }
+function numVal(v){ var s=toHalf(v).replace(/[^\d.]/g,''); var n=parseFloat(s); return isNaN(n)?0:n; }
+// '6/13㈯' / 'YYYY-MM-DD' / Date / 全角 → 'YYYY-MM-DD'。年は元データから推定
+function parseMD(v, yearHint){
+  if(v instanceof Date){ return v.getFullYear()+'-'+('0'+(v.getMonth()+1)).slice(-2)+'-'+('0'+v.getDate()).slice(-2); }
+  var s=toHalf(v); if(!s) return '';
+  if(/^\d{4}-\d{1,2}-\d{1,2}/.test(s)){ var q=s.split('-'); return q[0]+'-'+('0'+q[1]).slice(-2)+'-'+('0'+q[2]).slice(-2); }
+  var m=s.match(/(\d+)\/(\d+)/); if(!m) return String(v||'');
+  var y=yearHint||String(new Date().getFullYear());
+  return y+'-'+('0'+m[1]).slice(-2)+'-'+('0'+m[2]).slice(-2);
+}
+function cell2time(v){ if(v instanceof Date){ return ('0'+v.getHours()).slice(-2)+':'+('0'+v.getMinutes()).slice(-2); } return toHalf(v); }
 
 function doPost(e){
   try{
@@ -121,15 +144,41 @@ function readSheet(name){
   if(!sh) return [];
   var last = sh.getLastRow();
   if(last < 2) return [];
-  var cols = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
-  var ji = cols.indexOf('_json');
-  if(ji < 0) return [];
-  var vals = sh.getRange(2, ji+1, last-1, 1).getValues();
+  var lastCol = sh.getLastColumn();
+  var header = sh.getRange(1,1,1,lastCol).getValues()[0];
+  var idx = {}; for(var h=0;h<header.length;h++){ idx[header[h]] = h; }
+  if(idx['_json'] === undefined) return [];
+  var data = sh.getRange(2,1,last-1,lastCol).getValues();
+  var isDay = (name === DAY_SHEET);
   var out = [];
-  for(var i=0;i<vals.length;i++){
-    var j = vals[i][0];
-    if(!j) continue;
-    try{ out.push(JSON.parse(j)); }catch(e){}
+  for(var i=0;i<data.length;i++){
+    var row = data[i];
+    var obj = {};
+    if(row[idx['_json']]){ try{ obj = JSON.parse(row[idx['_json']]); }catch(e){} }
+    // 読みやすい列の手動編集を内部値へ上書き（全角入力も許容）
+    var yh = String(obj.date || obj.checkin || '').slice(0,4) || undefined;
+    function col(n){ return idx[n]!==undefined ? row[idx[n]] : undefined; }
+    if(isDay){
+      if(idx['日付']!==undefined)     obj.date      = parseMD(col('日付'), yh);
+      if(idx['施設']!==undefined)     obj.facility  = facId(col('施設'));
+      if(idx['コース']!==undefined)   obj.course    = courseVal(col('コース'));
+      if(idx['時間']!==undefined)     obj.startTime = cell2time(col('時間'));
+      if(idx['名前']!==undefined)     obj.name      = String(col('名前')||'');
+      if(idx['人数']!==undefined && String(col('人数'))!=='') obj.ninzu = String(numVal(col('人数')));
+      if(idx['予約サイト']!==undefined) obj.source  = srcKey(col('予約サイト'));
+      if(idx['メモ']!==undefined)     obj.memo      = String(col('メモ')||'');
+    }else{
+      if(idx['チェックイン']!==undefined)   obj.checkin  = parseMD(col('チェックイン'), yh);
+      if(idx['チェックアウト']!==undefined) obj.checkout = parseMD(col('チェックアウト'), yh);
+      if(idx['泊数']!==undefined && String(col('泊数'))!=='') obj.nights = numVal(col('泊数'))||obj.nights;
+      if(idx['カテゴリ']!==undefined) obj.facGroup = String(col('カテゴリ')||'');
+      if(idx['棟']!==undefined)       obj.facility = facId(col('棟'));
+      if(idx['名前']!==undefined)     obj.name     = String(col('名前')||'');
+      if(idx['人数']!==undefined && String(col('人数'))!==''){ obj.ninzu = numVal(col('人数')); obj.totalPpl = obj.ninzu; }
+      if(idx['予約サイト']!==undefined) obj.source = srcKey(col('予約サイト'));
+      if(idx['メモ']!==undefined)     obj.memo     = String(col('メモ')||'');
+    }
+    if(obj.id || obj.wpId || obj.name || obj.date || obj.checkin) out.push(obj);
   }
   return out;
 }
