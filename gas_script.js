@@ -100,7 +100,7 @@ function writeRows(sh, cols, rows, groupKeys){
     // キャンセル行は薄グレー
     if(memoIdx >= 0){
       for(var c=0;c<rows.length;c++){
-        if(String(rows[c][memoIdx]).indexOf('キャンセル') >= 0) sh.getRange(2+c,1,1,cols.length).setBackground('#eeeeee');
+        if(String(rows[c][memoIdx]).indexOf('キャンセル') >= 0) sh.getRange(2+c,1,1,cols.length).setBackground('#f3f3f3').setFontColor('#999999');
       }
     }
     // 日付（グループキー）が変わる行の下に下線を引く

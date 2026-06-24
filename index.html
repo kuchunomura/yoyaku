@@ -966,8 +966,7 @@ function renderList(){
     const childN=parseInt(s.child)||0, petN=s.petCount||0, nm=s.name||'';
     const unitToggle=grpFacs.length>1
       ? '<div style="margin:4px 0;display:flex;flex-wrap:wrap;gap:4px;align-items:center">'+
-          '<span style="font-size:12px;color:#888">棟選択:</span>'+
-          grpFacs.map(u=>'<button class="btn-sm" data-act="setStayUnit" data-id="'+s.id+'" data-unit="'+u.id+'" style="padding:3px 9px;font-size:12px;'+(u.id===s.facility?'background:#7a1030;color:#fff;border-color:#7a1030':'')+'">'+u.label+'</button>').join('')+
+          grpFacs.map(u=>'<button class="btn-sm" data-act="setStayUnit" data-id="'+s.id+'" data-unit="'+u.id+'" style="padding:3px 9px;font-size:12px;'+(u.id===s.facility?'background:#f0dde4;color:#7a1030;border-color:#cda6b6;font-weight:600':'')+'">'+u.label+'</button>').join('')+
         '</div>'
       : '';
     const rt=(s.rental||[]).reduce((sum,i)=>sum+i.price*i.qty,0);
