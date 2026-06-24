@@ -51,6 +51,8 @@ textarea{resize:vertical;min-height:60px}
 .btn-danger{color:#c00;border-color:#fcc}
 .card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
 .card.done{opacity:0.45}
+.date-divider{font-size:14px;font-weight:600;color:#224466;margin:16px 0 8px;padding-bottom:5px;border-bottom:2px solid #cdd8e4}
+.date-divider:first-child{margin-top:0}
 .card-header{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
 .badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px}
 .badge-walk{background:#ddeeff;color:#224466}
@@ -958,6 +960,9 @@ function renderList(){
   dl.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.startTime.localeCompare(b.startTime));
   if(!dl.length&&!sl.length){c.innerHTML='<div class="empty">'+(dateFilter?fmtDate(dateFilter)+'の予約はありません':'予約がありません')+'</div>';return;}
 
+  // 日付が変わったら区切り見出しを入れる（宿泊=checkin／日帰り=date）
+  let lastDate=null;
+  const dateDivider=(d)=>{const dv=document.createElement('div');dv.className='date-divider';dv.textContent=d?fmtMD(d):'日付未定';c.appendChild(dv);};
   const ciCoShown={};
   sl.forEach(s=>{
     const grp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
@@ -1009,9 +1014,11 @@ function renderList(){
       (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">🏠 '+s.addr+'</div>':'')+
       (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">📝 '+s.memo+'</div>':'')+
       (showCiCo?'<div style="text-align:right;font-size:11px;color:#aaa;margin-top:2px">IN '+fac.ci+' ／ OUT '+fac.co+'</div>':'');
+    if(s.checkin!==lastDate){dateDivider(s.checkin);lastDate=s.checkin;}
     c.appendChild(div);
   });
 
+  lastDate=null;
   dl.forEach(r=>{
     const fac=getFac(r.facility);if(!fac)return;
     const end=getEnd(r.startTime,r.course,r.facility);
@@ -1079,6 +1086,7 @@ function renderList(){
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
       (r.addr?'<div class="card-meta" style="font-size:13px;color:#666;margin-top:4px">🏠 '+r.addr+'</div>':'')+
       (r.memo?'<div class="card-meta" style="font-size:13px;color:#888">📝 '+r.memo+'</div>':'');
+    if((r.date||'')!==lastDate){dateDivider(r.date);lastDate=r.date||'';}
     c.appendChild(div);
   });
 }
