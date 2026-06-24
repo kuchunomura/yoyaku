@@ -23,6 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
 .ftab.bb{background:none;border-color:#bbb;color:#555;font-weight:500}
 .ftab.st{background:#ffe0e8;border-color:#d06080;color:#7a1030;font-weight:500}
 .ftab.al{background:#e0eeff;border-color:#88aacc;color:#224466;font-weight:500}
+.ftab.dy{background:#e6f4ea;border-color:#7bbf96;color:#1c5c39;font-weight:500}
 .course-btns{display:flex;gap:6px;margin-bottom:12px}
 .cbtn{flex:1;padding:10px 6px;font-size:11px;cursor:pointer;border:1px solid #bbb;border-radius:8px;background:#ebebeb;color:#777;text-align:center;font-family:inherit;line-height:1.2}
 .cbtn.active{background:#ddeeff;border-color:#88aacc;color:#224466}
@@ -51,8 +52,11 @@ textarea{resize:vertical;min-height:60px}
 .btn-danger{color:#c00;border-color:#fcc}
 .card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
 .card.done{opacity:0.45}
-.date-divider{font-size:14px;font-weight:600;color:#224466;margin:16px 0 8px;padding-bottom:5px;border-bottom:2px solid #cdd8e4}
+.date-divider{font-size:14px;font-weight:600;color:#224466;margin:16px 0 8px;padding-bottom:5px;border-bottom:4px solid #b3c2d4}
 .date-divider:first-child{margin-top:0}
+.addmode-toggle{display:flex;gap:8px;margin-bottom:12px}
+.addmode-toggle button{flex:1;padding:11px;font-size:15px;font-weight:600;border:1px solid #ccc;border-radius:8px;background:#fff;color:#888;cursor:pointer}
+.addmode-toggle button.on{background:#224466;color:#fff;border-color:#224466}
 .card-header{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
 .badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px}
 .badge-walk{background:#ddeeff;color:#224466}
@@ -118,11 +122,10 @@ b,strong,.card-name,.card-total{font-weight:600}
 <body>
 <div id="app">
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('list')">一覧</button>
-    <button class="tab" onclick="switchTab('stay')">宿泊</button>
-    <button class="tab" onclick="switchTab('day')">日帰り</button>
-    <button class="tab" onclick="switchTab('cal')">📅カレンダー</button>
-    <button class="tab" onclick="switchTab('settings')">設定</button>
+    <button class="tab active" data-tab="list" onclick="switchTab('list')">一覧</button>
+    <button class="tab" data-tab="add" onclick="switchTab('day')">＋予約追加</button>
+    <button class="tab" data-tab="cal" onclick="switchTab('cal')">📅カレンダー</button>
+    <button class="tab" data-tab="settings" onclick="switchTab('settings')">設定</button>
   </div>
   <div id="sync-indicator" onclick="loadFromSheet()" title="タップで今すぐ同期" style="font-size:11px;color:#999;text-align:right;padding:2px 10px;cursor:pointer"></div>
 
@@ -133,6 +136,10 @@ b,strong,.card-name,.card-total{font-weight:600}
   </div>
 
   <div id="tab-day" class="tab-content" style="display:none">
+    <div class="addmode-toggle">
+      <button id="addmode-day" class="on" onclick="switchTab('day')">日帰り</button>
+      <button id="addmode-stay" onclick="switchTab('stay')">宿泊</button>
+    </div>
     <div class="facility-tabs" id="fadd-tabs"></div>
     <div id="course-section"></div>
     <label>予約日</label>
@@ -181,7 +188,10 @@ b,strong,.card-name,.card-total{font-weight:600}
   </div>
 
   <div id="tab-stay" class="tab-content" style="display:none">
-    <div style="font-size:14px;font-weight:600;margin-bottom:10px;color:#7a1030">宿泊予約</div>
+    <div class="addmode-toggle">
+      <button id="addmode-day2" onclick="switchTab('day')">日帰り</button>
+      <button id="addmode-stay2" class="on" onclick="switchTab('stay')">宿泊</button>
+    </div>
     <label>施設</label>
     <select id="stay-facility" onchange="onStayFacilityChange()"><option value="">選択してください</option></select>
     <div id="stay-fac-info" style="font-size:12px;color:#666;margin-top:4px;line-height:1.6"></div>
@@ -472,7 +482,8 @@ function showToast(msg,col){
 
 function switchTab(t,keepDateFilter){
   ['list','day','stay','cal','settings'].forEach(x=>document.getElementById('tab-'+x).style.display=x===t?'':'none');
-  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['list','stay','day','cal','settings'][i]===t));
+  const tabGrp=(t==='day'||t==='stay')?'add':t;
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===tabGrp));
   if(t==='list'){if(!keepDateFilter)dateFilter=null;renderList();}
   if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();setTimeout(refreshDateDisps,0);}
   if(t==='stay'){initStay();setTimeout(refreshDateDisps,0);}
@@ -515,6 +526,9 @@ function renderFltTabs(){
   // 全て
   const all=document.createElement('button');all.className='ftab'+(facFilter==='all'?' al':'');
   all.textContent='全て';all.style.flex='0.5';all.onclick=()=>{facFilter='all';renderFltTabs();renderList();};c.appendChild(all);
+  // 日帰り（全日帰り施設）
+  const db=document.createElement('button');db.className='ftab'+(facFilter==='day'?' dy':'');
+  db.textContent='日帰り';db.onclick=()=>{facFilter='day';renderFltTabs();renderList();};c.appendChild(db);
   // 宿泊
   const sb=document.createElement('button');sb.className='ftab'+(facFilter==='stay'?' st':'');
   sb.textContent='宿泊';sb.onclick=()=>{facFilter='stay';renderFltTabs();renderList();};c.appendChild(sb);
@@ -953,9 +967,9 @@ function renderList(){
     sl=sl.filter(s=>s.checkin&&s.checkout&&s.checkin<=dateFilter&&s.checkout>dateFilter);
   }
   // 施設フィルター（日付フィルター中は施設フィルターも併用可）
-  if(facFilter==='stay')dl=[];
+  if(facFilter==='stay'){dl=[];}
+  else if(facFilter==='day'){sl=[];}
   else if(facFilter!=='all'){sl=[];dl=dl.filter(r=>r.facility===facFilter);}
-  if(facFilter!=='all'&&facFilter!=='stay')sl=[];
   sl.sort((a,b)=>a.checkin.localeCompare(b.checkin));
   dl.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.startTime.localeCompare(b.startTime));
   if(!dl.length&&!sl.length){c.innerHTML='<div class="empty">'+(dateFilter?fmtDate(dateFilter)+'の予約はありません':'予約がありません')+'</div>';return;}
@@ -1002,13 +1016,14 @@ function renderList(){
         '</div>'+
       '</div>'+
       unitToggle+
-      // 1行目：日付〜 泊数 人数 名前
-      '<div class="card-meta" style="font-size:14px;color:#333;line-height:1.6;font-weight:600">'+
-        fmtMD(s.checkin)+'〜'+fmtMD(s.checkout)+'　'+s.nights+'泊　'+s.ninzu+'名'+
-        (childN>0?'+子'+childN:'')+(petN>0?'+ペット'+petN:'')+(nm?'　'+nm:'')+
+      // 1行目：日付〜 泊数 人数 名前（右に金額）
+      '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
+        '<span style="font-size:14px;color:#333;font-weight:600">'+
+          fmtMD(s.checkin)+'〜'+fmtMD(s.checkout)+'　'+s.nights+'泊　'+s.ninzu+'名'+
+          (childN>0?'+子'+childN:'')+(petN>0?'+ペット'+petN:'')+(nm?'　'+nm:'')+
+        '</span>'+
+        '<span style="font-size:13px;color:#111">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
       '</div>'+
-      // 2行目：料金（円・人・泊なし）＋ 計◯◯円
-      '<div class="card-meta" style="font-size:13px;color:#111">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</div>'+
       ((s.rental||[]).length?'<div style="margin-top:2px">'+s.rental.map(i=>'<div class="card-meta" style="font-size:12px;color:#633806">'+i.name+(i.qty>1?' × '+i.qty:'')+'　'+(i.price*i.qty).toLocaleString()+'円</div>').join('')+'</div>':'')+
       linkedH+
       (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">🏠 '+s.addr+'</div>':'')+
