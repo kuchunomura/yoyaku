@@ -26,7 +26,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
 .course-btns{display:flex;gap:6px;margin-bottom:12px}
 .cbtn{flex:1;padding:10px 6px;font-size:11px;cursor:pointer;border:1px solid #bbb;border-radius:8px;background:#ebebeb;color:#777;text-align:center;font-family:inherit;line-height:1.2}
 .cbtn.active{background:#ddeeff;border-color:#88aacc;color:#224466}
-.cbtn .mins{display:block;font-size:20px;font-weight:700;font-family:monospace;margin-top:1px;color:inherit}
+.cbtn .mins{display:block;font-size:20px;font-weight:600;font-family:monospace;margin-top:1px;color:inherit}
 .time-display{font-size:20px;font-weight:600;margin:10px 0;color:#111}
 label{font-size:13px;color:#666;display:block;margin-bottom:4px;margin-top:8px}
 input[type=text],input[type=number],input[type=time],textarea{width:100%;padding:10px;font-size:15px;border:1px solid #ccc;border-radius:8px;font-family:inherit;background:#fff;color:#111;-webkit-appearance:none}
@@ -92,7 +92,7 @@ textarea{resize:vertical;min-height:60px}
 .rental-qty span{font-size:15px;font-weight:600;min-width:20px;text-align:center;color:#111}
 .rental-summary{background:#fff;border:1px solid #ddd;border-radius:8px;padding:10px 14px;margin-top:8px}
 .rental-sum-row{font-size:13px;color:#633806;margin-bottom:2px}
-.rental-sum-total{font-size:16px;font-weight:700;color:#633806;margin-top:6px}
+.rental-sum-total{font-size:16px;font-weight:600;color:#633806;margin-top:6px}
 .free-item{font-size:12px;color:#085041;background:#d8f5eb;border-radius:6px;padding:3px 8px;margin-right:4px;margin-bottom:4px;display:inline-block}
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a7a3a;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:200;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
@@ -109,6 +109,8 @@ textarea{resize:vertical;min-height:60px}
 .cal-today .cal-day{background:#111;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
 .cal-selected{background:#fff0f4;border:1px solid #d06080}
 .cal-head{font-size:12px;font-weight:600;text-align:center;color:#888;padding:4px 0}
+/* 太字を少し細く統一（700→600） */
+b,strong,.card-name,.card-total{font-weight:600}
 </style>
 </head>
 <body>
@@ -1045,9 +1047,9 @@ function renderList(){
     }).join('');
     div.innerHTML=
       '<div class="card-header">'+
-        (r.date?'<span style="font-size:13px;font-weight:700;color:#555;margin-right:4px">'+fmtDate(r.date)+'</span>':'')+
+        (r.date?'<span style="font-size:13px;font-weight:600;color:#555;margin-right:4px">'+fmtDate(r.date)+'</span>':'')+
         '<span class="badge '+fac.badgeCls+'">'+fac.label+'</span>'+
-        (co?'<span style="font-size:14px;font-weight:700;color:#333;margin-left:2px">'+co.minLabel+'</span>':'')+
+        (co?'<span style="font-size:14px;font-weight:600;color:#333;margin-left:2px">'+co.minLabel+'</span>':'')+
         (mura?'<span style="font-size:11px;font-weight:600;background:#fff8e8;color:#e67700;border:1px solid #EF9F27;border-radius:20px;padding:2px 8px">村内</span>':'')+
         (isOv?'<span class="badge-overlap">重複</span>':'')+
         (r.changed?'<span class="badge-changed">変更済み</span>':'')+
