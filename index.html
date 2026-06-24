@@ -400,30 +400,28 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 const ALL_ITEMS=[
+  // POSレジ（cat_rental）と同一の品目・金額に統一
   {id:'b01',name:'焚火台セット',price:1500,defStock:7},
-  {id:'b03',name:'ローテーブル',price:800,defStock:4},
-  {id:'b04',name:'チェア・ベンチ',price:500,defStock:5},
   {id:'b02',name:'スキレット＋鍋',price:500,defStock:6},
+  {id:'b03',name:'ローテーブル',price:800,defStock:4},
+  {id:'b04',name:'ベンチ',price:500,defStock:5},
   {id:'b05',name:'木炭 2kg',price:500,defStock:5},
   {id:'b06',name:'ガスコンロ＋ガス',price:1000,defStock:3},
   {id:'b06b',name:'バーナー',price:700,defStock:1},
   {id:'b06c',name:'マッチ 1箱',price:200,defStock:5},
   {id:'b06d',name:'ランタン',price:500,defStock:5},
-  {id:'b07',name:'薪割りセット',price:500,defStock:1},
+  {id:'b07',name:'薪割りセット',price:800,defStock:1},
   {id:'b08',name:'コーヒーセット',price:1500,defStock:1},
-  {id:'b16',name:'寝袋（夏用）',price:1000,defStock:10},
-  {id:'b17',name:'寝袋（冬用）',price:1000,defStock:2},
-  {id:'b15',name:'天体望遠鏡',price:1500,defStock:2},
   {id:'b13',name:'ポータブル電源（大）',price:1400,defStock:3,col:true},
   {id:'b14',name:'ポータブル電源（小）',price:900,defStock:4,col:true},
   {id:'b12',name:'ケトル',price:500,defStock:5,col:true},
   {id:'b12b',name:'飯ごう',price:500,defStock:5,col:true},
   {id:'b12c',name:'ホットサンドクッカー',price:500,defStock:2,col:true},
   {id:'b12d',name:'カイト（凧）',price:500,defStock:5,col:true},
+  {id:'b_toy',name:'玩具使い放題',price:500,defStock:0,col:true},
   {id:'b09',name:'火起こし器',price:500,defStock:1,col:true},
   {id:'b10',name:'カート',price:500,defStock:5,col:true},
   {id:'b_yutanpo',name:'湯たんぽ',price:300,defStock:3,col:true},
-  {id:'b11',name:'BBQ焼き網',price:70,defStock:5,col:true},
 ];
 
 const DEFAULT_FIELDS=[{id:'f_memo',name:'メモ',type:'memo',options:[]}];
@@ -432,7 +430,7 @@ function sv(k,v){localStorage.setItem(k,JSON.stringify(v))}
 function loadFields(){const d=ld(FKEY);return Array.isArray(d)?d:DEFAULT_FIELDS}
 function loadReservations(){const d=ld(RKEY);return Array.isArray(d)?d:[]}
 function loadStays(){const d=ld(STKEY);return Array.isArray(d)?d:[]}
-function loadStock(){const d=ld(SKKEY);if(d&&typeof d==='object')return d;const o={};ALL_ITEMS.forEach(i=>o[i.id]=i.defStock);return o;}
+function loadStock(){const d=ld(SKKEY);const o={};ALL_ITEMS.forEach(i=>o[i.id]=i.defStock);if(d&&typeof d==='object'){for(var k in d)if(o.hasOwnProperty(k))o[k]=d[k];}return o;}
 function loadSN(){const d=ld(SNKEY);return d||{}}
 
 let fields=loadFields(),reservations=loadReservations(),stays=loadStays(),stock=loadStock(),sn=loadSN();
@@ -969,7 +967,7 @@ function renderList(){
     const childN=parseInt(s.child)||0, petN=s.petCount||0, nm=s.name||'';
     const unitToggle=grpFacs.length>1
       ? '<div style="margin:4px 0;display:flex;flex-wrap:wrap;gap:4px;align-items:center">'+
-          grpFacs.map(u=>'<button class="btn-sm" data-act="setStayUnit" data-id="'+s.id+'" data-unit="'+u.id+'" style="padding:3px 9px;font-size:12px;'+(u.id===s.facility?'background:#f0dde4;color:#7a1030;border-color:#cda6b6;font-weight:600':'')+'">'+u.label+'</button>').join('')+
+          grpFacs.map(u=>'<button class="btn-sm" data-act="setStayUnit" data-id="'+s.id+'" data-unit="'+u.id+'" style="padding:3px 9px;font-size:12px;'+(u.id===s.facility?'background:#fbf3f6;color:#9a6a7a;border-color:#ecdde3':'')+'">'+u.label+'</button>').join('')+
         '</div>'
       : '';
     const rt=(s.rental||[]).reduce((sum,i)=>sum+i.price*i.qty,0);
