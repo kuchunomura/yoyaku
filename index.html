@@ -120,6 +120,7 @@ textarea{resize:vertical;min-height:60px}
     <button class="tab" onclick="switchTab('cal')">📅カレンダー</button>
     <button class="tab" onclick="switchTab('settings')">設定</button>
   </div>
+  <div id="sync-indicator" onclick="loadFromSheet()" title="タップで今すぐ同期" style="font-size:11px;color:#999;text-align:right;padding:2px 10px;cursor:pointer"></div>
 
   <div id="tab-list" class="tab-content">
     <div id="date-filter-bar" style="display:none;align-items:center;gap:8px;background:#fff0f4;border:1px solid #d06080;border-radius:8px;padding:8px 12px;margin-bottom:10px"><span style="font-size:14px;font-weight:600;color:#7a1030;flex:1" id="date-filter-label"></span><button class="btn-sm" onclick="clearDateFilter()" style="color:#c00;border-color:#fcc;white-space:nowrap">✕ 絞り込み解除</button></div>
@@ -1421,7 +1422,9 @@ function loadGasUrl(){const v=ld(GAS_KEY);if(v)document.getElementById('gas-url'
 function saveGasUrl(){
   const url=document.getElementById('gas-url').value.trim();
   if(!url){showToast('⚠ URLを入力してください','#c00');return;}
-  sv(GAS_KEY,url);showToast('✓ GAS URLを保存しました');
+  sv(GAS_KEY,url);showToast('✓ GAS URLを保存しました');showLastSync();
+  // ローカルが空の端末（新規）だけ自動で読込。データがある端末は誤上書き防止のため手動(📤/📥)に任せる
+  if((reservations.length+stays.length)===0) loadFromSheet();
 }
 
 async function syncToSheet(silent){
@@ -1438,6 +1441,7 @@ async function syncToSheet(silent){
     const json=await res.json();
     if(json.status==='ok'){
       if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 同期完了';
+      markSync('保存');
       if(!silent)showToast('✓ スプレッドシートに同期しました','#1a7a3a');
     }else{
       if(st)st.textContent='⚠ エラー: '+json.message;
@@ -1462,13 +1466,18 @@ async function loadFromSheet(silent){
       if(Array.isArray(json.stays))stays=json.stays;
       sv(RKEY,reservations);sv(STKEY,stays);
       if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 読込完了';
-      showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）','#1a7a3a');
+      markSync('同期');
+      if(!silent)showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）','#1a7a3a');
       renderList();
     }else{ if(st)st.textContent='⚠ エラー: '+json.message; if(!silent)showToast('⚠ 読込失敗','#c00'); }
   }catch(e){ if(st)st.textContent='⚠ 通信エラー: '+e.message; if(!silent)showToast('⚠ 通信エラー','#c00'); }
 }
 // 変更を自動でシートへ保存（GAS URL未設定なら何もしない）
 function autoPush(){ if(ld(GAS_KEY)) syncToSheet(true); }
+// 最終同期日時の表示
+function fmtNow(){ var d=new Date(); return (d.getMonth()+1)+'/'+d.getDate()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+function markSync(kind){ var txt=kind+' '+fmtNow(); sv('yv_lastsync',txt); var el=document.getElementById('sync-indicator'); if(el) el.textContent='🔄 最終同期 '+txt; }
+function showLastSync(){ var el=document.getElementById('sync-indicator'); if(!el) return; if(!ld(GAS_KEY)){ el.textContent=''; return; } var v=ld('yv_lastsync'); el.textContent = v?('🔄 最終同期 '+v):'🔄 タップで同期'; }
 
 function exportData(){
   const data={reservations,stays,fields,stock,sn,exportedAt:new Date().toISOString()};
@@ -1848,9 +1857,12 @@ function renderCalDetail(dateStr){
 }
 
 // 起動
-renderFltTabs();renderList();
+renderFltTabs();renderList();showLastSync();
 // GAS URL設定済みなら、起動時に最新をシートから取得（端末間同期）
 if(ld(GAS_KEY)) loadFromSheet(true);
+// 自動同期：60秒ごと＋画面に戻ったときにシートから読込（手動編集も自動で反映）
+setInterval(function(){ if(ld(GAS_KEY) && !document.hidden) loadFromSheet(true); }, 60000);
+document.addEventListener('visibilitychange', function(){ if(!document.hidden && ld(GAS_KEY)) loadFromSheet(true); });
 
 // カードボタンのイベントデリゲーション（起動後に登録）
 document.addEventListener('click',function(e){
