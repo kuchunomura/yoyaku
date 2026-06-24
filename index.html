@@ -818,6 +818,7 @@ function normDate(d){
   return d;
 }
 
+function fmtMD(d){ if(!d)return''; const p=String(d).replace(/\//g,'-').split('-'); if(p.length<3)return d; const dt=new Date(+p[0],+p[1]-1,+p[2]); if(isNaN(dt))return d; return (+p[1])+'/'+(+p[2])+'㈰㈪㈫㈬㈭㈮㈯'.charAt(dt.getDay()); }
 function fmtDate(d){
   if(!d)return'';
   const s=String(d).replace(/\//g,'-').trim();
@@ -956,10 +957,13 @@ function renderList(){
   dl.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.startTime.localeCompare(b.startTime));
   if(!dl.length&&!sl.length){c.innerHTML='<div class="empty">'+(dateFilter?fmtDate(dateFilter)+'の予約はありません':'予約がありません')+'</div>';return;}
 
+  const ciCoShown={};
   sl.forEach(s=>{
     const grp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
     const grpFacs=STAY_FACS.filter(x=>x.group===grp);
     const fac=getSFac(s.facility)||grpFacs[0];if(!fac)return;
+    const showCiCo=!ciCoShown[grp];ciCoShown[grp]=true;
+    const childN=parseInt(s.child)||0, petN=s.petCount||0, nm=s.name||'';
     const unitToggle=grpFacs.length>1
       ? '<div style="margin:4px 0;display:flex;flex-wrap:wrap;gap:4px;align-items:center">'+
           '<span style="font-size:12px;color:#888">棟選択:</span>'+
@@ -993,16 +997,18 @@ function renderList(){
         '</div>'+
       '</div>'+
       unitToggle+
-      '<div class="card-time" style="font-size:17px">'+fmtDate(s.checkin)+' 〜 '+fmtDate(s.checkout)+'</div>'+
-      '<div class="card-meta" style="font-size:13px;color:#888">'+s.nights+'泊　チェックイン: '+fac.ci+'　チェックアウト: '+fac.co+'</div>'+
-      (s.name?'<div class="card-name">'+s.name+'</div>':'')+
-      '<div class="card-meta"><span style="font-size:20px;font-weight:600">'+s.ninzu+'人</span>'+(parseInt(s.child)>0?'<span style="font-size:13px;color:#111"> ＋子供(3歳未満)'+s.child+'人</span>':'')+((s.petCount||0)>0?'<span style="font-size:13px;color:#111"> ペット'+s.petCount+'匹</span>':'')+'</div>'+
-      '<div class="card-meta" style="font-size:13px;color:#111">'+s.unitPrice.toLocaleString()+'円/人 × 大人'+s.ninzu+'人 × '+s.nights+'泊'+((s.petFee||0)>0?' ＋ペット'+s.petFee.toLocaleString()+'円':'')+'</div>'+
-      ((s.rental||[]).length?'<div style="margin-top:4px">'+s.rental.map(i=>'<div class="card-meta" style="font-size:13px;color:#633806">'+i.name+(i.qty>1?' × '+i.qty:'')+'　'+(i.price*i.qty).toLocaleString()+'円</div>').join('')+'</div>':'')+
-      '<div class="card-total">合計　'+grand.toLocaleString()+'円</div>'+
+      // 1行目：日付〜 泊数 人数 名前
+      '<div class="card-meta" style="font-size:14px;color:#333;line-height:1.6">'+
+        '<b>'+fmtMD(s.checkin)+'〜'+fmtMD(s.checkout)+'</b>　'+s.nights+'泊　<b>'+s.ninzu+'名</b>'+
+        (childN>0?'+子'+childN:'')+(petN>0?'+ペット'+petN:'')+(nm?'　<b>'+nm+'</b>':'')+
+      '</div>'+
+      // 2行目：料金 ＋ 合計
+      '<div class="card-meta" style="font-size:13px;color:#111">'+s.unitPrice.toLocaleString()+'円/人×'+s.ninzu+'人×'+s.nights+'泊'+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString()+'円':'')+'　<b>合計'+grand.toLocaleString()+'円</b></div>'+
+      ((s.rental||[]).length?'<div style="margin-top:2px">'+s.rental.map(i=>'<div class="card-meta" style="font-size:12px;color:#633806">'+i.name+(i.qty>1?' × '+i.qty:'')+'　'+(i.price*i.qty).toLocaleString()+'円</div>').join('')+'</div>':'')+
       linkedH+
-      (s.addr?'<div class="card-meta" style="font-size:13px;color:#666;margin-top:4px">🏠 '+s.addr+'</div>':'')+
-      (s.memo?'<div class="card-meta" style="font-size:13px;color:#888">📝 '+s.memo+'</div>':'');
+      (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">🏠 '+s.addr+'</div>':'')+
+      (s.memo?'<div class="card-meta" style="font-size:12px;color:#888">📝 '+s.memo+'</div>':'')+
+      (showCiCo?'<div style="text-align:right;font-size:11px;color:#aaa;margin-top:2px">IN '+fac.ci+' ／ OUT '+fac.co+'</div>':'');
     c.appendChild(div);
   });
 

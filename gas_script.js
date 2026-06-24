@@ -91,9 +91,18 @@ function writeAll(reservations, stays){
 
 function writeRows(sh, cols, rows, groupKeys){
   sh.clear();
-  sh.getRange(1,1,1,cols.length).setValues([cols]).setFontWeight('bold').setBackground('#f0f0f0');
+  sh.getRange(1,1,1,cols.length).setValues([cols]).setFontWeight('bold').setBackground('#f0f0f0').setHorizontalAlignment('center');
   if(rows.length){
-    sh.getRange(2,1,rows.length,cols.length).setValues(rows);
+    var rng = sh.getRange(2,1,rows.length,cols.length);
+    rng.setValues(rows).setHorizontalAlignment('center').setVerticalAlignment('middle');
+    var memoIdx = cols.indexOf('メモ');
+    if(memoIdx >= 0) sh.getRange(2, memoIdx+1, rows.length, 1).setHorizontalAlignment('left'); // メモは左寄せ
+    // キャンセル行は薄グレー
+    if(memoIdx >= 0){
+      for(var c=0;c<rows.length;c++){
+        if(String(rows[c][memoIdx]).indexOf('キャンセル') >= 0) sh.getRange(2+c,1,1,cols.length).setBackground('#eeeeee');
+      }
+    }
     // 日付（グループキー）が変わる行の下に下線を引く
     if(groupKeys){
       for(var i=0;i<rows.length;i++){
