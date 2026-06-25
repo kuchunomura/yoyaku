@@ -160,7 +160,7 @@ function onOpen(){
   SpreadsheetApp.getUi().createMenu('予約管理')
     .addItem('キャンセルを非表示にする','menuHideCancelled')
     .addItem('キャンセルを表示する','menuShowCancelled')
-    .addToUI();
+    .addToUi();
 }
 function menuHideCancelled(){ setHideCancelledPref(true); applyCancelVisibilityAll(); SpreadsheetApp.getActive().toast('キャンセル予約を非表示にしました'); }
 function menuShowCancelled(){ setHideCancelledPref(false); applyCancelVisibilityAll(); SpreadsheetApp.getActive().toast('キャンセル予約を表示しました'); }
