@@ -11,7 +11,7 @@
 var DAY_SHEET  = '予約_日帰り';
 var STAY_SHEET = '予約_宿泊';
 var DAY_COLS   = ['日付','施設','コース','時間','名前','人数','予約サイト','メモ','_id','_json'];
-var STAY_COLS  = ['チェックイン','チェックアウト','泊数','カテゴリ','棟','名前','人数','予約サイト','メモ','_id','_json'];
+var STAY_COLS  = ['チェックイン','チェックアウト','泊数','カテゴリ','棟','ベッド','ペット','名前','人数','予約サイト','メモ','_id','_json'];
 
 // 施設ID→表示名（スプレッドシートを読みやすく）
 var FAC_LABELS = {
@@ -28,6 +28,9 @@ var SRC_LABELS = {
 };
 function facLabel(id){ return FAC_LABELS[id] || id || ''; }
 function srcLabel(k){ return k ? (SRC_LABELS[k] || k) : ''; }
+// ベッド構成 ww=ベッド2台 / ws=ベッド1台。表示↔内部コード変換
+function bedLabelG(v){ v=String(v||'').trim(); if(v==='ws'||v==='ベッド1台') return 'ベッド1台'; if(v==='ww'||v==='ベッド2台') return 'ベッド2台'; if(/ソファ|sofa/i.test(v)) return 'ベッド1台'; if(/[2２]/.test(v)) return 'ベッド2台'; if(/[1１]/.test(v)) return 'ベッド1台'; return ''; }
+function bedCodeG(v){ v=String(v||'').trim(); if(v==='ww'||v==='ws') return v; if(v==='ベッド2台') return 'ww'; if(v==='ベッド1台') return 'ws'; if(/ソファ|sofa/i.test(v)) return 'ws'; if(/[2２]/.test(v)) return 'ww'; if(/[1１]/.test(v)) return 'ws'; return ''; }
 // 'YYYY-MM-DD' → '6/13㈯'（曜日は丸囲み）
 function fmtMD(ds){
   if(!ds) return '';
@@ -108,7 +111,7 @@ function writeAll(reservations, stays){
     return [fmtMD(r.date), facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', r.id||'', JSON.stringify(r)];
   }), days.map(function(r){ return r.date||''; }));
   writeRows(getSheet(STAY_SHEET), STAY_COLS, st.map(function(s){
-    return [fmtMD(s.checkin), fmtMD(s.checkout), s.nights||'', s.facGroup||'', (s.facility?facLabel(s.facility):'（棟未選択）'), s.name||'', s.ninzu||'', srcLabel(s.source), s.memo||'', s.id||'', JSON.stringify(s)];
+    return [fmtMD(s.checkin), fmtMD(s.checkout), s.nights||'', s.facGroup||'', (s.facility?facLabel(s.facility):'（棟未選択）'), bedLabelG(s.bed), (s.petCount||''), s.name||'', s.ninzu||'', srcLabel(s.source), s.memo||'', s.id||'', JSON.stringify(s)];
   }), st.map(function(s){ return s.checkin||''; }));
 }
 
@@ -173,6 +176,8 @@ function readSheet(name){
       if(idx['泊数']!==undefined && String(col('泊数'))!=='') obj.nights = numVal(col('泊数'))||obj.nights;
       if(idx['カテゴリ']!==undefined) obj.facGroup = String(col('カテゴリ')||'');
       if(idx['棟']!==undefined)       obj.facility = facId(col('棟'));
+      if(idx['ベッド']!==undefined)   obj.bed      = bedCodeG(col('ベッド'));
+      if(idx['ペット']!==undefined && String(col('ペット'))!==''){ obj.petCount = numVal(col('ペット')); obj.petFee = obj.petCount*3000*(obj.nights||1); }
       if(idx['名前']!==undefined)     obj.name     = String(col('名前')||'');
       if(idx['人数']!==undefined && String(col('人数'))!==''){ obj.ninzu = numVal(col('人数')); obj.totalPpl = obj.ninzu; }
       if(idx['予約サイト']!==undefined) obj.source = srcKey(col('予約サイト'));

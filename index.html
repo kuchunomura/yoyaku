@@ -227,11 +227,11 @@ b,strong,.card-name,.card-total{font-weight:600}
     <div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:#fff;border:1px solid #ddd;border-radius:8px;margin-bottom:4px">
       <div style="display:flex;align-items:center;gap:10px">
         <input type="checkbox" id="bed-ww" style="width:22px;height:22px;cursor:pointer;flex-shrink:0" onchange="onBedChange('ww')">
-        <label for="bed-ww" style="font-size:14px;color:#111;cursor:pointer">Wベッド×2</label>
+        <label for="bed-ww" style="font-size:14px;color:#111;cursor:pointer">ベッド2台</label>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <input type="checkbox" id="bed-ws" style="width:22px;height:22px;cursor:pointer;flex-shrink:0" onchange="onBedChange('ws')">
-        <label for="bed-ws" style="font-size:14px;color:#111;cursor:pointer">Wベッド×1、ソファ×1</label>
+        <label for="bed-ws" style="font-size:14px;color:#111;cursor:pointer">ベッド1台</label>
       </div>
     </div>
     <label>ペット</label>
@@ -345,6 +345,7 @@ b,strong,.card-name,.card-total{font-weight:600}
       <button class="btn-primary" onclick="saveStock()">在庫を保存</button>
     </div>
   </div>
+  <div id="app-version" style="text-align:center;font-size:11px;color:#aaa;padding:12px 0 6px"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -399,9 +400,16 @@ const STAY_FACS=[
 
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
+// アプリのバージョン（更新ごとに+1。コミット数基準で開始）
+const APP_VERSION=33;
+const APP_BUILD_DATE='2026/06/25 10:55';
+
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
-const BED_OPTS=['ベッド2台','ベッド1台'];
+// 内部コード ww=ベッド2台 / ws=ベッド1台。表示は読みやすい文字列に統一
+const BED_LABEL={ww:'ベッド2台',ws:'ベッド1台'};
+function bedCode(v){v=String(v||'').trim();if(v==='ww'||v==='ws')return v;if(v==='ベッド2台')return'ww';if(v==='ベッド1台')return'ws';if(/ソファ|sofa/i.test(v))return'ws';if(/[2２]/.test(v))return'ww';if(/[1１]/.test(v))return'ws';return'';}
+function bedLabel(v){return bedCode(v)==='ws'?'ベッド1台':'ベッド2台';}
 
 const ALL_ITEMS=[
   // POSレジ（cat_rental）と同一の品目・金額に統一
@@ -985,7 +993,7 @@ function renderList(){
     const totalPpl=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));
     const base=s.unitPrice*totalPpl*s.nights;
     const grand=base+(s.petFee||0)+rt;
-    const srcL=s.source?getSrcLabel(s.source):'';
+    const srcL=(s.source||detectOtaFromText(s.memo))?getSrcLabel(s.source||detectOtaFromText(s.memo)):'';
     const linkedH=(s.linkedDayIds||[]).map(lid=>{
       const lr=reservations.find(r=>r.id===lid);if(!lr)return'';
       const lf=getFac(lr.facility);
@@ -996,7 +1004,8 @@ function renderList(){
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
         '<span style="font-size:12px;font-weight:600;color:#7a1030'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grpFacs.length>1?(grp+'（棟未選択）'):(grpFacs[0]?grpFacs[0].label:grp)))+(grpFacs.length>1?' ▾':'')+'</span>'+
-        (BED_GROUPS.includes(grp)?'<span data-act="toggleBed" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#eef3f7;color:#111;border:1px solid #cfe0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🛏 '+(s.bed||BED_OPTS[0])+' ⇄</span>':'')+
+        (BED_GROUPS.includes(grp)?'<span data-act="toggleBed" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#eef3f7;color:#111;border:1px solid #cfe0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🛏 '+bedLabel(s.bed)+' ⇄</span>':'')+
+        '<span data-act="togglePet" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#f3eef7;color:#111;border:1px solid #ddd0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🐾 '+((s.petCount||0)>0?'ペット'+s.petCount:'ペット無')+' ⇄</span>'+
         (s.changed?'<span class="badge-changed">変更済み</span>':'')+
         (s.done?'<span class="badge badge-done">対応済み</span>':'')+
         (srcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+srcL+'</span>':'')+
@@ -1047,7 +1056,7 @@ function renderList(){
       totH='<div class="card-total">合計　'+(price*ninzu).toLocaleString()+'円（'+ninzu+fac.priceUnit+'）</div>';
     }
     const div=document.createElement('div');div.className='card'+(r.done?' done':'');
-    const daySrcL=r.source?getSrcLabel(r.source):'';
+    const daySrcL=(r.source||detectOtaFromText(r.memo))?getSrcLabel(r.source||detectOtaFromText(r.memo)):'';
     const linkedStayH=(r.linkedStayIds||[]).map(sid=>{
       const ls=stays.find(x=>x.id===sid);if(!ls)return'';
       const lf=getSFac(ls.facility);
@@ -1104,7 +1113,11 @@ function toggleSD(id){const s=stays.find(x=>x.id===id);if(s){s.done=!s.done;sv(S
 function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;const u=getSFac(unitId);if(!u)return;s.facility=unitId;const tp=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));s.unitPrice=getSPrice(u,tp);sv(STKEY,stays);autoPush();renderList();showToast('棟を「'+u.label+'」に設定');}
 function toggleUnitSel(id){var el=document.getElementById('unitsel-'+id);if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'flex':'none';}
 // ベッド構成（ドーム・ツリーハウス）。タップで切替
-function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;var cur=s.bed||BED_OPTS[0];var i=BED_OPTS.indexOf(cur);s.bed=BED_OPTS[(i+1)%BED_OPTS.length];sv(STKEY,stays);autoPush();renderList();}
+function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=(bedCode(s.bed)==='ws')?'ww':'ws';sv(STKEY,stays);autoPush();renderList();}
+// メモ等のテキストからOTAを判定（ソウエクスペリ/SOU/じゃらん/楽天）
+function detectOtaFromText(t){t=String(t||'');if(/ソウエクスペリ|そうエクスペリ|sou/i.test(t))return'sou';if(/じゃらん/.test(t))return'jalan';if(/楽天/.test(t))return'rakuten';return'';}
+// ペット数をタップで 0→1→2→3→0 と切替（料金も再計算）
+function togglePet(id){var s=stays.find(x=>x.id===id);if(!s)return;var n=((s.petCount||0)+1)%4;s.petCount=n;s.petFee=n*3000*(s.nights||1);sv(STKEY,stays);autoPush();renderList();}
 function markChanged(id){const s=stays.find(x=>x.id===id);if(s){s.changed=!s.changed;sv(STKEY,stays);autoPush();renderList();showToast(s.changed?'変更済みにしました':'変更済みを解除しました',s.changed?'#c00':'#555');}}
 function markChangedDay(id){const r=reservations.find(x=>x.id===id);if(r){r.changed=!r.changed;sv(RKEY,reservations);autoPush();renderList();showToast(r.changed?'変更済みにしました':'変更済みを解除しました',r.changed?'#c00':'#555');}}
 let _confirmCb=null;
@@ -1266,12 +1279,12 @@ function openEditStay(id){
     '<label>ベッド配置</label>'+
     '<div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:#fff;border:1px solid #ddd;border-radius:8px;margin-bottom:4px">'+
       '<div style="display:flex;align-items:center;gap:10px">'+
-        '<input type="checkbox" id="es-bed-ww" style="width:22px;height:22px;cursor:pointer;flex-shrink:0"'+(s.bed==='ww'?' checked':'')+' onchange="esOnBedChange(\'ww\')">'+
-        '<label for="es-bed-ww" style="font-size:14px;color:#111;cursor:pointer">Wベッド×2</label>'+
+        '<input type="checkbox" id="es-bed-ww" style="width:22px;height:22px;cursor:pointer;flex-shrink:0"'+(bedCode(s.bed)==='ww'?' checked':'')+' onchange="esOnBedChange(\'ww\')">'+
+        '<label for="es-bed-ww" style="font-size:14px;color:#111;cursor:pointer">ベッド2台</label>'+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:10px">'+
-        '<input type="checkbox" id="es-bed-ws" style="width:22px;height:22px;cursor:pointer;flex-shrink:0"'+(s.bed==='ws'?' checked':'')+' onchange="esOnBedChange(\'ws\')">'+
-        '<label for="es-bed-ws" style="font-size:14px;color:#111;cursor:pointer">Wベッド×1、ソファ×1</label>'+
+        '<input type="checkbox" id="es-bed-ws" style="width:22px;height:22px;cursor:pointer;flex-shrink:0"'+(bedCode(s.bed)==='ws'?' checked':'')+' onchange="esOnBedChange(\'ws\')">'+
+        '<label for="es-bed-ws" style="font-size:14px;color:#111;cursor:pointer">ベッド1台</label>'+
       '</div>'+
     '</div>'+
     '<label>ペット</label><select id="es-pet">'+[0,1,2,3].map(n=>'<option value="'+n+'"'+((s.petCount||0)===n?' selected':'')+'>'+( n===0?'なし':n+'匹')+'</option>').join('')+'</select>'+
@@ -1668,7 +1681,7 @@ function importCSV(){
         var unit=repFac?getSPrice(repFac,adults):0;
         rec={ wpId:wpId, id:'s_wp'+wpId, facility:assignedFac, facGroup:facId, checkin:checkin, checkout:checkout, nights:nights,
           name:name, ninzu:adults, child:String(children), petCount:petCount, petFee:petCount*3000*nights,
-          unitPrice:unit, totalPpl:adults, source:source, mura:false, rental:[], linkedDayIds:[], bed:bed, addr:addr,
+          unitPrice:unit, totalPpl:adults, source:source, mura:false, rental:[], linkedDayIds:[], bed:bedCode(bed), addr:addr,
           memo:buildMemo(status,leftoverText(f,consumed)), done:false, changed:false, createdAt:Date.now() };
       }
       var arr = type==='day' ? reservations : stays;
@@ -1879,6 +1892,7 @@ function renderCalDetail(dateStr){
 
 // 起動
 renderFltTabs();renderList();showLastSync();
+(function(){var _av=document.getElementById('app-version');if(_av)_av.textContent='yoyaku v'+APP_VERSION+'　更新 '+APP_BUILD_DATE;})();
 // GAS URL設定済みなら、起動時に最新をシートから取得（端末間同期）
 if(ld(GAS_KEY)) loadFromSheet(true);
 // 自動同期：60秒ごと＋画面に戻ったときにシートから読込（手動編集も自動で反映）
@@ -1900,6 +1914,7 @@ document.addEventListener('click',function(e){
   else if(act==='setStayUnit')setStayUnit(id,btn.dataset.unit);
   else if(act==='toggleUnitSel')toggleUnitSel(id);
   else if(act==='toggleBed')toggleBed(id);
+  else if(act==='togglePet')togglePet(id);
 });
 
 // PWA無効化
