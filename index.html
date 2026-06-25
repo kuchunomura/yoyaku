@@ -146,10 +146,10 @@ b,strong,.card-name,.card-total{font-weight:600}
         <div style="font-size:12px;color:#6b4f20;margin-bottom:8px;line-height:1.6">
           商品ごとのCSVを選んで取り込みます。文字コードは自動判定（UTF-8/Shift-JIS）。<b>メール・電話は取り込まず</b>、住所は<b>市区町村まで</b>に丸めます。予約IDで<b>重複は自動更新</b>。
         </div>
-        <label>取込先の施設（このCSVの商品）</label>
-        <select id="csv-fac" style="font-size:13px"></select>
+        <label>取込先の施設（このCSVの商品）　▼タップで選択</label>
+        <select id="csv-fac" style="font-size:14px;-webkit-appearance:menulist;appearance:menulist;border:1px solid #888;border-radius:6px;padding:8px;background:#fff"></select>
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;cursor:pointer;font-weight:normal">
-          <input type="checkbox" id="csv-include-cancel"> キャンセル分も取り込む（既定は除外）
+          <input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む（既定はあり）
         </label>
         <label style="margin-top:8px">CSVファイル</label>
         <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
@@ -416,8 +416,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=38;
-const APP_BUILD_DATE='2026/06/25 12:12';
+const APP_VERSION=39;
+const APP_BUILD_DATE='2026/06/25 12:20';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1024,9 +1024,9 @@ function renderList(){
     div.innerHTML=
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
-        '<span style="font-size:12px;font-weight:600;color:#7a1030'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grpFacs.length>1?(grp+'（棟未選択）'):(grpFacs[0]?grpFacs[0].label:grp)))+(grpFacs.length>1?' ▾':'')+'</span>'+
-        (BED_GROUPS.includes(grp)?'<span data-act="toggleBed" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#eef3f7;color:#111;border:1px solid #cfe0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🛏 '+bedLabel(s.bed)+'</span>':'')+
-        '<span data-act="togglePet" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#f3eef7;color:#111;border:1px solid #ddd0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🐾 '+((s.petCount||0)>0?'ペット'+s.petCount:'ペット無')+'</span>'+
+        '<span style="font-size:12px;font-weight:600;color:#111'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grpFacs.length>1?(grp+'（棟未選択）'):(grpFacs[0]?grpFacs[0].label:grp)))+(grpFacs.length>1?' ▾':'')+'</span>'+
+        (BED_GROUPS.includes(grp)?'<span data-act="toggleBed" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#f2f2f2;color:#333;border:1px solid #ddd;border-radius:10px;padding:1px 7px;white-space:nowrap">🛏 '+bedLabel(s.bed)+'</span>':'')+
+        '<span data-act="togglePet" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#f2f2f2;color:#333;border:1px solid #ddd;border-radius:10px;padding:1px 7px;white-space:nowrap">🐾 '+((s.petCount||0)>0?'ペット'+s.petCount:'ペット無')+'</span>'+
         (s.changed?'<span class="badge-changed">変更済み</span>':'')+
         (s.done?'<span class="badge badge-done">対応済み</span>':'')+
         (srcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+srcL+'</span>':'')+
@@ -1045,7 +1045,7 @@ function renderList(){
         '</span>'+
         '<span style="font-size:13px;color:#111">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
       '</div>'+
-      ((s.rental||[]).length?'<div style="margin-top:2px">'+s.rental.map(i=>'<div class="card-meta" style="font-size:12px;color:#633806">'+i.name+(i.qty>1?' × '+i.qty:'')+'　'+(i.price*i.qty).toLocaleString()+'円</div>').join('')+'</div>':'')+
+      ((s.rental||[]).length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px">'+s.rental.map(i=>i.name+(i.qty>1?'×'+i.qty:'')).join('、')+'</div>':'')+
       linkedH+
       (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">'+s.memo+'</div>':'')+
       (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+s.addr+'</div>':'')+
