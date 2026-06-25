@@ -102,11 +102,23 @@ function courseLabel(c){
   return '';
 }
 
+// アプリと同じ並び順用：日帰り施設順／宿泊カテゴリ順
+var DAY_FAC_ORDER = { walk:1, tree:0, bbq:2 };
+var STAY_GRP_ORDER = { 'ツリーハウス':0, '透明ドーム':1, '空中テント':2, '空中ハンモック':3 };
+function dayFacOrder(id){ return (DAY_FAC_ORDER[id]==null)?9:DAY_FAC_ORDER[id]; }
+function stayGrpOrder(g){ return (STAY_GRP_ORDER[g]==null)?9:STAY_GRP_ORDER[g]; }
 function writeAll(reservations, stays){
+  // 日付順 → 施設順（ツリーハウス昼→空中ウォーク→BBQ）→ 予約時間順（アプリの一覧と同じ）
   var days = reservations.slice().sort(function(a,b){
-    return String(a.date||'').localeCompare(String(b.date||'')) || String(a.startTime||'').localeCompare(String(b.startTime||''));
+    return String(a.date||'').localeCompare(String(b.date||''))
+      || (dayFacOrder(a.facility) - dayFacOrder(b.facility))
+      || String(a.startTime||'').localeCompare(String(b.startTime||''));
   });
-  var st = stays.slice().sort(function(a,b){ return String(a.checkin||'').localeCompare(String(b.checkin||'')); });
+  // チェックイン順 → カテゴリ順（ツリー→ドーム→テント→ハンモック）
+  var st = stays.slice().sort(function(a,b){
+    return String(a.checkin||'').localeCompare(String(b.checkin||''))
+      || (stayGrpOrder(a.facGroup) - stayGrpOrder(b.facGroup));
+  });
   writeRows(getSheet(DAY_SHEET), DAY_COLS, days.map(function(r){
     return [fmtMD(r.date), facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', (r.done?'✅':''), r.id||'', JSON.stringify(r)];
   }), days.map(function(r){ return r.date||''; }));
