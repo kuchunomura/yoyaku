@@ -973,7 +973,7 @@ function renderList(){
     const showCiCo=!ciCoShown[grp];ciCoShown[grp]=true;
     const childN=parseInt(s.child)||0, petN=s.petCount||0, nm=s.name||'';
     const unitToggle=grpFacs.length>1
-      ? '<div style="margin:4px 0;display:flex;flex-wrap:wrap;gap:4px;align-items:center">'+
+      ? '<div id="unitsel-'+s.id+'" style="display:none;margin:4px 0;flex-wrap:wrap;gap:4px;align-items:center">'+
           grpFacs.map(u=>'<button class="btn-sm" data-act="setStayUnit" data-id="'+s.id+'" data-unit="'+u.id+'" style="padding:3px 9px;font-size:12px;'+(u.id===s.facility?'background:#fbf3f6;color:#9a6a7a;border-color:#ecdde3':'')+'">'+u.label+'</button>').join('')+
         '</div>'
       : '';
@@ -991,7 +991,7 @@ function renderList(){
     div.innerHTML=
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
-        '<span style="font-size:12px;font-weight:600;color:#7a1030">'+(s.facility?fac.label:(grp+'（棟未選択）'))+'</span>'+
+        '<span style="font-size:12px;font-weight:600;color:#7a1030'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grp+'（棟未選択）'))+(grpFacs.length>1?' ▾':'')+'</span>'+
         (s.changed?'<span class="badge-changed">変更済み</span>':'')+
         (s.done?'<span class="badge badge-done">対応済み</span>':'')+
         (srcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+srcL+'</span>':'')+
@@ -1097,6 +1097,7 @@ function renderList(){
 function toggleDD(id){const r=reservations.find(x=>x.id===id);if(r){r.done=!r.done;sv(RKEY,reservations);autoPush();renderList();}}
 function toggleSD(id){const s=stays.find(x=>x.id===id);if(s){s.done=!s.done;sv(STKEY,stays);autoPush();renderList();}}
 function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;const u=getSFac(unitId);if(!u)return;s.facility=unitId;const tp=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));s.unitPrice=getSPrice(u,tp);sv(STKEY,stays);autoPush();renderList();showToast('棟を「'+u.label+'」に設定');}
+function toggleUnitSel(id){var el=document.getElementById('unitsel-'+id);if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'flex':'none';}
 function markChanged(id){const s=stays.find(x=>x.id===id);if(s){s.changed=!s.changed;sv(STKEY,stays);autoPush();renderList();showToast(s.changed?'変更済みにしました':'変更済みを解除しました',s.changed?'#c00':'#555');}}
 function markChangedDay(id){const r=reservations.find(x=>x.id===id);if(r){r.changed=!r.changed;sv(RKEY,reservations);autoPush();renderList();showToast(r.changed?'変更済みにしました':'変更済みを解除しました',r.changed?'#c00':'#555');}}
 let _confirmCb=null;
@@ -1890,6 +1891,7 @@ document.addEventListener('click',function(e){
   else if(act==='delDay')delDay(id);
   else if(act==='delStay')delStay(id);
   else if(act==='setStayUnit')setStayUnit(id,btn.dataset.unit);
+  else if(act==='toggleUnitSel')toggleUnitSel(id);
 });
 
 // PWA無効化
