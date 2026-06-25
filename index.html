@@ -158,6 +158,10 @@ b,strong,.card-name,.card-total{font-weight:600}
         <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px"></textarea>
         <button class="btn-primary" style="background:#6b4f20;margin-top:6px" onclick="importCSV()">この施設として取り込む</button>
         <div id="csv-result" style="font-size:12px;color:#555;margin-top:8px;line-height:1.6"></div>
+        <div style="border-top:1px dashed #ccc;margin-top:12px;padding-top:10px">
+          <div style="font-size:11px;color:#888;margin-bottom:6px">間違って取り込んでしまった時の修正用。上で選んだ施設の<b>CSV取込分のみ</b>を削除します（手入力の予約は消えません）。</div>
+          <button style="background:#fff;border:1px solid #c0392b;color:#c0392b;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600" onclick="delCsvImported()">🗑 選択中の施設のCSV取込分を削除</button>
+        </div>
       </div>
     <div class="separator"></div>
     <div class="section-title">手動予約</div>
@@ -422,8 +426,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=51;
-const APP_BUILD_DATE='2026/06/25 14:02';
+const APP_VERSION=52;
+const APP_BUILD_DATE='2026/06/25 13:45';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1596,12 +1600,12 @@ function importData(){
 function renderCsvFacOptions(){
   var sel=document.getElementById('csv-fac'); if(!sel) return;
   sel.innerHTML='';
-  var og1=document.createElement('optgroup');og1.label='日帰り';
-  FACILITIES.forEach(function(f){var o=document.createElement('option');o.value='day:'+f.id;o.textContent=f.label;og1.appendChild(o);});
+  var og1=document.createElement('optgroup');og1.label='☀ 日帰り（昼）';
+  FACILITIES.forEach(function(f){var o=document.createElement('option');o.value='day:'+f.id;o.textContent=(f.id==='tree'?'ツリーハウス昼（日帰り）':f.label);og1.appendChild(o);});
   sel.appendChild(og1);
-  var og2=document.createElement('optgroup');og2.label='宿泊（カテゴリー）';
+  var og2=document.createElement('optgroup');og2.label='🌙 宿泊';
   var seenG={};
-  STAY_FACS.forEach(function(f){ if(seenG[f.group])return; seenG[f.group]=true; var o=document.createElement('option');o.value='staygroup:'+f.group;o.textContent=f.group;og2.appendChild(o);});
+  STAY_FACS.forEach(function(f){ if(seenG[f.group])return; seenG[f.group]=true; var o=document.createElement('option');o.value='staygroup:'+f.group;o.textContent=f.group+'（宿泊）';og2.appendChild(o);});
   sel.appendChild(og2);
 }
 // 文字コード自動判定（UTF-8優先、化けたらShift_JIS）
@@ -1692,10 +1696,16 @@ function importCSV(){
   function proceed(text){
     if(!text||!text.trim()){ res.style.color='#c00'; res.textContent='⚠ CSVを選択するか貼り付けてください'; return; }
     var rows=parseDelimited(text);
-    var added=0,updated=0,cancelled=0;
+    var added=0,updated=0,cancelled=0,mismatch=0;
+    // 行が「宿泊予約」っぽいか（ベッド情報・連泊・Adults/泊など）／「日帰り」っぽいか（コース時間）を判定
+    function looksStay(f){ var j=f.join(' '); var dc=0; for(var i=0;i<f.length;i++){ if(parseWpDateTime(f[i]).date) dc++; } return /ベッド/.test(j) || /Adults?\s*[:：]/i.test(j) || /泊/.test(j) || dc>=2; }
+    function looksDay(f){ var j=f.join(' '); return /(55|115|110)\s*分|1\s*day|終日|利用時間/i.test(j); }
     rows.forEach(function(f){
       var wpId=String(f[0]||'').trim();
       if(!/^\d+$/.test(wpId)) return; // ヘッダー/空行/不正行スキップ
+      // 施設種別の取り違えチェック：宿泊CSVを日帰りに（またはその逆）取り込もうとしたら弾く
+      if(type==='day' && looksStay(f) && !looksDay(f)){ mismatch++; return; }
+      if(type!=='day' && looksDay(f) && !looksStay(f)){ mismatch++; return; }
       var statusIdx=csvFindIdx(f,/^(approved|canceled|cancelled|pending|completed|on-hold)$/i);
       var status=statusIdx>=0?String(f[statusIdx]).toLowerCase():'approved';
       if(/cancel/.test(status) && !includeCancel){ cancelled++; return; }
@@ -1751,8 +1761,9 @@ function importCSV(){
     });
     sv(RKEY,reservations); sv(STKEY,stays); autoPush();
     res.style.color='#1a7a3a';
-    res.innerHTML='✓ 取込完了：追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'');
-    showToast('✓ CSV取込：追加'+added+'・更新'+updated);
+    res.innerHTML='✓ 取込完了：追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'')
+      +(mismatch?('<div style="color:#c0392b;margin-top:6px;font-weight:600">⚠ '+mismatch+' 件は取込先の種別と一致しないため取り込みませんでした。<br>このCSVは'+(type==='day'?'<b>宿泊</b>予約のようです（ベッド情報・連泊あり）。上の選択を<b>「〇〇（宿泊）」</b>に変えて取り込み直してください。':'<b>日帰り</b>予約のようです（利用時間あり）。上の選択を<b>「☀ 日帰り」</b>の施設に変えてください。')+'</div>'):'');
+    showToast('✓ CSV取込：追加'+added+'・更新'+updated+(mismatch?'（種別不一致'+mismatch+'件除外）':''));
     document.getElementById('csv-text').value=''; document.getElementById('csv-file').value='';
     renderList();
   }
@@ -1762,6 +1773,32 @@ function importCSV(){
     fr.onerror=function(){ res.style.color='#c00'; res.textContent='⚠ ファイル読み込みエラー'; };
     fr.readAsArrayBuffer(fileInput.files[0]);
   } else { proceed(document.getElementById('csv-text').value); }
+}
+
+// 選択中の施設のCSV取込分（wpId付き）だけを削除
+function delCsvImported(){
+  var res=document.getElementById('csv-result');
+  var sel=document.getElementById('csv-fac').value;
+  if(!sel){ if(res){res.style.color='#c00';res.textContent='⚠ 先に対象の施設を選んでください';} return; }
+  var parts=sel.split(':'), type=parts[0], facId=parts[1];
+  var label=document.getElementById('csv-fac').selectedOptions[0].textContent;
+  if(type==='day'){
+    var hit=reservations.filter(function(r){ return r.wpId && r.facility===facId; });
+    if(!hit.length){ if(res){res.style.color='#c00';res.textContent='「'+label+'」のCSV取込分は見つかりませんでした';} return; }
+    if(!confirm('「'+label+'」のCSV取込分 '+hit.length+' 件を削除します。\n手入力の予約は消えません。よろしいですか？')) return;
+    reservations=reservations.filter(function(r){ return !(r.wpId && r.facility===facId); });
+    sv(RKEY,reservations);
+  } else {
+    var hitS=stays.filter(function(s){ return s.wpId && s.facGroup===facId; });
+    if(!hitS.length){ if(res){res.style.color='#c00';res.textContent='「'+label+'」のCSV取込分は見つかりませんでした';} return; }
+    if(!confirm('「'+label+'」のCSV取込分 '+hitS.length+' 件を削除します。\n手入力の予約は消えません。よろしいですか？')) return;
+    stays=stays.filter(function(s){ return !(s.wpId && s.facGroup===facId); });
+    sv(STKEY,stays);
+  }
+  autoPush();
+  if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 「'+label+'」のCSV取込分を削除しました'; }
+  showToast('✓ CSV取込分を削除');
+  renderList();
 }
 
 function copyHandover(){
