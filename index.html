@@ -376,8 +376,13 @@ b,strong,.card-name,.card-total{font-weight:600}
 </div>
 
 <div class="modal-overlay" id="edit-modal">
-  <div class="modal">
-    <div class="modal-title" id="edit-modal-title">予約を編集</div>
+  <div class="modal" id="edit-modal-box">
+    <div id="edit-drag-handle" style="width:42px;height:5px;background:#ccc;border-radius:3px;margin:0 auto 10px"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <div class="modal-title" id="edit-modal-title" style="flex:1;margin:0">予約を編集</div>
+      <button class="btn-sm" onclick="closeModal()">キャンセル</button>
+      <button class="btn-sm" onclick="saveEdit()" style="background:#111;color:#fff;border-color:#111">保存</button>
+    </div>
     <div id="edit-modal-content"></div>
     <div class="modal-actions">
       <button class="btn-sm" onclick="closeModal()">キャンセル</button>
@@ -416,8 +421,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=46;
-const APP_BUILD_DATE='2026/06/25 13:18';
+const APP_VERSION=47;
+const APP_BUILD_DATE='2026/06/25 13:28';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1436,7 +1441,7 @@ function saveEditStay(){
   sv(STKEY,stays);sv(RKEY,reservations);autoPush();closeModal();renderList();showToast('宿泊予約を更新しました');
 }
 
-function closeModal(){document.getElementById('edit-modal').classList.remove('open');document.body.style.overflow='';editId=null;}
+function closeModal(){document.getElementById('edit-modal').classList.remove('open');document.body.style.overflow='';editId=null;var b=document.getElementById('edit-modal-box');if(b)b.style.transform='';}
 
 // 設定
 function renderSettings(){
@@ -1959,6 +1964,15 @@ document.addEventListener('click',function(e){
   else if(act==='togglePetSel')togglePetSel(id);
   else if(act==='toggleWf')toggleWf(id,btn.dataset.wf);
 });
+
+// 編集モーダル：上端から下スワイプで閉じる（一覧に戻る）
+(function(){
+  var box=document.getElementById('edit-modal-box');if(!box)return;
+  var sy=null,active=false;
+  box.addEventListener('touchstart',function(e){ if(box.scrollTop<=0){sy=e.touches[0].clientY;active=true;}else{active=false;} },{passive:true});
+  box.addEventListener('touchmove',function(e){ if(!active)return; var dy=e.touches[0].clientY-sy; if(dy>0)box.style.transform='translateY('+Math.min(dy,140)+'px)'; },{passive:true});
+  box.addEventListener('touchend',function(e){ if(!active)return; var dy=e.changedTouches[0].clientY-sy; box.style.transform=''; if(dy>80)closeModal(); active=false;sy=null; },{passive:true});
+})();
 
 // PWA無効化
 </script>
