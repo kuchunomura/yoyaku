@@ -137,6 +137,8 @@ b,strong,.card-name,.card-total{font-weight:600}
 
   <div id="tab-list" class="tab-content">
     <div id="date-filter-bar" style="display:none;align-items:center;gap:8px;background:#fff0f4;border:1px solid #d06080;border-radius:8px;padding:8px 12px;margin-bottom:10px"><span style="font-size:14px;font-weight:600;color:#7a1030;flex:1" id="date-filter-label"></span><button class="btn-sm" onclick="clearDateFilter()" style="color:#c00;border-color:#fcc;white-space:nowrap">✕ 絞り込み解除</button></div>
+    <div id="list-quickdate" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px"></div>
+    <input id="list-search" type="search" placeholder="🔍 名前・メモ・住所・施設で検索" oninput="onSearchInput(this.value)" style="width:100%;box-sizing:border-box;font-size:14px;padding:8px 10px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;-webkit-appearance:none">
     <div class="facility-tabs" id="flt-tabs"></div>
     <div id="list-container"></div>
   </div>
@@ -426,8 +428,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=55;
-const APP_BUILD_DATE='2026/06/25 14:09';
+const APP_VERSION=56;
+const APP_BUILD_DATE='2026/06/25 14:27';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -481,6 +483,25 @@ let fields=loadFields(),reservations=loadReservations(),stays=loadStays(),stock=
 let facFilter='all',addFacId='walk',addCourse=55,editId=null,editType='day';
 let rentalSt={},stayRentalSt={};
 let dateFilter=null;
+let listFromToday=true; // 一覧は既定で今日以降のみ表示
+let searchQ='';         // 一覧の検索キーワード
+function todayStr(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+function offsetStr(off){var d=new Date();d.setDate(d.getDate()+off);return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+// 昨日/今日/明日/明後日ボタン → その日だけ表示
+function quickDate(off){dateFilter=offsetStr(off);searchQ='';var sb=document.getElementById('list-search');if(sb)sb.value='';renderList();}
+// 全期間（過去も含めて表示）
+function showAllDates(){dateFilter=null;listFromToday=false;searchQ='';var sb=document.getElementById('list-search');if(sb)sb.value='';renderList();}
+function onSearchInput(v){searchQ=(v||'').trim();if(searchQ)dateFilter=null;renderList();}
+function renderQuickDates(){
+  var c=document.getElementById('list-quickdate');if(!c)return;
+  var btns=[['昨日',-1],['今日',0],['明日',1],['明後日',2]];
+  var bh=btns.map(function(b){var ds=offsetStr(b[1]);var on=(dateFilter===ds);return '<button class="btn-sm" onclick="quickDate('+b[1]+')" style="'+(on?'background:#7a1030;color:#fff;border-color:#7a1030':'')+'">'+b[0]+'</button>';}).join('');
+  var todayOn=(!dateFilter&&listFromToday&&!searchQ);
+  var allOn=(!dateFilter&&!listFromToday&&!searchQ);
+  bh+='<button class="btn-sm" onclick="(function(){dateFilter=null;listFromToday=true;searchQ=\'\';var s=document.getElementById(\'list-search\');if(s)s.value=\'\';renderList();})()" style="'+(todayOn?'background:#7a1030;color:#fff;border-color:#7a1030':'')+'">今日以降</button>';
+  bh+='<button class="btn-sm" onclick="showAllDates()" style="'+(allOn?'background:#555;color:#fff;border-color:#555':'')+'">全期間</button>';
+  c.innerHTML=bh;
+}
 
 // Android対応：date inputの値変化をポーリングで検知
 let _pollTimer=null,_pollId=null,_pollCb=null,_pollLast='';
@@ -509,7 +530,7 @@ function switchTab(t,keepDateFilter){
   ['list','day','stay','cal','settings'].forEach(x=>document.getElementById('tab-'+x).style.display=x===t?'':'none');
   const tabGrp=(t==='day'||t==='stay')?'add':t;
   document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===tabGrp));
-  if(t==='list'){if(!keepDateFilter)dateFilter=null;renderList();}
+  if(t==='list'){if(!keepDateFilter){dateFilter=null;searchQ='';listFromToday=true;var sb=document.getElementById('list-search');if(sb)sb.value='';}renderList();}
   if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();renderCsvFacOptions();setTimeout(refreshDateDisps,0);}
   if(t==='stay'){initStay();setTimeout(refreshDateDisps,0);}
   if(t==='cal')initCal();
@@ -978,6 +999,7 @@ function saveStay(){
 // 一覧
 function renderList(){
   renderFltTabs();
+  renderQuickDates();
   // 日付フィルターバー
   const bar=document.getElementById('date-filter-bar');
   const lbl=document.getElementById('date-filter-label');
@@ -989,10 +1011,20 @@ function renderList(){
   }
   const c=document.getElementById('list-container');c.innerHTML='';
   let dl=reservations.slice(),sl=stays.slice();
-  // 日付フィルター
-  if(dateFilter){
+  const today=todayStr();
+  if(searchQ){
+    // 検索中は全期間から（名前・メモ・住所・予約サイト・施設名）
+    const q=searchQ.toLowerCase();
+    const hit=o=>[o.name,o.memo,o.addr,o.source].some(x=>String(x||'').toLowerCase().indexOf(q)>=0);
+    dl=dl.filter(r=>hit(r)||((getFac(r.facility)||{}).label||'').toLowerCase().indexOf(q)>=0);
+    sl=sl.filter(s=>hit(s)||((getSFac(s.facility)||{}).label||'').toLowerCase().indexOf(q)>=0||String(s.facGroup||'').toLowerCase().indexOf(q)>=0);
+  }else if(dateFilter){
     dl=dl.filter(r=>r.date===dateFilter);
     sl=sl.filter(s=>s.checkin&&s.checkout&&s.checkin<=dateFilter&&s.checkout>dateFilter);
+  }else if(listFromToday){
+    // 既定：今日以降のみ（宿泊はチェックアウトが今日以降なら継続中として表示）
+    dl=dl.filter(r=>(r.date||'')>=today);
+    sl=sl.filter(s=>(s.checkout||s.checkin||'')>=today);
   }
   // 施設フィルター（日付フィルター中は施設フィルターも併用可）
   if(facFilter==='stay'){dl=[];}
@@ -1001,7 +1033,7 @@ function renderList(){
   if(!showCancelled){dl=dl.filter(r=>!isCancelled(r));sl=sl.filter(s=>!isCancelled(s));}
   sl.sort((a,b)=>a.checkin.localeCompare(b.checkin));
   dl.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.startTime.localeCompare(b.startTime));
-  if(!dl.length&&!sl.length){c.innerHTML='<div class="empty">'+(dateFilter?fmtDate(dateFilter)+'の予約はありません':'予約がありません')+'</div>';return;}
+  if(!dl.length&&!sl.length){c.innerHTML='<div class="empty">'+(searchQ?'「'+searchQ+'」に一致する予約はありません':(dateFilter?fmtDate(dateFilter)+'の予約はありません':(listFromToday?'今日以降の予約はありません（「全期間」で過去も表示）':'予約がありません')))+'</div>';return;}
 
   // 日付が変わったら区切り見出しを入れる（宿泊=checkin／日帰り=date）
   let lastDate=null;
@@ -1105,7 +1137,7 @@ function renderList(){
         (mura?'<span style="font-size:11px;font-weight:600;background:#fff8e8;color:#e67700;border:1px solid #EF9F27;border-radius:20px;padding:2px 8px">村内</span>':'')+
         (isOv?'<span class="badge-overlap">重複</span>':'')+
         (r.changed?'<span class="badge-changed">変更済み</span>':'')+
-        (r.done?'<span class="badge badge-done">対応済み</span>':'')+
+        (r.done?'<span class="badge badge-done">会計済み</span>':'')+
         (daySrcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+daySrcL+'</span>':'')+
       '</div>'+
       // 主要情報行：左に 日付 時間 人数 名前／右に 金額（宿泊カードと同じ配置）
@@ -1121,10 +1153,9 @@ function renderList(){
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
       (r.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">'+r.memo+'</div>':'')+
       (r.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+r.addr+'</div>':'')+
-      // 下部：操作ボタン（宿泊カードと同じ位置・右寄せ）
+      // 下部：操作ボタン（会計＝2回タップ／編集／削除）
       '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:6px">'+
-        '<button class="btn-sm" data-act="toggleDD" data-id="'+r.id+'">'+(r.done?'戻す':'完了')+'</button>'+
-        '<button class="btn-sm" data-act="markChangedDay" data-id="'+r.id+'">変更</button>'+
+        '<button data-act="toggleDayPay" data-id="'+r.id+'" class="wf-btn'+(r.done?' on':'')+(dayArm===r.id?' arm':'')+'" style="flex:0 0 auto;padding:4px 16px">'+(dayArm===r.id?'もう1タップで確定':((r.done?'✅':'')+'会計'))+'</button>'+
         '<button class="btn-sm" data-act="openEdit" data-id="'+r.id+'">編集</button>'+
         '<button class="btn-sm" data-act="delDay" data-id="'+r.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
       '</div>';
@@ -1186,6 +1217,20 @@ function toggleWf(id,k){
     wfArm={id:id,key:k};renderList();
     clearTimeout(window._wfArmT);
     window._wfArmT=setTimeout(function(){wfArm=null;renderList();},2500);
+  }
+}
+// 日帰りの会計（誤操作防止で二回タップ。✅済みは1タップで解除）
+let dayArm=null;
+function toggleDayPay(id){
+  var r=reservations.find(x=>x.id===id);if(!r)return;
+  if(r.done){r.done=false;dayArm=null;clearTimeout(window._dayArmT);sv(RKEY,reservations);autoPush();renderList();return;}
+  if(dayArm===id){
+    r.done=true;dayArm=null;clearTimeout(window._dayArmT);
+    sv(RKEY,reservations);autoPush();renderList();
+  }else{
+    dayArm=id;renderList();
+    clearTimeout(window._dayArmT);
+    window._dayArmT=setTimeout(function(){dayArm=null;renderList();},2500);
   }
 }
 function markChanged(id){const s=stays.find(x=>x.id===id);if(s){s.changed=!s.changed;sv(STKEY,stays);autoPush();renderList();showToast(s.changed?'変更済みにしました':'変更済みを解除しました',s.changed?'#c00':'#555');}}
@@ -2013,6 +2058,7 @@ document.addEventListener('click',function(e){
   const btn=e.target.closest('[data-act]');if(!btn)return;
   const act=btn.dataset.act,id=btn.dataset.id;
   if(act==='toggleDD')toggleDD(id);
+  else if(act==='toggleDayPay')toggleDayPay(id);
   else if(act==='toggleSD')toggleSD(id);
   else if(act==='markChanged')markChanged(id);
   else if(act==='markChangedDay')markChangedDay(id);
