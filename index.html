@@ -141,8 +141,7 @@ b,strong,.card-name,.card-total{font-weight:600}
   </div>
 
   <div id="tab-day" class="tab-content" style="display:none">
-    <div class="section-title" style="cursor:pointer;user-select:none" onclick="togColl(this,'csv-body')">▶ 📥 WordPress予約CSV取込</div>
-    <div id="csv-body" style="display:none">
+    <div class="section-title">📥 WordPress予約CSV取込</div>
       <div style="background:#fff7e6;border:1px solid #e8c878;border-radius:8px;padding:12px;margin-top:4px">
         <div style="font-size:12px;color:#6b4f20;margin-bottom:8px;line-height:1.6">
           商品ごとのCSVを選んで取り込みます。文字コードは自動判定（UTF-8/Shift-JIS）。<b>メール・電話は取り込まず</b>、住所は<b>市区町村まで</b>に丸めます。予約IDで<b>重複は自動更新</b>。
@@ -159,8 +158,8 @@ b,strong,.card-name,.card-total{font-weight:600}
         <button class="btn-primary" style="background:#6b4f20;margin-top:6px" onclick="importCSV()">この施設として取り込む</button>
         <div id="csv-result" style="font-size:12px;color:#555;margin-top:8px;line-height:1.6"></div>
       </div>
-    </div>
     <div class="separator"></div>
+    <div class="section-title">手動予約</div>
     <div class="addmode-toggle">
       <button id="addmode-day" class="on" onclick="switchTab('day')">日帰り</button>
       <button id="addmode-stay" onclick="switchTab('stay')">宿泊</button>
@@ -215,6 +214,7 @@ b,strong,.card-name,.card-total{font-weight:600}
   </div>
 
   <div id="tab-stay" class="tab-content" style="display:none">
+    <div class="section-title">手動予約</div>
     <div class="addmode-toggle">
       <button id="addmode-day2" onclick="switchTab('day')">日帰り</button>
       <button id="addmode-stay2" class="on" onclick="switchTab('stay')">宿泊</button>
@@ -416,8 +416,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=37;
-const APP_BUILD_DATE='2026/06/25 12:05';
+const APP_VERSION=38;
+const APP_BUILD_DATE='2026/06/25 12:12';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
