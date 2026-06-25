@@ -435,8 +435,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=58;
-const APP_BUILD_DATE='2026/06/25 15:05';
+const APP_VERSION=59;
+const APP_BUILD_DATE='2026/06/25 15:14';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1699,6 +1699,10 @@ function renderCsvFacOptions(){
   STAY_FACS.forEach(function(f){ if(seenG[f.group])return; seenG[f.group]=true; var o=document.createElement('option');o.value='staygroup:'+f.group;o.textContent=f.group+'（宿泊）';og2.appendChild(o);});
   sel.appendChild(og2);
 }
+// 取込先selectの値→表示名
+function csvOptLabel(val){var s=document.getElementById('csv-fac');if(s)for(var i=0;i<s.options.length;i++){if(s.options[i].value===val)return s.options[i].textContent;}return val;}
+// 日帰り↔宿泊で同じ施設の対応（ツリーハウスは昼/夜の両方がある）
+var CSV_SIBLING={'day:tree':'staygroup:ツリーハウス','staygroup:ツリーハウス':'day:tree'};
 // 文字コード自動判定（UTF-8優先、化けたらShift_JIS）
 function decodeBytes(buf){
   var bytes=new Uint8Array(buf);
@@ -1808,6 +1812,26 @@ function importCSV(){
     // 行が「宿泊予約」っぽいか（ベッド情報・連泊・Adults/泊など）／「日帰り」っぽいか（コース時間）を判定
     function looksStay(f){ var j=f.join(' '); var dc=0; for(var i=0;i<f.length;i++){ if(parseWpDateTime(f[i]).date) dc++; } return /ベッド/.test(j) || /Adults?\s*[:：]/i.test(j) || /泊/.test(j) || dc>=2; }
     function looksDay(f){ var j=f.join(' '); return /(55|115|110)\s*分|1\s*day|終日|利用時間/i.test(j); }
+    // ── 取り込み前チェック：CSV全体が「日帰り/宿泊」どちらかを推定し、選択と食い違えば中止して案内 ──
+    var sN=0,dN=0;
+    rows.forEach(function(f){ if(!/^\d+$/.test(String(f[0]||'').trim()))return; var st=looksStay(f),dy=looksDay(f); if(st&&!dy)sN++; else if(dy&&!st)dN++; });
+    var csvType=sN>dN?'stay':(dN>sN?'day':'');
+    var selType=(type==='day')?'day':'stay';
+    if(csvType && csvType!==selType){
+      var selL=csvOptLabel(sel), sib=CSV_SIBLING[sel];
+      var csvJa=(csvType==='stay'?'宿泊':'日帰り');
+      if(sib){
+        var sibL=csvOptLabel(sib);
+        res.style.color='#c0392b';
+        res.innerHTML='⚠ 選択は「'+selL+'」ですが、このCSVは<b>'+csvJa+'</b>予約のようです。確認ダイアログで取込先を切り替えてください。';
+        showConfirm('選択は「'+selL+'」ですが、\nこのCSVは「'+csvJa+'」予約のようです。\n\n「'+sibL+'」として取り込み直しますか？',function(){ document.getElementById('csv-fac').value=sib; importCSV(); });
+        return;
+      }
+      res.style.color='#c0392b';
+      res.innerHTML='⚠ 選択中の「'+selL+'」とCSVの種別が違います。このCSVは<b>'+csvJa+'</b>予約のようです。<br>上の取込先を'+(csvType==='stay'?'<b>「〇〇（宿泊）」</b>':'<b>「☀ 日帰り」</b>の施設')+'に選び直してください。';
+      showToast('⚠ 取込先の種別が違います（'+csvJa+'のCSV）','#c00');
+      return;
+    }
     rows.forEach(function(f){
       var wpId=String(f[0]||'').trim();
       if(!/^\d+$/.test(wpId)) return; // ヘッダー/空行/不正行スキップ
