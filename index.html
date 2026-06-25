@@ -52,6 +52,8 @@ textarea{resize:vertical;min-height:60px}
 .btn-danger{color:#c00;border-color:#fcc}
 .card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
 .card.done{opacity:0.45}
+.card.cancelled{opacity:0.5}
+.card.cancelled .card-name,.card.cancelled .card-meta,.card.cancelled .card-total{color:#999}
 .date-divider{font-size:14px;font-weight:600;color:#224466;margin:16px 0 8px;padding-bottom:5px;border-bottom:4px solid #b3c2d4}
 .date-divider:first-child{margin-top:0}
 .wf-row{display:flex;gap:4px;margin-top:7px;padding-top:6px;border-top:1px solid #eee}
@@ -277,6 +279,7 @@ b,strong,.card-name,.card-total{font-weight:600}
       <button class="btn-sm" id="calf-all" onclick="setCalFilter('all')">全て</button>
       <button class="btn-sm" id="calf-day" onclick="setCalFilter('day')">日帰り</button>
       <button class="btn-sm" id="calf-stay" onclick="setCalFilter('stay')">宿泊</button>
+      <button class="btn-sm" id="calf-cancel" onclick="toggleShowCancelled()">キャンセル非表示</button>
     </div>
     <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px"></div>
     <div id="cal-detail" style="padding:0 4px;margin-top:4px"></div>
@@ -404,8 +407,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=35;
-const APP_BUILD_DATE='2026/06/25 11:39';
+const APP_VERSION=36;
+const APP_BUILD_DATE='2026/06/25 11:50';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -545,6 +548,9 @@ function renderFltTabs(){
   // BBQ
   const bb=document.createElement('button');bb.className='ftab'+(facFilter==='bbq'?' bb':'');
   bb.textContent='BBQ';bb.onclick=()=>{facFilter='bbq';renderFltTabs();renderList();};c.appendChild(bb);
+  // キャンセル表示/非表示トグル
+  const cx=document.createElement('button');cx.className='ftab';cx.style.flex='1.3';
+  cx.textContent=showCancelled?'キャンセル非表示':'キャンセル表示';cx.onclick=toggleShowCancelled;c.appendChild(cx);
 }
 
 // 日帰りフォーム
@@ -973,6 +979,7 @@ function renderList(){
   if(facFilter==='stay'){dl=[];}
   else if(facFilter==='day'){sl=[];}
   else if(facFilter!=='all'){sl=[];dl=dl.filter(r=>r.facility===facFilter);}
+  if(!showCancelled){dl=dl.filter(r=>!isCancelled(r));sl=sl.filter(s=>!isCancelled(s));}
   sl.sort((a,b)=>a.checkin.localeCompare(b.checkin));
   dl.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.startTime.localeCompare(b.startTime));
   if(!dl.length&&!sl.length){c.innerHTML='<div class="empty">'+(dateFilter?fmtDate(dateFilter)+'の予約はありません':'予約がありません')+'</div>';return;}
@@ -1004,7 +1011,7 @@ function renderList(){
     }).join('');
     const wf=s.wf||{};
     const wfBtn=(k,lb)=>'<button data-act="toggleWf" data-id="'+s.id+'" data-wf="'+k+'" class="wf-btn'+(wf[k]?' on':'')+'">'+(wf[k]?'✅':'')+lb+'</button>';
-    const div=document.createElement('div');div.className='card'+(s.done?' done':'');
+    const div=document.createElement('div');div.className='card'+(s.done?' done':'')+(isCancelled(s)?' cancelled':'');
     div.innerHTML=
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
@@ -1031,8 +1038,8 @@ function renderList(){
       '</div>'+
       ((s.rental||[]).length?'<div style="margin-top:2px">'+s.rental.map(i=>'<div class="card-meta" style="font-size:12px;color:#633806">'+i.name+(i.qty>1?' × '+i.qty:'')+'　'+(i.price*i.qty).toLocaleString()+'円</div>').join('')+'</div>':'')+
       linkedH+
-      (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">📝 '+s.memo+'</div>':'')+
-      (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">🏠 '+s.addr+'</div>':'')+
+      (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">'+s.memo+'</div>':'')+
+      (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+s.addr+'</div>':'')+
       (showCiCo?'<div style="text-align:right;font-size:11px;color:#aaa;margin-top:2px">IN '+fac.ci+' ／ OUT '+fac.co+'</div>':'')+
       '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+'</div>';
     if(s.checkin!==lastDate){dateDivider(s.checkin);lastDate=s.checkin;}
@@ -1059,7 +1066,7 @@ function renderList(){
     }else if(ninzu>0){
       totH='<div class="card-total">合計　'+(price*ninzu).toLocaleString()+'円（'+ninzu+fac.priceUnit+'）</div>';
     }
-    const div=document.createElement('div');div.className='card'+(r.done?' done':'');
+    const div=document.createElement('div');div.className='card'+(r.done?' done':'')+(isCancelled(r)?' cancelled':'');
     const daySrcL=(r.source||detectOtaFromText(r.memo))?getSrcLabel(r.source||detectOtaFromText(r.memo)):'';
     const linkedStayH=(r.linkedStayIds||[]).map(sid=>{
       const ls=stays.find(x=>x.id===sid);if(!ls)return'';
@@ -1105,8 +1112,8 @@ function renderList(){
       totH+
       (rental.length?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee">'+rental.map(i=>'<div class="card-meta" style="font-size:13px;color:#633806">'+i.name+(i.qty>1?' × '+i.qty:'')+'　'+(i.price*i.qty).toLocaleString()+'円</div>').join('')+'</div>':'')+
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
-      (r.memo?'<div class="card-meta" style="font-size:13px;color:#888">📝 '+r.memo+'</div>':'')+
-      (r.addr?'<div class="card-meta" style="font-size:13px;color:#666;margin-top:4px">🏠 '+r.addr+'</div>':'');
+      (r.memo?'<div class="card-meta" style="font-size:13px;color:#888">'+r.memo+'</div>':'')+
+      (r.addr?'<div class="card-meta" style="font-size:13px;color:#666;margin-top:4px">'+r.addr+'</div>':'');
     if((r.date||'')!==lastDate){dateDivider(r.date);lastDate=r.date||'';}
     c.appendChild(div);
   });
@@ -1120,6 +1127,10 @@ function toggleUnitSel(id){var el=document.getElementById('unitsel-'+id);if(!el)
 function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=(bedCode(s.bed)==='ws')?'ww':'ws';sv(STKEY,stays);autoPush();renderList();}
 // メモ等のテキストからOTAを判定（ソウエクスペリ/SOU/じゃらん/楽天）
 function detectOtaFromText(t){t=String(t||'');if(/ソウエクスペリ|そうエクスペリ|sou/i.test(t))return'sou';if(/じゃらん/.test(t))return'jalan';if(/楽天/.test(t))return'rakuten';return'';}
+// キャンセル判定（メモに「キャンセル」を含む）と表示トグル
+let showCancelled=true;
+function isCancelled(o){return /キャンセル/.test((o&&o.memo)||'');}
+function toggleShowCancelled(){showCancelled=!showCancelled;renderFltTabs();renderList();renderCal();}
 // ペット数をタップで 0→1→2→3→0 と切替（料金も再計算）
 function togglePet(id){var s=stays.find(x=>x.id===id);if(!s)return;var n=((s.petCount||0)+1)%4;s.petCount=n;s.petFee=n*3000*(s.nights||1);sv(STKEY,stays);autoPush();renderList();}
 // 状況チェック（部屋準備/会計/案内/OUT）をタップで✅切替
@@ -1804,6 +1815,7 @@ function renderCal(){
 
   // 絞込ボタンのハイライト
   ['all','day','stay'].forEach(function(f){var b=document.getElementById('calf-'+f);if(b){var on=calFilter===f;b.style.background=on?'#7a1030':'';b.style.color=on?'#fff':'';b.style.borderColor=on?'#7a1030':'';}});
+  var _cc=document.getElementById('calf-cancel');if(_cc)_cc.textContent=showCancelled?'キャンセル非表示':'キャンセル表示';
   const holidays=getHolidays(calYear);
 
   for(let d=1;d<=daysInMonth;d++){
@@ -1817,15 +1829,17 @@ function renderCal(){
     if(calFilter!=='stay'){
       reservations.filter(r=>r.date===dateStr).forEach(r=>{
         const ab=CAL_DAY_ABBR[r.facility]; if(!ab)return;
-        entries.push({order:ab.order,color:ab.color,abbr:ab.abbr,time:r.startTime||'',ppl:parseInt(r.ninzu)||0,name:r.name||''});
+        if(!showCancelled&&isCancelled(r))return;
+        entries.push({order:ab.order,color:isCancelled(r)?'#bbb':ab.color,abbr:ab.abbr,time:r.startTime||'',ppl:parseInt(r.ninzu)||0,name:r.name||''});
       });
     }
     if(calFilter!=='day'){
       stays.filter(s=>s.checkin<=dateStr&&s.checkout>dateStr).forEach(s=>{
         const grp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
         const ab=CAL_STAY_ABBR[grp]; if(!ab)return;
+        if(!showCancelled&&isCancelled(s))return;
         const ppl=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));
-        entries.push({order:ab.order,color:ab.color,abbr:ab.abbr,time:'',ppl:ppl,name:s.name||''});
+        entries.push({order:ab.order,color:isCancelled(s)?'#bbb':ab.color,abbr:ab.abbr,time:'',ppl:ppl,name:s.name||''});
       });
     }
     entries.sort((a,b)=>a.order-b.order);
