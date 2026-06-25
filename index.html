@@ -59,6 +59,7 @@ textarea{resize:vertical;min-height:60px}
 .wf-row{display:flex;gap:4px;margin-top:7px;padding-top:6px;border-top:1px solid #eee}
 .wf-btn{flex:1;padding:4px 2px;font-size:11px;border:1px solid #ccc;border-radius:5px;background:#fff;color:#555;cursor:pointer;font-family:inherit}
 .wf-btn.on{background:#e6f4ea;border-color:#7bbf96;color:#1c5c39;font-weight:600}
+.wf-btn.arm{background:#fff4d6;border-color:#e0b000;color:#8a6d00;font-weight:600}
 .addmode-toggle{display:flex;gap:8px;margin-bottom:12px}
 .addmode-toggle button{flex:1;padding:11px;font-size:15px;font-weight:600;border:1px solid #ccc;border-radius:8px;background:#fff;color:#888;cursor:pointer}
 .addmode-toggle button.on{background:#224466;color:#fff;border-color:#224466}
@@ -421,8 +422,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=47;
-const APP_BUILD_DATE='2026/06/25 13:28';
+const APP_VERSION=48;
+const APP_BUILD_DATE='2026/06/25 13:38';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1024,7 +1025,7 @@ function renderList(){
       return '<div class="card-meta" style="font-size:12px;color:#224466;margin-top:2px">📌 '+(lr.date?fmtDate(lr.date):'')+(lf?' '+lf.label:'')+( lr.name?' '+lr.name:'')+(lr.startTime?' '+lr.startTime:'')+'</div>';
     }).join('');
     const wf=s.wf||{};
-    const wfBtn=(k,lb)=>'<button data-act="toggleWf" data-id="'+s.id+'" data-wf="'+k+'" class="wf-btn'+(wf[k]?' on':'')+'">'+(wf[k]?'✅':'')+lb+'</button>';
+    const wfBtn=(k,lb)=>{var armed=wfArm&&wfArm.id===s.id&&wfArm.key===k;return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="'+k+'" class="wf-btn'+(wf[k]?' on':'')+(armed?' arm':'')+'">'+(armed?'もう一度':((wf[k]?'✅':'')+lb))+'</button>';};
     const bedSel=BED_GROUPS.includes(grp)?'<div id="bedsel-'+s.id+'" style="display:none;margin:4px 0;flex-wrap:wrap;gap:4px;align-items:center">'+['ベッド2台','ベッド1台'].map(o=>'<button class="btn-sm" onclick="setBed(\''+s.id+'\',\''+o+'\')" style="padding:3px 9px;font-size:12px;'+(bedLabel(s.bed)===o?'background:#e9e1d4;color:#5a4a2a;border-color:#d3c7b3':'')+'">'+o+'</button>').join('')+'</div>':'';
     const petSel='<div id="petsel-'+s.id+'" style="display:none;margin:4px 0;flex-wrap:wrap;gap:4px;align-items:center">'+[0,1,2,3].map(n=>'<button class="btn-sm" onclick="setPet(\''+s.id+'\','+n+')" style="padding:3px 9px;font-size:12px;'+(((s.petCount||0)===n)?'background:#f1eef4;color:#5a4a6a;border-color:#ddd6e6':'')+'">'+(n===0?'ペット無':'ペット'+n)+'</button>').join('')+'</div>';
     const div=document.createElement('div');div.className='card'+(s.done?' done':'')+(isCancelled(s)?' cancelled':'');
@@ -1156,8 +1157,19 @@ function toggleBedSel(id){var el=document.getElementById('bedsel-'+id);if(!el)re
 function togglePetSel(id){var el=document.getElementById('petsel-'+id);if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'flex':'none';}
 function setBed(id,val){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=bedCode(val);sv(STKEY,stays);autoPush();renderList();}
 function setPet(id,val){var s=stays.find(x=>x.id===id);if(!s)return;var n=parseInt(val)||0;s.petCount=n;s.petFee=n*3000*(s.nights||1);sv(STKEY,stays);autoPush();renderList();}
-// 状況チェック（部屋準備/会計/案内/OUT）をタップで✅切替
-function toggleWf(id,k){var s=stays.find(x=>x.id===id);if(!s)return;if(!s.wf)s.wf={};s.wf[k]=!s.wf[k];sv(STKEY,stays);autoPush();renderList();}
+// 状況チェック（部屋準備/会計/案内/OUT）。誤操作防止で二回タップ（1回目=確認待ち、2回目=確定）
+let wfArm=null;
+function toggleWf(id,k){
+  var s=stays.find(x=>x.id===id);if(!s)return;
+  if(wfArm&&wfArm.id===id&&wfArm.key===k){
+    if(!s.wf)s.wf={};s.wf[k]=!s.wf[k];wfArm=null;clearTimeout(window._wfArmT);
+    sv(STKEY,stays);autoPush();renderList();
+  }else{
+    wfArm={id:id,key:k};renderList();
+    clearTimeout(window._wfArmT);
+    window._wfArmT=setTimeout(function(){wfArm=null;renderList();},2500);
+  }
+}
 function markChanged(id){const s=stays.find(x=>x.id===id);if(s){s.changed=!s.changed;sv(STKEY,stays);autoPush();renderList();showToast(s.changed?'変更済みにしました':'変更済みを解除しました',s.changed?'#c00':'#555');}}
 function markChangedDay(id){const r=reservations.find(x=>x.id===id);if(r){r.changed=!r.changed;sv(RKEY,reservations);autoPush();renderList();showToast(r.changed?'変更済みにしました':'変更済みを解除しました',r.changed?'#c00':'#555');}}
 let _confirmCb=null;
@@ -1286,7 +1298,8 @@ function openEdit(id){
 
 function openEditStay(id){
   const s=stays.find(x=>x.id===id);if(!s)return;editId=id;editType='stay';
-  const facOpts=STAY_FACS.map(f=>'<option value="'+f.id+'"'+(s.facility===f.id?' selected':'')+'>'+f.group+' - '+f.label+'</option>').join('');
+  const egrp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
+  const facOpts=STAY_FACS.filter(f=>!egrp||f.group===egrp).map(f=>'<option value="'+f.id+'"'+(s.facility===f.id?' selected':'')+'>'+f.label+'</option>').join('');
   const srcOpts=['','rakuten','jalan','sou','other1','other2','other3','pass_day','pass_night'].map(k=>'<option value="'+k+'"'+(s.source===k?' selected':'')+'>'+( k?getSrcLabel(k):'直接予約')+'</option>').join('');
   let lCks='';
   reservations.forEach(r=>{
