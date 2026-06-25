@@ -426,8 +426,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=52;
-const APP_BUILD_DATE='2026/06/25 13:45';
+const APP_VERSION=53;
+const APP_BUILD_DATE='2026/06/25 14:00';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1007,10 +1007,10 @@ function renderList(){
   let lastDate=null;
   const dateDivider=(d)=>{const dv=document.createElement('div');dv.className='date-divider';dv.textContent=d?fmtMD(d):'日付未定';c.appendChild(dv);};
   const ciCoShown={};
-  sl.forEach(s=>{
+  function buildStayCard(s){
     const grp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
     const grpFacs=STAY_FACS.filter(x=>x.group===grp);
-    const fac=getSFac(s.facility)||grpFacs[0];if(!fac)return;
+    const fac=getSFac(s.facility)||grpFacs[0];if(!fac)return null;
     const showCiCo=!ciCoShown[grp];ciCoShown[grp]=true;
     const childN=parseInt(s.child)||0, petN=s.petCount||0, nm=s.name||'';
     const unitToggle=grpFacs.length>1
@@ -1066,13 +1066,11 @@ function renderList(){
         '</span>'+
       '</div>'+
       '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+'</div>';
-    if(s.checkin!==lastDate){dateDivider(s.checkin);lastDate=s.checkin;}
-    c.appendChild(div);
-  });
+    return div;
+  }
 
-  lastDate=null;
-  dl.forEach(r=>{
-    const fac=getFac(r.facility);if(!fac)return;
+  function buildDayCard(r){
+    const fac=getFac(r.facility);if(!fac)return null;
     const end=getEnd(r.startTime,r.course,r.facility);
     const co=fac.courses.find(x=>x.min===r.course);
     const basePrice=fac.prices[r.course];
@@ -1138,7 +1136,26 @@ function renderList(){
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
       (r.memo?'<div class="card-meta" style="font-size:13px;color:#888">'+r.memo+'</div>':'')+
       (r.addr?'<div class="card-meta" style="font-size:13px;color:#666;margin-top:4px">'+r.addr+'</div>':'');
-    if((r.date||'')!==lastDate){dateDivider(r.date);lastDate=r.date||'';}
+    return div;
+  }
+
+  // 日付順マージ描画：同日内は宿泊→日帰り。日帰りは予約時間順（同時刻はツリーハウス昼→空中ウォーク→BBQ）
+  const DAY_FAC_ORDER={tree:0,walk:1,bbq:2};
+  const entries=[];
+  sl.forEach(s=>entries.push({date:s.checkin||'',kind:0,t:'',fo:0,ci:s.checkin||'',item:s}));
+  dl.forEach(r=>entries.push({date:r.date||'',kind:1,t:r.startTime||'',fo:(DAY_FAC_ORDER[r.facility]!=null?DAY_FAC_ORDER[r.facility]:9),ci:'',item:r}));
+  entries.sort((a,b)=>
+    a.date.localeCompare(b.date)
+    || (a.kind-b.kind)
+    || a.t.localeCompare(b.t)
+    || (a.fo-b.fo)
+    || a.ci.localeCompare(b.ci)
+  );
+  lastDate=null;
+  entries.forEach(e=>{
+    const div=e.kind===0?buildStayCard(e.item):buildDayCard(e.item);
+    if(!div)return;
+    if(e.date!==lastDate){dateDivider(e.date);lastDate=e.date;}
     c.appendChild(div);
   });
 }
