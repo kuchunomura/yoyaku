@@ -300,17 +300,18 @@ b,strong,.card-name,.card-total{font-weight:600}
     <div class="separator"></div>
     <div class="section-title">📊 Googleスプレッドシート同期</div>
     <div style="background:#f0f6ff;border:1px solid #88aacc;border-radius:8px;padding:12px;margin-top:4px">
-      <div style="font-size:12px;color:#224466;margin-bottom:8px;line-height:1.6">
-        GAS WebアプリのURLを設定してからスプレッドシートへ同期できます。
-      </div>
-      <label>GAS WebアプリURL</label>
-      <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/..." style="font-size:13px">
-      <button class="btn-primary" onclick="saveGasUrl()" style="background:#224466;margin-top:6px;margin-bottom:8px">URLを保存</button>
       <div style="display:flex;gap:6px">
         <button class="btn-primary" onclick="syncToSheet()" style="background:#1a7a3a;flex:1">📤 シートへ保存</button>
         <button class="btn-primary" onclick="loadFromSheet()" style="background:#224466;flex:1">📥 シートから読込</button>
       </div>
       <div id="sync-status" style="font-size:12px;color:#555;margin-top:6px"></div>
+      <div style="border-top:1px solid #c2d4ea;margin:12px 0 8px"></div>
+      <div style="font-size:12px;color:#224466;margin-bottom:6px;line-height:1.6">
+        ↓ 初回のみ設定。GAS WebアプリのURLを保存してから同期できます。
+      </div>
+      <label>GAS WebアプリURL</label>
+      <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/..." style="font-size:13px">
+      <button class="btn-primary" onclick="saveGasUrl()" style="background:#224466;margin-top:6px">URLを保存</button>
     </div>
     <div class="separator"></div>
     <div class="section-title">カスタム項目（日帰り）</div>
@@ -1013,8 +1014,8 @@ function renderList(){
       '</div>'+
       ((s.rental||[]).length?'<div style="margin-top:2px">'+s.rental.map(i=>'<div class="card-meta" style="font-size:12px;color:#633806">'+i.name+(i.qty>1?' × '+i.qty:'')+'　'+(i.price*i.qty).toLocaleString()+'円</div>').join('')+'</div>':'')+
       linkedH+
-      (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">🏠 '+s.addr+'</div>':'')+
       (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">📝 '+s.memo+'</div>':'')+
+      (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">🏠 '+s.addr+'</div>':'')+
       (showCiCo?'<div style="text-align:right;font-size:11px;color:#aaa;margin-top:2px">IN '+fac.ci+' ／ OUT '+fac.co+'</div>':'');
     if(s.checkin!==lastDate){dateDivider(s.checkin);lastDate=s.checkin;}
     c.appendChild(div);
@@ -1086,8 +1087,8 @@ function renderList(){
       totH+
       (rental.length?'<div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee">'+rental.map(i=>'<div class="card-meta" style="font-size:13px;color:#633806">'+i.name+(i.qty>1?' × '+i.qty:'')+'　'+(i.price*i.qty).toLocaleString()+'円</div>').join('')+'</div>':'')+
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
-      (r.addr?'<div class="card-meta" style="font-size:13px;color:#666;margin-top:4px">🏠 '+r.addr+'</div>':'')+
-      (r.memo?'<div class="card-meta" style="font-size:13px;color:#888">📝 '+r.memo+'</div>':'');
+      (r.memo?'<div class="card-meta" style="font-size:13px;color:#888">📝 '+r.memo+'</div>':'')+
+      (r.addr?'<div class="card-meta" style="font-size:13px;color:#666;margin-top:4px">🏠 '+r.addr+'</div>':'');
     if((r.date||'')!==lastDate){dateDivider(r.date);lastDate=r.date||'';}
     c.appendChild(div);
   });
