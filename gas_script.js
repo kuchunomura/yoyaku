@@ -10,7 +10,7 @@
 
 var DAY_SHEET  = '予約_日帰り';
 var STAY_SHEET = '予約_宿泊';
-var DAY_COLS   = ['日付','施設','コース','時間','名前','人数','予約サイト','メモ','_id','_json'];
+var DAY_COLS   = ['日付','施設','コース','時間','名前','人数','予約サイト','メモ','会計','_id','_json'];
 var STAY_COLS  = ['チェックイン','チェックアウト','泊数','カテゴリ','棟','ベッド','ペット','名前','人数','予約サイト','メモ','部屋準備','会計','案内','OUT','_id','_json'];
 
 // 施設ID→表示名（スプレッドシートを読みやすく）
@@ -108,7 +108,7 @@ function writeAll(reservations, stays){
   });
   var st = stays.slice().sort(function(a,b){ return String(a.checkin||'').localeCompare(String(b.checkin||'')); });
   writeRows(getSheet(DAY_SHEET), DAY_COLS, days.map(function(r){
-    return [fmtMD(r.date), facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', r.id||'', JSON.stringify(r)];
+    return [fmtMD(r.date), facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', (r.done?'✅':''), r.id||'', JSON.stringify(r)];
   }), days.map(function(r){ return r.date||''; }));
   writeRows(getSheet(STAY_SHEET), STAY_COLS, st.map(function(s){
     var w=s.wf||{};
@@ -171,6 +171,7 @@ function readSheet(name){
       if(idx['人数']!==undefined && String(col('人数'))!=='') obj.ninzu = String(numVal(col('人数')));
       if(idx['予約サイト']!==undefined) obj.source  = srcKey(col('予約サイト'));
       if(idx['メモ']!==undefined)     obj.memo      = String(col('メモ')||'');
+      if(idx['会計']!==undefined)     obj.done      = !!String(col('会計')).trim();
     }else{
       if(idx['チェックイン']!==undefined)   obj.checkin  = parseMD(col('チェックイン'), yh);
       if(idx['チェックアウト']!==undefined) obj.checkout = parseMD(col('チェックアウト'), yh);

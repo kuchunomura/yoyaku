@@ -162,6 +162,7 @@ b,strong,.card-name,.card-total{font-weight:600}
           <input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む（既定はあり）
         </label>
         <label style="margin-top:8px">CSVファイル</label>
+        <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:14px;text-align:center;font-size:13px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<br><span style="font-size:11px;color:#9a8050">（またはタップしてファイルを選択）</span></div>
         <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
         <div style="font-size:11px;color:#888;margin:6px 0">または↓に貼り付け（スプレッドシートからコピペ可）</div>
         <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px"></textarea>
@@ -373,6 +374,12 @@ b,strong,.card-name,.card-total{font-weight:600}
       <div id="stock-list"></div>
       <button class="btn-primary" onclick="saveStock()">在庫を保存</button>
     </div>
+    <div class="separator"></div>
+    <div class="section-title" style="color:#b00">⚠ 危険な操作</div>
+    <div style="background:#fff5f5;border:1px solid #e0a0a0;border-radius:8px;padding:12px;margin-top:4px">
+      <div style="font-size:12px;color:#a33;margin-bottom:8px;line-height:1.6">日帰り・宿泊の<b>全予約データを削除</b>します。元に戻せません。スプレッドシート同期がONなら、シート側も次回同期で空になります。</div>
+      <button class="btn-primary" onclick="delAllData()" style="background:#c0392b">🗑 全データ削除</button>
+    </div>
   </div>
   <div id="app-version" style="text-align:center;font-size:11px;color:#aaa;padding:12px 0 6px"></div>
 </div>
@@ -435,8 +442,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=59;
-const APP_BUILD_DATE='2026/06/25 15:14';
+const APP_VERSION=60;
+const APP_BUILD_DATE='2026/06/25 15:52';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1941,6 +1948,38 @@ function delCsvImported(){
   renderList();
 }
 
+// 全データ削除（日帰り・宿泊）。誤操作防止で2段階確認
+function delAllData(){
+  var n=reservations.length+stays.length;
+  if(n===0){ showToast('削除する予約データがありません','#777'); return; }
+  if(!confirm('日帰り'+reservations.length+'件・宿泊'+stays.length+'件、合計'+n+'件の予約を全て削除します。\n元に戻せません。本当によろしいですか？')) return;
+  if(!confirm('最終確認：本当に全データを削除しますか？')) return;
+  reservations=[]; stays=[];
+  sv(RKEY,reservations); sv(STKEY,stays); autoPush();
+  showToast('✓ 全データを削除しました');
+  renderList();
+}
+
+// CSVドラッグ＆ドロップ取込
+function setupCsvDrop(){
+  var dz=document.getElementById('csv-drop'); if(!dz) return;
+  ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fdeccb'; dz.style.borderColor='#c9962f'; }); });
+  ['dragleave','dragend'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fffdf8'; dz.style.borderColor='#d9b676'; }); });
+  dz.addEventListener('drop',function(e){
+    e.preventDefault(); e.stopPropagation();
+    dz.style.background='#fffdf8'; dz.style.borderColor='#d9b676';
+    var files=e.dataTransfer&&e.dataTransfer.files;
+    if(!files||!files[0]) return;
+    var fr=new FileReader();
+    fr.onload=function(ev){
+      document.getElementById('csv-text').value=decodeBytes(ev.target.result);
+      var res=document.getElementById('csv-result');
+      if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 「'+files[0].name+'」を読み込みました。施設を選んで「取り込む」を押してください。'; }
+    };
+    fr.readAsArrayBuffer(files[0]);
+  });
+}
+
 function copyHandover(){
   const spec='====================================================\n予約メモアプリ　新チャット引き継ぎ資料\n====================================================\n【アプリ概要】\n奈良県山間部のアウトドア施設（空中ウォーク・日帰りツリーハウス・BBQスペース・宿泊施設11棟）の予約管理アプリ。\nAndroidのChromeで動作するスタンドアロンHTMLファイル（yoyaku.html）。localStorage保存。PWA対応（manifest.json + sw.js）。\n\n【タブ構成】\n一覧 / 宿泊 / 日帰り / カレンダー / 設定\n\n【日帰り施設】\n●空中ウォーク：55分2000円/115分2500円/1DAY3000円、9〜17時（受付〜16時）\n●ツリーハウス（昼）：55分2000円/115分3000円/1DAY4000円、10〜16時（受付〜15時） ※時間帯重複検知あり\n●BBQスペース：1DAY3000円/1か所、10〜15時（受付14時まで）終了時刻固定\n\n【宿泊施設（順：ツリーハウス→ドーム→テント→ハンモック）】\n・ツリーハウス：大人4（計5）、ペット可、CI16:30〜18:00、CO9:30、バッテリー大無料\n  料金：1人14000/2人12000/3人10000/4人8000\n・透明ドーム（ミラー/透明/グレー）：大人4（計5）、透明のみペット可、CI14〜16、CO翌10、バッテリー大無料\n  料金：1人12000/2人10000/3人8000/4人7000\n・空中テント（オレンジ/ホワイト/ベージュ）：大人2（計3）、ペット不可、CI14〜16、CO翌10、バッテリー小無料\n  料金：1人9000/2人7000\n・空中ハンモック（①大/①小/②大/②小）：最大5名、ペット：ケージ可、CI14〜16、CO翌10、バッテリー小無料\n  料金（大）：1人6000/2人5000/3〜5人4000　（小）：1人6000/2人5000\n・ペット料金：3000円/匹/泊\n・ポータブル電源・ランタンは施設ごとに無料付属\n\n【備品レンタル（BBQ・宿泊共通、在庫管理あり）】\n焚火台7/ローテーブル4/チェア・ベンチ5/スキレット＋鍋6/木炭2kg5/ガスコンロ＋ガス3/バーナー1/マッチ5/ランタン5/薪割1/コーヒーセット1/天体望遠鏡2\n折りたたみ内：ポータブル電源大3・小4/ケトル5/飯ごう5/ホットサンドクッカー2/カイト5/火起こし器1/カート5/BBQ焼き網5\n価格：焚火台1500/ローテーブル600/チェア500/スキレット500/木炭500/ガスコンロ900/バーナー1200/マッチ200/ランタン500/薪割800/コーヒー1500/望遠鏡1500/電源大1400/電源小900/ケトル500/飯ごう500/ホットサンド400/カイト500/火起こし600/カート600/焼き網70\n\n【主な機能】\n・日付選択（予約日/チェックイン日）、開始時刻＋コース→終了時刻自動計算\n・ツリーハウス昼：時間帯重複検知（赤表示）\n・宿泊：CI日＋泊数→CO日自動計算（曜日付き）、定員超過・ペット不可警告\n・宿泊「変更」ボタン→「変更済み」赤バッジ（トグル）\n・日帰り↔宿泊の紐付け（双方向）\n・予約サイト選択（楽天/じゃらん/SOU/外部①②③）→メモ自動入力\n・保存成功トースト通知、未入力バリデーション\n・在庫管理：備品ごと在庫設定、残数表示、超過赤表示\n・カレンダー：施設別件数表示、タップで詳細表示\n・設定タブ：カスタム項目/在庫設定/予約サイト名/バックアップ/引き継ぎ\n・子供も大人と同料金（合算して単価決定）\n・localStorageキー：yv_f/yv_r/yv_st/yv_sk/yv_sn\n・PWA対応（manifest.json + sw.js が同フォルダに必要）\n\n====================================================\n新チャットへの依頼文\n====================================================\n予約メモアプリの続きをお願いします。\n上の引き継ぎ資料を読んでください。\n現在のyoyaku.htmlを添付します。\n\n【次にやりたいこと】\n（ここに要望を書いてください）\n====================================================';
   const ta=document.getElementById('import-text');
@@ -2131,7 +2170,7 @@ function renderCalDetail(dateStr){
 }
 
 // 起動
-renderFltTabs();renderList();showLastSync();
+renderFltTabs();renderList();showLastSync();setupCsvDrop();
 (function(){var _av=document.getElementById('app-version');if(_av)_av.textContent='yoyaku v'+APP_VERSION+'　更新 '+APP_BUILD_DATE;})();
 // GAS URL設定済みなら、起動時に最新をシートから取得（端末間同期）
 if(ld(GAS_KEY)) loadFromSheet(true);
