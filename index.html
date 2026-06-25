@@ -416,8 +416,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=42;
-const APP_BUILD_DATE='2026/06/25 12:45';
+const APP_VERSION=43;
+const APP_BUILD_DATE='2026/06/25 12:52';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1044,11 +1044,13 @@ function renderList(){
       linkedH+
       (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">'+s.memo+'</div>':'')+
       (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+s.addr+'</div>':'')+
-      '<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:6px">'+
-        '<button class="btn-sm" data-act="openEditStay" data-id="'+s.id+'">編集</button>'+
-        '<button class="btn-sm" data-act="delStay" data-id="'+s.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px">'+
+        '<span style="font-size:11px;color:#aaa">'+(showCiCo?'IN '+fac.ci+' ／ OUT '+fac.co:'')+'</span>'+
+        '<span style="display:flex;gap:6px;flex-shrink:0">'+
+          '<button class="btn-sm" data-act="openEditStay" data-id="'+s.id+'">編集</button>'+
+          '<button class="btn-sm" data-act="delStay" data-id="'+s.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
+        '</span>'+
       '</div>'+
-      (showCiCo?'<div style="text-align:right;font-size:11px;color:#aaa;margin-top:2px">IN '+fac.ci+' ／ OUT '+fac.co+'</div>':'')+
       '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+'</div>';
     if(s.checkin!==lastDate){dateDivider(s.checkin);lastDate=s.checkin;}
     c.appendChild(div);
