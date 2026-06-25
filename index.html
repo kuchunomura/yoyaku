@@ -442,8 +442,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=63;
-const APP_BUILD_DATE='2026/06/25 19:02';
+const APP_VERSION=64;
+const APP_BUILD_DATE='2026/06/25 19:06';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1080,7 +1080,7 @@ function renderList(){
   let dayCounts={}; // 日付ごとの施設別件数（後で集計）
   // 表示順：日帰りを先に → 宿泊。表示名は短縮（透明・空中を省略）
   const COUNT_ORDER=['ツリーハウス昼','空中ウォーク','BBQスペース','ツリーハウス','透明ドーム','空中テント','空中ハンモック'];
-  const COUNT_SHORT={'BBQスペース':'BBQ','透明ドーム':'ドーム','空中テント':'テント','空中ハンモック':'ハンモック'};
+  const COUNT_SHORT={'BBQスペース':'BBQ','ツリーハウス':'ツリーハウス夜','透明ドーム':'ドーム','空中テント':'テント','空中ハンモック':'ハンモック'};
   const dateDivider=(d)=>{
     const dv=document.createElement('div');dv.className='date-divider';
     const cm=dayCounts[d]||{};
