@@ -123,8 +123,8 @@ b,strong,.card-name,.card-total{font-weight:600}
 <div id="app">
   <div class="tabs">
     <button class="tab active" data-tab="list" onclick="switchTab('list')">一覧</button>
-    <button class="tab" data-tab="add" onclick="switchTab('day')">＋予約追加</button>
     <button class="tab" data-tab="cal" onclick="switchTab('cal')">📅カレンダー</button>
+    <button class="tab" data-tab="add" onclick="switchTab('day')">＋予約追加</button>
     <button class="tab" data-tab="settings" onclick="switchTab('settings')">設定</button>
   </div>
   <div id="sync-indicator" onclick="loadFromSheet()" title="タップで今すぐ同期" style="font-size:11px;color:#999;text-align:right;padding:2px 10px;cursor:pointer"></div>
@@ -401,7 +401,7 @@ const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエク
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
-const BED_OPTS=['ベッド2台','ベッド1台＋ソファ'];
+const BED_OPTS=['ベッド2台','ベッド1台'];
 
 const ALL_ITEMS=[
   // POSレジ（cat_rental）と同一の品目・金額に統一
@@ -996,7 +996,7 @@ function renderList(){
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
         '<span style="font-size:12px;font-weight:600;color:#7a1030'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grpFacs.length>1?(grp+'（棟未選択）'):(grpFacs[0]?grpFacs[0].label:grp)))+(grpFacs.length>1?' ▾':'')+'</span>'+
-        (BED_GROUPS.includes(grp)?'<span data-act="toggleBed" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#eef3f7;color:#33576f;border:1px solid #cfe0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🛏 '+(s.bed||BED_OPTS[0])+' ⇄</span>':'')+
+        (BED_GROUPS.includes(grp)?'<span data-act="toggleBed" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#eef3f7;color:#111;border:1px solid #cfe0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🛏 '+(s.bed||BED_OPTS[0])+' ⇄</span>':'')+
         (s.changed?'<span class="badge-changed">変更済み</span>':'')+
         (s.done?'<span class="badge badge-done">対応済み</span>':'')+
         (srcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+srcL+'</span>':'')+
@@ -1012,7 +1012,7 @@ function renderList(){
       // 1行目：日付〜 泊数 人数 名前（右に金額）
       '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
         '<span style="font-size:14px;color:#333;font-weight:600">'+
-          fmtMD(s.checkin)+'〜'+fmtMD(s.checkout)+'　'+s.nights+'泊　'+s.ninzu+'名'+
+          (s.nights>=2?fmtMD(s.checkin)+'-'+fmtMD(s.checkout):fmtMD(s.checkin))+'　'+s.nights+'泊　'+s.ninzu+'名'+
           (childN>0?'+子'+childN:'')+(petN>0?'+ペット'+petN:'')+(nm?'　'+nm:'')+
         '</span>'+
         '<span style="font-size:13px;color:#111">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
