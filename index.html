@@ -426,8 +426,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=53;
-const APP_BUILD_DATE='2026/06/25 14:00';
+const APP_VERSION=54;
+const APP_BUILD_DATE='2026/06/25 14:08';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1139,7 +1139,7 @@ function renderList(){
     return div;
   }
 
-  // 日付順マージ描画：同日内は宿泊→日帰り。日帰りは予約時間順（同時刻はツリーハウス昼→空中ウォーク→BBQ）
+  // 日付順マージ描画：同日内は宿泊→日帰り。日帰りは施設ごとにまとめて（ツリーハウス昼→空中ウォーク→BBQ）、各施設内は予約時間順
   const DAY_FAC_ORDER={tree:0,walk:1,bbq:2};
   const entries=[];
   sl.forEach(s=>entries.push({date:s.checkin||'',kind:0,t:'',fo:0,ci:s.checkin||'',item:s}));
@@ -1147,8 +1147,8 @@ function renderList(){
   entries.sort((a,b)=>
     a.date.localeCompare(b.date)
     || (a.kind-b.kind)
-    || a.t.localeCompare(b.t)
     || (a.fo-b.fo)
+    || a.t.localeCompare(b.t)
     || a.ci.localeCompare(b.ci)
   );
   lastDate=null;
