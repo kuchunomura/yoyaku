@@ -141,6 +141,26 @@ b,strong,.card-name,.card-total{font-weight:600}
   </div>
 
   <div id="tab-day" class="tab-content" style="display:none">
+    <div class="section-title" style="cursor:pointer;user-select:none" onclick="togColl(this,'csv-body')">▶ 📥 WordPress予約CSV取込</div>
+    <div id="csv-body" style="display:none">
+      <div style="background:#fff7e6;border:1px solid #e8c878;border-radius:8px;padding:12px;margin-top:4px">
+        <div style="font-size:12px;color:#6b4f20;margin-bottom:8px;line-height:1.6">
+          商品ごとのCSVを選んで取り込みます。文字コードは自動判定（UTF-8/Shift-JIS）。<b>メール・電話は取り込まず</b>、住所は<b>市区町村まで</b>に丸めます。予約IDで<b>重複は自動更新</b>。
+        </div>
+        <label>取込先の施設（このCSVの商品）</label>
+        <select id="csv-fac" style="font-size:13px"></select>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;cursor:pointer;font-weight:normal">
+          <input type="checkbox" id="csv-include-cancel"> キャンセル分も取り込む（既定は除外）
+        </label>
+        <label style="margin-top:8px">CSVファイル</label>
+        <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
+        <div style="font-size:11px;color:#888;margin:6px 0">または↓に貼り付け（スプレッドシートからコピペ可）</div>
+        <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px"></textarea>
+        <button class="btn-primary" style="background:#6b4f20;margin-top:6px" onclick="importCSV()">この施設として取り込む</button>
+        <div id="csv-result" style="font-size:12px;color:#555;margin-top:8px;line-height:1.6"></div>
+      </div>
+    </div>
+    <div class="separator"></div>
     <div class="addmode-toggle">
       <button id="addmode-day" class="on" onclick="switchTab('day')">日帰り</button>
       <button id="addmode-stay" onclick="switchTab('stay')">宿泊</button>
@@ -286,24 +306,6 @@ b,strong,.card-name,.card-total{font-weight:600}
   </div>
 
   <div id="tab-settings" class="tab-content" style="display:none">
-    <div class="section-title">📥 WordPress予約CSV取込</div>
-    <div style="background:#fff7e6;border:1px solid #e8c878;border-radius:8px;padding:12px;margin-top:4px">
-      <div style="font-size:12px;color:#6b4f20;margin-bottom:8px;line-height:1.6">
-        商品ごとのCSVを選んで取り込みます。文字コードは自動判定（UTF-8/Shift-JIS）。<b>メール・電話は取り込まず</b>、住所は<b>市区町村まで</b>に丸めます。予約IDで<b>重複は自動更新</b>。
-      </div>
-      <label>取込先の施設（このCSVの商品）</label>
-      <select id="csv-fac" style="font-size:13px"></select>
-      <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;cursor:pointer;font-weight:normal">
-        <input type="checkbox" id="csv-include-cancel"> キャンセル分も取り込む（既定は除外）
-      </label>
-      <label style="margin-top:8px">CSVファイル</label>
-      <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
-      <div style="font-size:11px;color:#888;margin:6px 0">または↓に貼り付け（スプレッドシートからコピペ可）</div>
-      <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px"></textarea>
-      <button class="btn-primary" style="background:#6b4f20;margin-top:6px" onclick="importCSV()">この施設として取り込む</button>
-      <div id="csv-result" style="font-size:12px;color:#555;margin-top:8px;line-height:1.6"></div>
-    </div>
-    <div class="separator"></div>
     <div class="section-title">📊 Googleスプレッドシート同期</div>
     <div style="background:#f0f6ff;border:1px solid #88aacc;border-radius:8px;padding:12px;margin-top:4px">
       <div style="display:flex;gap:6px">
@@ -318,6 +320,13 @@ b,strong,.card-name,.card-total{font-weight:600}
       <label>GAS WebアプリURL</label>
       <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/..." style="font-size:13px">
       <button class="btn-primary" onclick="saveGasUrl()" style="background:#224466;margin-top:6px">URLを保存</button>
+      <div style="border-top:1px solid #c2d4ea;margin:12px 0 8px"></div>
+      <label>スプレッドシートURL（閲覧用）</label>
+      <input type="text" id="sheet-url" placeholder="https://docs.google.com/spreadsheets/..." style="font-size:13px">
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="btn-primary" onclick="saveSheetUrl()" style="background:#777;flex:1">URLを保存</button>
+        <button class="btn-primary" onclick="openSheet()" style="background:#1a7a3a;flex:1">📄 別タブで開く</button>
+      </div>
     </div>
     <div class="separator"></div>
     <div class="section-title">カスタム項目（日帰り）</div>
@@ -407,8 +416,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=36;
-const APP_BUILD_DATE='2026/06/25 11:50';
+const APP_VERSION=37;
+const APP_BUILD_DATE='2026/06/25 12:05';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -491,10 +500,10 @@ function switchTab(t,keepDateFilter){
   const tabGrp=(t==='day'||t==='stay')?'add':t;
   document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===tabGrp));
   if(t==='list'){if(!keepDateFilter)dateFilter=null;renderList();}
-  if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();setTimeout(refreshDateDisps,0);}
+  if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();renderCsvFacOptions();setTimeout(refreshDateDisps,0);}
   if(t==='stay'){initStay();setTimeout(refreshDateDisps,0);}
   if(t==='cal')initCal();
-  if(t==='settings'){renderSettings();renderStock();loadSNUI();loadGasUrl();renderCsvFacOptions();}
+  if(t==='settings'){renderSettings();renderStock();loadSNUI();loadGasUrl();}
 }
 
 function updDayDateDisp(){
@@ -1469,7 +1478,9 @@ function toggleOptInput(){document.getElementById('new-select-options').style.di
 // エクスポート・インポート・引き継ぎ
 // ---- Googleスプレッドシート同期 ----
 const GAS_KEY='yv_gas';
-function loadGasUrl(){const v=ld(GAS_KEY);if(v)document.getElementById('gas-url').value=v;}
+function loadGasUrl(){const v=ld(GAS_KEY);if(v)document.getElementById('gas-url').value=v;const su=ld('yv_sheet_url');const el=document.getElementById('sheet-url');if(su&&el)el.value=su;}
+function saveSheetUrl(){var u=(document.getElementById('sheet-url').value||'').trim();sv('yv_sheet_url',u);showToast('✓ スプレッドシートURLを保存しました');}
+function openSheet(){var u=(ld('yv_sheet_url')||(document.getElementById('sheet-url')||{}).value||'').trim();if(!u){showToast('⚠ スプレッドシートURLを保存してください','#c00');return;}window.open(u,'_blank');}
 function saveGasUrl(){
   const url=document.getElementById('gas-url').value.trim();
   if(!url){showToast('⚠ URLを入力してください','#c00');return;}
