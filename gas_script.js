@@ -140,6 +140,32 @@ function writeRows(sh, cols, rows, groupKeys){
   }
   sh.hideColumns(cols.length); // _json列を隠す
   sh.setFrozenRows(1);
+  applyCancelVisibility(sh); // キャンセル非表示の設定を反映（同期で書き直しても維持）
+}
+
+// ===== スプレッドシートのメニュー：キャンセル予約の表示/非表示 =====
+function onOpen(){
+  SpreadsheetApp.getUi().createMenu('予約管理')
+    .addItem('キャンセルを非表示にする','menuHideCancelled')
+    .addItem('キャンセルを表示する','menuShowCancelled')
+    .addToUI();
+}
+function menuHideCancelled(){ setHideCancelledPref(true); applyCancelVisibilityAll(); SpreadsheetApp.getActive().toast('キャンセル予約を非表示にしました'); }
+function menuShowCancelled(){ setHideCancelledPref(false); applyCancelVisibilityAll(); SpreadsheetApp.getActive().toast('キャンセル予約を表示しました'); }
+function setHideCancelledPref(v){ PropertiesService.getDocumentProperties().setProperty('hideCancelled', v?'1':''); }
+function getHideCancelledPref(){ return PropertiesService.getDocumentProperties().getProperty('hideCancelled')==='1'; }
+function applyCancelVisibilityAll(){ [DAY_SHEET,STAY_SHEET].forEach(function(n){ var sh=SpreadsheetApp.getActive().getSheetByName(n); if(sh) applyCancelVisibility(sh); }); }
+function applyCancelVisibility(sh){
+  var last=sh.getLastRow(); if(last<2) return;
+  var lastCol=sh.getLastColumn();
+  var header=sh.getRange(1,1,1,lastCol).getValues()[0];
+  var memoIdx=header.indexOf('メモ'); if(memoIdx<0) return;
+  var hide=getHideCancelledPref();
+  var memos=sh.getRange(2,memoIdx+1,last-1,1).getValues();
+  for(var i=0;i<memos.length;i++){
+    var isC=String(memos[i][0]).indexOf('キャンセル')>=0;
+    if(isC && hide) sh.hideRows(2+i); else sh.showRows(2+i);
+  }
 }
 
 function readSheet(name){
