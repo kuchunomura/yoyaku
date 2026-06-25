@@ -399,6 +399,10 @@ const STAY_FACS=[
 
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
+// ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
+const BED_GROUPS=['透明ドーム','ツリーハウス'];
+const BED_OPTS=['ベッド2台','ベッド1台＋ソファ'];
+
 const ALL_ITEMS=[
   // POSレジ（cat_rental）と同一の品目・金額に統一
   {id:'b01',name:'焚火台セット',price:1500,defStock:7},
@@ -991,7 +995,8 @@ function renderList(){
     div.innerHTML=
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
-        '<span style="font-size:12px;font-weight:600;color:#7a1030'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grp+'（棟未選択）'))+(grpFacs.length>1?' ▾':'')+'</span>'+
+        '<span style="font-size:12px;font-weight:600;color:#7a1030'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grpFacs.length>1?(grp+'（棟未選択）'):(grpFacs[0]?grpFacs[0].label:grp)))+(grpFacs.length>1?' ▾':'')+'</span>'+
+        (BED_GROUPS.includes(grp)?'<span data-act="toggleBed" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#eef3f7;color:#33576f;border:1px solid #cfe0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🛏 '+(s.bed||BED_OPTS[0])+' ⇄</span>':'')+
         (s.changed?'<span class="badge-changed">変更済み</span>':'')+
         (s.done?'<span class="badge badge-done">対応済み</span>':'')+
         (srcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+srcL+'</span>':'')+
@@ -1098,6 +1103,8 @@ function toggleDD(id){const r=reservations.find(x=>x.id===id);if(r){r.done=!r.do
 function toggleSD(id){const s=stays.find(x=>x.id===id);if(s){s.done=!s.done;sv(STKEY,stays);autoPush();renderList();}}
 function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;const u=getSFac(unitId);if(!u)return;s.facility=unitId;const tp=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));s.unitPrice=getSPrice(u,tp);sv(STKEY,stays);autoPush();renderList();showToast('棟を「'+u.label+'」に設定');}
 function toggleUnitSel(id){var el=document.getElementById('unitsel-'+id);if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'flex':'none';}
+// ベッド構成（ドーム・ツリーハウス）。タップで切替
+function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;var cur=s.bed||BED_OPTS[0];var i=BED_OPTS.indexOf(cur);s.bed=BED_OPTS[(i+1)%BED_OPTS.length];sv(STKEY,stays);autoPush();renderList();}
 function markChanged(id){const s=stays.find(x=>x.id===id);if(s){s.changed=!s.changed;sv(STKEY,stays);autoPush();renderList();showToast(s.changed?'変更済みにしました':'変更済みを解除しました',s.changed?'#c00':'#555');}}
 function markChangedDay(id){const r=reservations.find(x=>x.id===id);if(r){r.changed=!r.changed;sv(RKEY,reservations);autoPush();renderList();showToast(r.changed?'変更済みにしました':'変更済みを解除しました',r.changed?'#c00':'#555');}}
 let _confirmCb=null;
@@ -1892,6 +1899,7 @@ document.addEventListener('click',function(e){
   else if(act==='delStay')delStay(id);
   else if(act==='setStayUnit')setStayUnit(id,btn.dataset.unit);
   else if(act==='toggleUnitSel')toggleUnitSel(id);
+  else if(act==='toggleBed')toggleBed(id);
 });
 
 // PWA無効化
