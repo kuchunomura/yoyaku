@@ -138,6 +138,13 @@ b,strong,.card-name,.card-total{font-weight:600}
   <div id="tab-list" class="tab-content">
     <div id="date-filter-bar" style="display:none;align-items:center;gap:8px;background:#fff0f4;border:1px solid #d06080;border-radius:8px;padding:8px 12px;margin-bottom:10px"><span style="font-size:14px;font-weight:600;color:#7a1030;flex:1" id="date-filter-label"></span><button class="btn-sm" onclick="clearDateFilter()" style="color:#c00;border-color:#fcc;white-space:nowrap">✕ 絞り込み解除</button></div>
     <div id="list-quickdate" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px"></div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;font-size:13px;color:#555;flex-wrap:wrap">
+      <span>期間</span>
+      <input type="date" id="list-from" onchange="onRangeChange()" oninput="onRangeChange()" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:6px">
+      <span>〜</span>
+      <input type="date" id="list-to" onchange="onRangeChange()" oninput="onRangeChange()" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:6px">
+      <button class="btn-sm" onclick="clearRange()">期間クリア</button>
+    </div>
     <input id="list-search" type="search" placeholder="🔍 名前・メモ・住所・施設で検索" oninput="onSearchInput(this.value)" style="width:100%;box-sizing:border-box;font-size:14px;padding:8px 10px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;-webkit-appearance:none">
     <div class="facility-tabs" id="flt-tabs"></div>
     <div id="list-container"></div>
@@ -428,8 +435,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=56;
-const APP_BUILD_DATE='2026/06/25 14:27';
+const APP_VERSION=57;
+const APP_BUILD_DATE='2026/06/25 14:45';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -485,20 +492,29 @@ let rentalSt={},stayRentalSt={};
 let dateFilter=null;
 let listFromToday=true; // 一覧は既定で今日以降のみ表示
 let searchQ='';         // 一覧の検索キーワード
+let dateFrom='',dateTo=''; // 期間絞込
 function todayStr(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
 function offsetStr(off){var d=new Date();d.setDate(d.getDate()+off);return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+function _clearRangeInputs(){dateFrom='';dateTo='';var f=document.getElementById('list-from'),t=document.getElementById('list-to');if(f)f.value='';if(t)t.value='';}
+function _clearSearchInput(){searchQ='';var s=document.getElementById('list-search');if(s)s.value='';}
 // 昨日/今日/明日/明後日ボタン → その日だけ表示
-function quickDate(off){dateFilter=offsetStr(off);searchQ='';var sb=document.getElementById('list-search');if(sb)sb.value='';renderList();}
+function quickDate(off){dateFilter=offsetStr(off);listFromToday=false;_clearSearchInput();_clearRangeInputs();renderList();}
+// 今日以降（既定）
+function showFromToday(){dateFilter=null;listFromToday=true;_clearSearchInput();_clearRangeInputs();renderList();}
 // 全期間（過去も含めて表示）
-function showAllDates(){dateFilter=null;listFromToday=false;searchQ='';var sb=document.getElementById('list-search');if(sb)sb.value='';renderList();}
-function onSearchInput(v){searchQ=(v||'').trim();if(searchQ)dateFilter=null;renderList();}
+function showAllDates(){dateFilter=null;listFromToday=false;_clearSearchInput();_clearRangeInputs();renderList();}
+function onSearchInput(v){searchQ=(v||'').trim();if(searchQ){dateFilter=null;}renderList();}
+// 期間（開始〜終了）絞込
+function onRangeChange(){var f=document.getElementById('list-from'),t=document.getElementById('list-to');dateFrom=f?normDate(f.value):'';dateTo=t?normDate(t.value):'';if(dateFrom||dateTo){dateFilter=null;listFromToday=false;_clearSearchInput();}renderList();}
+function clearRange(){_clearRangeInputs();if(!dateFilter&&!searchQ)listFromToday=true;renderList();}
 function renderQuickDates(){
   var c=document.getElementById('list-quickdate');if(!c)return;
+  var hasRange=!!(dateFrom||dateTo);
   var btns=[['昨日',-1],['今日',0],['明日',1],['明後日',2]];
   var bh=btns.map(function(b){var ds=offsetStr(b[1]);var on=(dateFilter===ds);return '<button class="btn-sm" onclick="quickDate('+b[1]+')" style="'+(on?'background:#7a1030;color:#fff;border-color:#7a1030':'')+'">'+b[0]+'</button>';}).join('');
-  var todayOn=(!dateFilter&&listFromToday&&!searchQ);
-  var allOn=(!dateFilter&&!listFromToday&&!searchQ);
-  bh+='<button class="btn-sm" onclick="(function(){dateFilter=null;listFromToday=true;searchQ=\'\';var s=document.getElementById(\'list-search\');if(s)s.value=\'\';renderList();})()" style="'+(todayOn?'background:#7a1030;color:#fff;border-color:#7a1030':'')+'">今日以降</button>';
+  var todayOn=(!dateFilter&&listFromToday&&!searchQ&&!hasRange);
+  var allOn=(!dateFilter&&!listFromToday&&!searchQ&&!hasRange);
+  bh+='<button class="btn-sm" onclick="showFromToday()" style="'+(todayOn?'background:#7a1030;color:#fff;border-color:#7a1030':'')+'">今日以降</button>';
   bh+='<button class="btn-sm" onclick="showAllDates()" style="'+(allOn?'background:#555;color:#fff;border-color:#555':'')+'">全期間</button>';
   c.innerHTML=bh;
 }
@@ -530,7 +546,7 @@ function switchTab(t,keepDateFilter){
   ['list','day','stay','cal','settings'].forEach(x=>document.getElementById('tab-'+x).style.display=x===t?'':'none');
   const tabGrp=(t==='day'||t==='stay')?'add':t;
   document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===tabGrp));
-  if(t==='list'){if(!keepDateFilter){dateFilter=null;searchQ='';listFromToday=true;var sb=document.getElementById('list-search');if(sb)sb.value='';}renderList();}
+  if(t==='list'){if(!keepDateFilter){dateFilter=null;listFromToday=true;_clearSearchInput();_clearRangeInputs();}renderList();}
   if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();renderCsvFacOptions();setTimeout(refreshDateDisps,0);}
   if(t==='stay'){initStay();setTimeout(refreshDateDisps,0);}
   if(t==='cal')initCal();
@@ -801,7 +817,7 @@ function updDayStayLink(){
   let list=stays;
   if(dt){
     const base=new Date(dt);
-    const dates=[-2,-1,0,1,2].map(d=>{const dx=new Date(base);dx.setDate(dx.getDate()+d);return dx.toISOString().slice(0,10);});
+    const dates=[-1,0,1].map(d=>{const dx=new Date(base);dx.setDate(dx.getDate()+d);return dx.toISOString().slice(0,10);});
     list=stays.filter(s=>!s.checkin||dates.some(d=>s.checkin<=d&&s.checkout>d));
   }
   if(!list.length){c.innerHTML='<div style="font-size:13px;color:#aaa;padding:6px 0">宿泊予約なし</div>';return;}
@@ -827,7 +843,7 @@ function updDayDayLink(excludeId){
   let list=reservations.filter(r=>r.id!==excludeId);
   if(dt){
     const base=new Date(dt);
-    const dates=[-2,-1,0,1,2].map(d=>{const dx=new Date(base);dx.setDate(dx.getDate()+d);return dx.toISOString().slice(0,10);});
+    const dates=[-1,0,1].map(d=>{const dx=new Date(base);dx.setDate(dx.getDate()+d);return dx.toISOString().slice(0,10);});
     list=list.filter(r=>!r.date||dates.includes(r.date));
   }
   if(!list.length){c.innerHTML='<div style="font-size:13px;color:#aaa;padding:6px 0">他の日帰り予約なし</div>';return;}
@@ -1013,11 +1029,16 @@ function renderList(){
   let dl=reservations.slice(),sl=stays.slice();
   const today=todayStr();
   if(searchQ){
-    // 検索中は全期間から（名前・メモ・住所・予約サイト・施設名）
+    // 検索中は全期間から（名前・メモ・住所・予約サイト・施設名＋別名）
     const q=searchQ.toLowerCase();
-    const hit=o=>[o.name,o.memo,o.addr,o.source].some(x=>String(x||'').toLowerCase().indexOf(q)>=0);
-    dl=dl.filter(r=>hit(r)||((getFac(r.facility)||{}).label||'').toLowerCase().indexOf(q)>=0);
-    sl=sl.filter(s=>hit(s)||((getSFac(s.facility)||{}).label||'').toLowerCase().indexOf(q)>=0||String(s.facGroup||'').toLowerCase().indexOf(q)>=0);
+    const dayAlias={walk:'空中ウォーク 空中ウオーク くうちゅう ウォーク',tree:'ツリーハウス 昼 日帰り ツリーハウス昼 ツリーハウス（昼）',bbq:'bbq ＢＢＱ バーベキュー bbqスペース 焚き火 焚火'};
+    const hit=o=>[o.name,o.memo,o.addr,getSrcLabel(o.source||'')].some(x=>String(x||'').toLowerCase().indexOf(q)>=0);
+    dl=dl.filter(r=>hit(r)||((getFac(r.facility)||{}).label||'').toLowerCase().indexOf(q)>=0||(dayAlias[r.facility]||'').toLowerCase().indexOf(q)>=0);
+    sl=sl.filter(s=>hit(s)||((getSFac(s.facility)||{}).label||'').toLowerCase().indexOf(q)>=0||String(s.facGroup||'').toLowerCase().indexOf(q)>=0||('宿泊 泊'.indexOf(searchQ)>=0));
+  }else if(dateFrom||dateTo){
+    // 期間絞込（宿泊は期間と重なるもの）
+    dl=dl.filter(r=>(!dateFrom||(r.date||'')>=dateFrom)&&(!dateTo||(r.date||'')<=dateTo));
+    sl=sl.filter(s=>{const ci=s.checkin||'',co=s.checkout||ci;if(!ci)return false;if(dateTo&&ci>dateTo)return false;if(dateFrom&&co&&co<=dateFrom)return false;return true;});
   }else if(dateFilter){
     dl=dl.filter(r=>r.date===dateFilter);
     sl=sl.filter(s=>s.checkin&&s.checkout&&s.checkin<=dateFilter&&s.checkout>dateFilter);
@@ -1033,7 +1054,7 @@ function renderList(){
   if(!showCancelled){dl=dl.filter(r=>!isCancelled(r));sl=sl.filter(s=>!isCancelled(s));}
   sl.sort((a,b)=>a.checkin.localeCompare(b.checkin));
   dl.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.startTime.localeCompare(b.startTime));
-  if(!dl.length&&!sl.length){c.innerHTML='<div class="empty">'+(searchQ?'「'+searchQ+'」に一致する予約はありません':(dateFilter?fmtDate(dateFilter)+'の予約はありません':(listFromToday?'今日以降の予約はありません（「全期間」で過去も表示）':'予約がありません')))+'</div>';return;}
+  if(!dl.length&&!sl.length){c.innerHTML='<div class="empty">'+(searchQ?'「'+searchQ+'」に一致する予約はありません':((dateFrom||dateTo)?'指定期間の予約はありません':(dateFilter?fmtDate(dateFilter)+'の予約はありません':(listFromToday?'今日以降の予約はありません（「全期間」で過去も表示）':'予約がありません'))))+'</div>';return;}
 
   // 日付が変わったら区切り見出しを入れる（宿泊=checkin／日帰り=date）
   let lastDate=null;
@@ -1086,9 +1107,9 @@ function renderList(){
         '</span>'+
         '<span style="font-size:13px;color:#111">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
       '</div>'+
-      ((s.rental||[]).length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px">'+s.rental.map(i=>i.name+(i.qty>1?'×'+i.qty:'')).join('、')+'</div>':'')+
+      ((s.rental||[]).length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px">'+s.rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div>':'')+
       linkedH+
-      (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">'+s.memo+'</div>':'')+
+      (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">'+fmtMemoText(s.memo)+'</div>':'')+
       (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+s.addr+'</div>':'')+
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px">'+
         '<span style="font-size:11px;color:#aaa">'+(showCiCo?'IN '+fac.ci+' ／ OUT '+fac.co:'')+'</span>'+
@@ -1149,9 +1170,9 @@ function renderList(){
         '</span>'+
         '<span style="font-size:13px;color:#111">'+amountText+'</span>'+
       '</div>'+
-      (rental.length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px">'+rental.map(i=>i.name+(i.qty>1?'×'+i.qty:'')).join('、')+'</div>':'')+
+      (rental.length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px">'+rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div>':'')+
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
-      (r.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">'+r.memo+'</div>':'')+
+      (r.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">'+fmtMemoText(r.memo)+'</div>':'')+
       (r.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+r.addr+'</div>':'')+
       // 下部：操作ボタン（会計＝2回タップ／編集／削除）
       '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:6px">'+
@@ -1194,6 +1215,8 @@ function detectOtaFromText(t){t=String(t||'');if(/ソウエクスペリ|そう�
 // キャンセル判定（メモに「キャンセル」を含む）と表示トグル
 let showCancelled=true;
 function isCancelled(o){return /キャンセル/.test((o&&o.memo)||'');}
+// メモ内の「○○:1個」「○○：2個」のような備品表記を「○○×1」に整形（顧客の自由記述はそのまま）
+function fmtMemoText(m){return String(m||'').replace(/\s*[:：]\s*(\d+)\s*個/g,'×$1');}
 function toggleShowCancelled(){showCancelled=!showCancelled;renderFltTabs();renderList();renderCal();}
 // ペット数をタップで 0→1→2→3→0 と切替（料金も再計算）
 function togglePet(id){var s=stays.find(x=>x.id===id);if(!s)return;var n=((s.petCount||0)+1)%4;s.petCount=n;s.petFee=n*3000*(s.nights||1);sv(STKEY,stays);autoPush();renderList();}
@@ -1317,10 +1340,12 @@ function openEdit(id){
   const filt=fac.courses.filter(c=>c.min!==0);
   const crBlk=filt.length?'<label>コース</label><select id="edit-course">'+filt.map(c=>'<option value="'+c.min+'"'+(r.course===c.min?' selected':'')+'>'+c.minLabel+'</option>').join('')+'</select>':'';
   const srcOpts=['','rakuten','jalan','sou','other1','other2','other3','pass_day','pass_night'].map(k=>'<option value="'+k+'"'+((r.source||'')=== k?' selected':'')+'>'+( k?getSrcLabel(k):'直接予約')+'</option>').join('');
-  let slCks='';stays.forEach(s=>{const sf=getSFac(s.facility);const chk=(r.linkedStayIds||[]).includes(s.id)?'checked':'';const srcL=s.source?'【'+getSrcLabel(s.source)+'】':'【直接予約】';slCks+='<div class="link-check-item"><input type="checkbox" id="esl_'+s.id+'" value="'+s.id+'" '+chk+'><label for="esl_'+s.id+'">'+fmtDate(s.checkin)+(sf?' '+sf.label:'')+(s.name?' '+s.name:'')+' '+srcL+'</label></div>';});
-  if(!slCks)slCks='<div style="font-size:13px;color:#aaa;padding:6px 0">宿泊予約なし</div>';
-  let dlCks='';reservations.filter(x=>x.id!==r.id).forEach(o=>{const of=getFac(o.facility);const chk=(r.linkedDayIds||[]).includes(o.id)?'checked':'';const srcL=o.source?'【'+getSrcLabel(o.source)+'】':'【直接予約】';dlCks+='<div class="link-check-item"><input type="checkbox" id="edl_'+o.id+'" value="'+o.id+'" '+chk+'><label for="edl_'+o.id+'">'+(o.date?fmtDate(o.date)+' ':'')+(of?of.label:'')+(o.name?' '+o.name:'')+(o.startTime?' '+o.startTime:'')+' '+srcL+'</label></div>';});
-  if(!dlCks)dlCks='<div style="font-size:13px;color:#aaa;padding:6px 0">他の日帰り予約なし</div>';
+  // 紐づけ候補は予約日の前後±1日のみ（既に紐付け済みは範囲外でも表示）
+  const adjD=r.date?[-1,0,1].map(d=>{const dx=new Date(r.date);dx.setDate(dx.getDate()+d);return dx.toISOString().slice(0,10);}):null;
+  let slCks='';stays.filter(s=>{if((r.linkedStayIds||[]).includes(s.id))return true;if(!adjD||!s.checkin)return !adjD;return adjD.some(d=>s.checkin<=d&&s.checkout>d);}).forEach(s=>{const sf=getSFac(s.facility);const chk=(r.linkedStayIds||[]).includes(s.id)?'checked':'';const srcL=s.source?'【'+getSrcLabel(s.source)+'】':'【直接予約】';slCks+='<div class="link-check-item"><input type="checkbox" id="esl_'+s.id+'" value="'+s.id+'" '+chk+'><label for="esl_'+s.id+'">'+fmtDate(s.checkin)+(sf?' '+sf.label:'')+(s.name?' '+s.name:'')+' '+srcL+'</label></div>';});
+  if(!slCks)slCks='<div style="font-size:13px;color:#aaa;padding:6px 0">前後の宿泊予約なし</div>';
+  let dlCks='';reservations.filter(x=>x.id!==r.id).filter(o=>{if((r.linkedDayIds||[]).includes(o.id))return true;if(!adjD||!o.date)return !adjD;return adjD.includes(o.date);}).forEach(o=>{const of=getFac(o.facility);const chk=(r.linkedDayIds||[]).includes(o.id)?'checked':'';const srcL=o.source?'【'+getSrcLabel(o.source)+'】':'【直接予約】';dlCks+='<div class="link-check-item"><input type="checkbox" id="edl_'+o.id+'" value="'+o.id+'" '+chk+'><label for="edl_'+o.id+'">'+(o.date?fmtDate(o.date)+' ':'')+(of?of.label:'')+(o.name?' '+o.name:'')+(o.startTime?' '+o.startTime:'')+' '+srcL+'</label></div>';});
+  if(!dlCks)dlCks='<div style="font-size:13px;color:#aaa;padding:6px 0">前後の日帰り予約なし</div>';
   let html='<label>施設</label><select id="edit-facility" onchange="updEditCrs()">'+facOpts+'</select>'+crBlk+
     '<label>予約日</label><input type="date" id="edit-date" value="'+(r.date||'')+'">'+
     '<label>予約サイト</label><select id="edit-day-src">'+srcOpts+'</select>'+
@@ -1741,8 +1766,11 @@ function importCSV(){
       var v=String(f[xi]||'').trim();
       if(!v) continue;
       if(/同意/.test(v)) continue;
-      if(v.indexOf('@')!==-1) continue;            // メール
-      if(/^[\d\-+()\s]{9,}$/.test(v)) continue;     // 電話
+      if(v.indexOf('@')!==-1) continue;                                  // メール
+      if(/(電話|携帯|tel|phone|連絡先|fax)/i.test(v)) continue;          // 電話ラベル付き
+      if(/\d{2,4}[-‐ー－]\d{2,4}[-‐ー－]\d{3,4}/.test(v)) continue;      // ハイフン区切り電話
+      var dig=v.replace(/[^\d]/g,''); if(dig.length>=10&&dig.length<=11&&v.replace(/[\d\s\-+()‐ー－]/g,'').length===0) continue; // 数字のみ電話
+      if(/^[\d\-+()\s]{9,}$/.test(v)) continue;                         // 電話（従来）
       out.push(v);
     }
     return out.join(' / ');
@@ -1751,6 +1779,20 @@ function importCSV(){
     if(!text||!text.trim()){ res.style.color='#c00'; res.textContent='⚠ CSVを選択するか貼り付けてください'; return; }
     var rows=parseDelimited(text);
     var added=0,updated=0,cancelled=0,mismatch=0;
+    // ヘッダー行（1行目がデータIDでない＝列名行）があれば列名で対応付け（位置ズレ対策）
+    var headerRow=(rows.length && !/^\d+$/.test(String(rows[0][0]||'').trim())) ? rows[0] : null;
+    function hcol(re){ if(!headerRow) return -1; for(var i=0;i<headerRow.length;i++){ if(re.test(String(headerRow[i]||''))) return i; } return -1; }
+    var H={
+      name:hcol(/(氏名|お名前|名前|ご芳名|代表者|予約者|name)/i),
+      email:hcol(/(メール|e-?mail|mail)/i),
+      phone:hcol(/(電話|携帯|連絡先|tel|phone)/i),
+      addr:hcol(/(住所|都道府県|市区町村|address)/i),
+      amount:hcol(/(合計|金額|料金|総額|total|amount|price)/i),
+      status:hcol(/(状態|ステータス|status)/i),
+      date:hcol(/(利用日|予約日|チェックイン|宿泊日|来店日|日時|date)/i),
+      course:hcol(/(コース|利用時間|プラン|時間|course|plan)/i),
+      ninzu:hcol(/(人数|名様|参加|大人|guests?|people|persons)/i)
+    };
     // 行が「宿泊予約」っぽいか（ベッド情報・連泊・Adults/泊など）／「日帰り」っぽいか（コース時間）を判定
     function looksStay(f){ var j=f.join(' '); var dc=0; for(var i=0;i<f.length;i++){ if(parseWpDateTime(f[i]).date) dc++; } return /ベッド/.test(j) || /Adults?\s*[:：]/i.test(j) || /泊/.test(j) || dc>=2; }
     function looksDay(f){ var j=f.join(' '); return /(55|115|110)\s*分|1\s*day|終日|利用時間/i.test(j); }
@@ -1760,27 +1802,32 @@ function importCSV(){
       // 施設種別の取り違えチェック：宿泊CSVを日帰りに（またはその逆）取り込もうとしたら弾く
       if(type==='day' && looksStay(f) && !looksDay(f)){ mismatch++; return; }
       if(type!=='day' && looksDay(f) && !looksStay(f)){ mismatch++; return; }
-      var statusIdx=csvFindIdx(f,/^(approved|canceled|cancelled|pending|completed|on-hold)$/i);
+      var statusIdx=H.status>=0?H.status:csvFindIdx(f,/^(approved|canceled|cancelled|pending|completed|on-hold)$/i);
       var status=statusIdx>=0?String(f[statusIdx]).toLowerCase():'approved';
       if(/cancel/.test(status) && !includeCancel){ cancelled++; return; }
-      var emailIdx=csvFindIdx(f,/@/);
-      var name=emailIdx>0?String(f[emailIdx-1]||'').trim():'';
-      var addrIdx=csvFindIdx(f,/[市区町村]/);
+      var emailIdx=H.email>=0?H.email:csvFindIdx(f,/@/);
+      // 名前：ヘッダーがあれば列名優先。無ければメール直前のセル（位置推定）
+      var nameIdx=H.name>=0?H.name:(emailIdx>0?emailIdx-1:-1);
+      var name=nameIdx>=0?String(f[nameIdx]||'').trim():'';
+      var addrIdx=H.addr>=0?H.addr:csvFindIdx(f,/[市区町村]/);
       var addr=addrIdx>=0?trimAddr(f[addrIdx]):'';
-      var amountIdx=csvFindIdx(f,/[¥￥]/);
-      var phoneIdx=csvFindIdx(f,/^[\d\-+()\s]{9,}$/);
+      var amountIdx=H.amount>=0?H.amount:csvFindIdx(f,/[¥￥]/);
+      var phoneIdx=H.phone>=0?H.phone:csvFindIdx(f,/^[\d\-+()\s]{9,}$/);
       var consentIdx=csvFindIdx(f,/同意/);
       var source=detectSource(f);
-      var amount=parseAmount(f);
+      var amount=amountIdx>=0?(parseInt(String(f[amountIdx]||'').replace(/[^\d]/g,''),10)||0):parseAmount(f);
       var consumed={}; consumed[0]=true;
-      [statusIdx,emailIdx,emailIdx-1,addrIdx,amountIdx,phoneIdx,consentIdx].forEach(function(ii){ if(ii>=0) consumed[ii]=true; });
+      [statusIdx,emailIdx,nameIdx,addrIdx,amountIdx,phoneIdx,consentIdx].forEach(function(ii){ if(ii>=0) consumed[ii]=true; });
       var rec;
       if(type==='day'){
         var dt={date:'',time:''}, dIdx=-1;
-        for(var k=0;k<f.length;k++){ var p=parseWpDateTime(f[k]); if(p.date){ dt=p; dIdx=k; break; } }
-        var cIdx=csvFindIdx(f,/利用|分|day|終日|minutes/i);
-        var ninIdx=csvFindIdx(f,/人数|名（|名\(|people|persons/i);
-        var ninM=f.join(' ').match(/(\d+)\s*名/); var ninzu=ninM?parseInt(ninM[1],10):1;
+        if(H.date>=0){ var pd=parseWpDateTime(f[H.date]); if(pd.date){ dt=pd; dIdx=H.date; } }
+        if(dIdx<0){ for(var k=0;k<f.length;k++){ var p=parseWpDateTime(f[k]); if(p.date){ dt=p; dIdx=k; break; } } }
+        var cIdx=H.course>=0?H.course:csvFindIdx(f,/利用|分|day|終日|minutes/i);
+        var ninIdx=H.ninzu>=0?H.ninzu:csvFindIdx(f,/人数|名（|名\(|people|persons/i);
+        var ninzu;
+        if(ninIdx>=0 && /\d/.test(String(f[ninIdx]||''))){ ninzu=parseInt(String(f[ninIdx]).replace(/[^\d]/g,''),10)||1; }
+        else { var ninM=f.join(' ').match(/(\d+)\s*名/); ninzu=ninM?parseInt(ninM[1],10):1; }
         [dIdx,cIdx,ninIdx].forEach(function(ii){ if(ii>=0) consumed[ii]=true; });
         rec={ wpId:wpId, id:'r_wp'+wpId, facility:facId, course:parseCourse(cIdx>=0?f[cIdx]:''),
           date:dt.date, startTime:dt.time, name:name, ninzu:String(ninzu), source:source,
