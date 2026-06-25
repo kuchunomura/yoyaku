@@ -138,14 +138,16 @@ b,strong,.card-name,.card-total{font-weight:600}
   <div id="tab-list" class="tab-content">
     <div id="date-filter-bar" style="display:none;align-items:center;gap:8px;background:#fff0f4;border:1px solid #d06080;border-radius:8px;padding:8px 12px;margin-bottom:10px"><span style="font-size:14px;font-weight:600;color:#7a1030;flex:1" id="date-filter-label"></span><button class="btn-sm" onclick="clearDateFilter()" style="color:#c00;border-color:#fcc;white-space:nowrap">✕ 絞り込み解除</button></div>
     <div id="list-quickdate" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px"></div>
-    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;font-size:13px;color:#555;flex-wrap:wrap">
-      <span>期間</span>
-      <input type="date" id="list-from" onchange="onRangeChange()" oninput="onRangeChange()" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:6px">
-      <span>〜</span>
-      <input type="date" id="list-to" onchange="onRangeChange()" oninput="onRangeChange()" style="font-size:13px;padding:5px;border:1px solid #ccc;border-radius:6px">
-      <button class="btn-sm" onclick="clearRange()">期間クリア</button>
+    <div id="list-filter" style="display:none;margin-bottom:8px">
+      <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;font-size:12px;color:#555;flex-wrap:wrap">
+        <span>期間</span>
+        <input type="date" id="list-from" onchange="onRangeChange()" oninput="onRangeChange()" style="font-size:12px;padding:3px 4px;border:1px solid #ccc;border-radius:6px">
+        <span>〜</span>
+        <input type="date" id="list-to" onchange="onRangeChange()" oninput="onRangeChange()" style="font-size:12px;padding:3px 4px;border:1px solid #ccc;border-radius:6px">
+        <button class="btn-sm" onclick="clearRange()" style="padding:3px 8px;font-size:12px">✕</button>
+      </div>
+      <input id="list-search" type="search" placeholder="🔍 名前・メモ・住所・施設で検索" oninput="onSearchInput(this.value)" style="width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border:1px solid #ccc;border-radius:8px;-webkit-appearance:none">
     </div>
-    <input id="list-search" type="search" placeholder="🔍 名前・メモ・住所・施設で検索" oninput="onSearchInput(this.value)" style="width:100%;box-sizing:border-box;font-size:14px;padding:8px 10px;border:1px solid #ccc;border-radius:8px;margin-bottom:8px;-webkit-appearance:none">
     <div class="facility-tabs" id="flt-tabs"></div>
     <div id="list-container"></div>
   </div>
@@ -442,8 +444,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=64;
-const APP_BUILD_DATE='2026/06/25 19:06';
+const APP_VERSION=65;
+const APP_BUILD_DATE='2026/06/25 19:18';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -523,8 +525,14 @@ function renderQuickDates(){
   var allOn=(!dateFilter&&!listFromToday&&!searchQ&&!hasRange);
   bh+='<button class="btn-sm" onclick="showFromToday()" style="'+(todayOn?'background:#7a1030;color:#fff;border-color:#7a1030':'')+'">今日以降</button>';
   bh+='<button class="btn-sm" onclick="showAllDates()" style="'+(allOn?'background:#555;color:#fff;border-color:#555':'')+'">全期間</button>';
+  var filtActive=!!(searchQ||hasRange);
+  bh+='<button class="btn-sm" onclick="toggleListFilter()" style="'+(filtActive?'background:#224466;color:#fff;border-color:#224466':'')+'">🔍 検索/期間</button>';
   c.innerHTML=bh;
+  // 検索や期間が有効なときはパネルを開いたままにする
+  var fp=document.getElementById('list-filter');
+  if(fp&&filtActive)fp.style.display='block';
 }
+function toggleListFilter(){var el=document.getElementById('list-filter');if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'block':'none';if(el.style.display==='block'){var s=document.getElementById('list-search');if(s)s.focus();}}
 
 // Android対応：date inputの値変化をポーリングで検知
 let _pollTimer=null,_pollId=null,_pollCb=null,_pollLast='';
