@@ -171,9 +171,11 @@ b,strong,.card-name,.card-total{font-weight:600}
     </div>
     <div id="bbq-rental-section" style="display:none">
       <div class="separator"></div>
-      <div style="font-size:14px;font-weight:600;color:#633806;margin-bottom:4px">備品レンタル</div>
-      <div id="rental-items-form"></div>
-      <div id="rental-summary-form" class="rental-summary" style="display:none;margin-top:8px"></div>
+      <div style="font-size:14px;font-weight:600;color:#633806;margin-bottom:4px;cursor:pointer;user-select:none" onclick="togColl(this,'rental-body-day')">▶ 備品レンタル</div>
+      <div id="rental-body-day" style="display:none">
+        <div id="rental-items-form"></div>
+        <div id="rental-summary-form" class="rental-summary" style="display:none;margin-top:8px"></div>
+      </div>
     </div>
     <div class="price-box">
       <div class="price-unit" id="price-unit-text"></div>
@@ -248,9 +250,11 @@ b,strong,.card-name,.card-total{font-weight:600}
     <label>同日の日帰り予約との紐づけ</label>
     <div id="stay-daylink" class="link-check-list"></div>
     <div class="separator"></div>
-    <div style="font-size:14px;font-weight:600;color:#633806;margin-bottom:4px">備品レンタル</div>
-    <div id="stay-rental-form"></div>
-    <div id="stay-rental-summary" class="rental-summary" style="display:none;margin-top:8px"></div>
+    <div style="font-size:14px;font-weight:600;color:#633806;margin-bottom:4px;cursor:pointer;user-select:none" onclick="togColl(this,'rental-body-stay')">▶ 備品レンタル</div>
+    <div id="rental-body-stay" style="display:none">
+      <div id="stay-rental-form"></div>
+      <div id="stay-rental-summary" class="rental-summary" style="display:none;margin-top:8px"></div>
+    </div>
     <div class="price-box">
       <div class="price-unit" id="stay-price-unit"></div>
       <div class="price-total" id="stay-price-total"></div>
@@ -276,6 +280,39 @@ b,strong,.card-name,.card-total{font-weight:600}
   </div>
 
   <div id="tab-settings" class="tab-content" style="display:none">
+    <div class="section-title">📥 WordPress予約CSV取込</div>
+    <div style="background:#fff7e6;border:1px solid #e8c878;border-radius:8px;padding:12px;margin-top:4px">
+      <div style="font-size:12px;color:#6b4f20;margin-bottom:8px;line-height:1.6">
+        商品ごとのCSVを選んで取り込みます。文字コードは自動判定（UTF-8/Shift-JIS）。<b>メール・電話は取り込まず</b>、住所は<b>市区町村まで</b>に丸めます。予約IDで<b>重複は自動更新</b>。
+      </div>
+      <label>取込先の施設（このCSVの商品）</label>
+      <select id="csv-fac" style="font-size:13px"></select>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;cursor:pointer;font-weight:normal">
+        <input type="checkbox" id="csv-include-cancel"> キャンセル分も取り込む（既定は除外）
+      </label>
+      <label style="margin-top:8px">CSVファイル</label>
+      <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
+      <div style="font-size:11px;color:#888;margin:6px 0">または↓に貼り付け（スプレッドシートからコピペ可）</div>
+      <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px"></textarea>
+      <button class="btn-primary" style="background:#6b4f20;margin-top:6px" onclick="importCSV()">この施設として取り込む</button>
+      <div id="csv-result" style="font-size:12px;color:#555;margin-top:8px;line-height:1.6"></div>
+    </div>
+    <div class="separator"></div>
+    <div class="section-title">📊 Googleスプレッドシート同期</div>
+    <div style="background:#f0f6ff;border:1px solid #88aacc;border-radius:8px;padding:12px;margin-top:4px">
+      <div style="font-size:12px;color:#224466;margin-bottom:8px;line-height:1.6">
+        GAS WebアプリのURLを設定してからスプレッドシートへ同期できます。
+      </div>
+      <label>GAS WebアプリURL</label>
+      <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/..." style="font-size:13px">
+      <button class="btn-primary" onclick="saveGasUrl()" style="background:#224466;margin-top:6px;margin-bottom:8px">URLを保存</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn-primary" onclick="syncToSheet()" style="background:#1a7a3a;flex:1">📤 シートへ保存</button>
+        <button class="btn-primary" onclick="loadFromSheet()" style="background:#224466;flex:1">📥 シートから読込</button>
+      </div>
+      <div id="sync-status" style="font-size:12px;color:#555;margin-top:6px"></div>
+    </div>
+    <div class="separator"></div>
     <div class="section-title">カスタム項目（日帰り）</div>
     <div id="fields-list"></div>
     <div class="add-field-form">
@@ -301,60 +338,10 @@ b,strong,.card-name,.card-total{font-weight:600}
     <label>外部サイト③</label><input type="text" id="sn-3">
     <button class="btn-primary" onclick="saveSourceNames()">保存</button>
     <div class="separator"></div>
-    <div class="section-title">備品在庫数</div>
-    <div id="stock-list"></div>
-    <button class="btn-primary" onclick="saveStock()">在庫を保存</button>
-    <div class="separator"></div>
-    <div class="section-title">📊 Googleスプレッドシート同期</div>
-    <div style="background:#f0f6ff;border:1px solid #88aacc;border-radius:8px;padding:12px;margin-top:4px">
-      <div style="font-size:12px;color:#224466;margin-bottom:8px;line-height:1.6">
-        GAS WebアプリのURLを設定してからスプレッドシートへ同期できます。
-      </div>
-      <label>GAS WebアプリURL</label>
-      <input type="text" id="gas-url" placeholder="https://script.google.com/macros/s/..." style="font-size:13px">
-      <button class="btn-primary" onclick="saveGasUrl()" style="background:#224466;margin-top:6px;margin-bottom:8px">URLを保存</button>
-      <div style="display:flex;gap:6px">
-        <button class="btn-primary" onclick="syncToSheet()" style="background:#1a7a3a;flex:1">📤 シートへ保存</button>
-        <button class="btn-primary" onclick="loadFromSheet()" style="background:#224466;flex:1">📥 シートから読込</button>
-      </div>
-      <div id="sync-status" style="font-size:12px;color:#555;margin-top:6px"></div>
-    </div>
-    <div class="separator"></div>
-    <div class="section-title">📥 WordPress予約CSV取込</div>
-    <div style="background:#fff7e6;border:1px solid #e8c878;border-radius:8px;padding:12px;margin-top:4px">
-      <div style="font-size:12px;color:#6b4f20;margin-bottom:8px;line-height:1.6">
-        商品ごとのCSVを選んで取り込みます。文字コードは自動判定（UTF-8/Shift-JIS）。<b>メール・電話は取り込まず</b>、住所は<b>市区町村まで</b>に丸めます。予約IDで<b>重複は自動更新</b>。
-      </div>
-      <label>取込先の施設（このCSVの商品）</label>
-      <select id="csv-fac" style="font-size:13px"></select>
-      <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;cursor:pointer;font-weight:normal">
-        <input type="checkbox" id="csv-include-cancel"> キャンセル分も取り込む（既定は除外）
-      </label>
-      <label style="margin-top:8px">CSVファイル</label>
-      <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
-      <div style="font-size:11px;color:#888;margin:6px 0">または↓に貼り付け（スプレッドシートからコピペ可）</div>
-      <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px"></textarea>
-      <button class="btn-primary" style="background:#6b4f20;margin-top:6px" onclick="importCSV()">この施設として取り込む</button>
-      <div id="csv-result" style="font-size:12px;color:#555;margin-top:8px;line-height:1.6"></div>
-    </div>
-    <div class="separator"></div>
-    <div class="section-title">新チャットへの引き継ぎ</div>
-    <div class="handover-box">
-      <div style="font-size:13px;color:#4a2080;font-weight:500;margin-bottom:6px">📋 引き継ぎ手順</div>
-      <div style="font-size:12px;color:#555;line-height:1.7;margin-bottom:8px">
-        ① 「引き継ぎ文をコピー」を押す<br>
-        ② 新しいClaudeチャットを開く<br>
-        ③ コピーした内容を貼り付けて送信<br>
-        ④ 現在のyoyaku.htmlも添付する<br>
-        ⑤ 続きの要望を書く
-      </div>
-      <button class="btn-primary" style="background:#4a2080;margin-bottom:8px" onclick="copyHandover()">📋 引き継ぎ文をコピー</button>
-      <button class="btn-primary" style="background:#555" onclick="exportData()">予約データをバックアップ</button>
-      <div style="margin-top:10px">
-        <label>予約データをインポート</label>
-        <textarea id="import-text" placeholder="バックアップデータをここに貼り付け" style="min-height:60px;font-size:12px"></textarea>
-        <button class="btn-primary" onclick="importData()">インポート</button>
-      </div>
+    <div class="section-title" style="cursor:pointer;user-select:none" onclick="togColl(this,'stock-body')">▶ 備品在庫数</div>
+    <div id="stock-body" style="display:none">
+      <div id="stock-list"></div>
+      <button class="btn-primary" onclick="saveStock()">在庫を保存</button>
     </div>
   </div>
 </div>
@@ -1304,6 +1291,8 @@ function onSourceChange(){
 
 function esSrcChg(){const src=document.getElementById('es-src').value;const m=document.getElementById('es-memo');if(src)m.value=getSrcLabel(src)+'　料金支払い済み';}
 function togEditEx(el){const d=document.getElementById('edit-ex');const o=d.style.display!=='none';d.style.display=o?'none':'';el.textContent=(o?'▶':'▼')+' その他（'+ALL_ITEMS.filter(x=>x.col).length+'点）';}
+// 汎用の折り畳み（見出しの先頭▶/▼を切替）
+function togColl(el,bodyId){var b=document.getElementById(bodyId);if(!b)return;var open=b.style.display!=='none';b.style.display=open?'none':'';el.textContent=(open?'▶':'▼')+el.textContent.slice(1);}
 function eRChg(id){document.getElementById('erq_'+id).style.display=document.getElementById('erc_'+id).checked?'flex':'none';}
 function eRChgQ(id,delta){const el=document.getElementById('ers_'+id);el.textContent=Math.max(1,parseInt(el.textContent)+delta);}
 function updEditCrs(){
