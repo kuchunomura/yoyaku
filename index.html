@@ -54,6 +54,9 @@ textarea{resize:vertical;min-height:60px}
 .card.done{opacity:0.45}
 .date-divider{font-size:14px;font-weight:600;color:#224466;margin:16px 0 8px;padding-bottom:5px;border-bottom:4px solid #b3c2d4}
 .date-divider:first-child{margin-top:0}
+.wf-row{display:flex;gap:5px;margin-top:10px;padding-top:8px;border-top:1px solid #eee}
+.wf-btn{flex:1;padding:8px 2px;font-size:12px;border:1px solid #ccc;border-radius:6px;background:#fff;color:#555;cursor:pointer;font-family:inherit}
+.wf-btn.on{background:#e6f4ea;border-color:#7bbf96;color:#1c5c39;font-weight:600}
 .addmode-toggle{display:flex;gap:8px;margin-bottom:12px}
 .addmode-toggle button{flex:1;padding:11px;font-size:15px;font-weight:600;border:1px solid #ccc;border-radius:8px;background:#fff;color:#888;cursor:pointer}
 .addmode-toggle button.on{background:#224466;color:#fff;border-color:#224466}
@@ -401,8 +404,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=33;
-const APP_BUILD_DATE='2026/06/25 10:55';
+const APP_VERSION=34;
+const APP_BUILD_DATE='2026/06/25 11:27';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -999,20 +1002,20 @@ function renderList(){
       const lf=getFac(lr.facility);
       return '<div class="card-meta" style="font-size:12px;color:#224466;margin-top:2px">📌 '+(lr.date?fmtDate(lr.date):'')+(lf?' '+lf.label:'')+( lr.name?' '+lr.name:'')+(lr.startTime?' '+lr.startTime:'')+'</div>';
     }).join('');
+    const wf=s.wf||{};
+    const wfBtn=(k,lb)=>'<button data-act="toggleWf" data-id="'+s.id+'" data-wf="'+k+'" class="wf-btn'+(wf[k]?' on':'')+'">'+(wf[k]?'✅':'')+lb+'</button>';
     const div=document.createElement('div');div.className='card'+(s.done?' done':'');
     div.innerHTML=
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
         '<span style="font-size:12px;font-weight:600;color:#7a1030'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grpFacs.length>1?(grp+'（棟未選択）'):(grpFacs[0]?grpFacs[0].label:grp)))+(grpFacs.length>1?' ▾':'')+'</span>'+
-        (BED_GROUPS.includes(grp)?'<span data-act="toggleBed" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#eef3f7;color:#111;border:1px solid #cfe0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🛏 '+bedLabel(s.bed)+' ⇄</span>':'')+
-        '<span data-act="togglePet" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#f3eef7;color:#111;border:1px solid #ddd0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🐾 '+((s.petCount||0)>0?'ペット'+s.petCount:'ペット無')+' ⇄</span>'+
+        (BED_GROUPS.includes(grp)?'<span data-act="toggleBed" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#eef3f7;color:#111;border:1px solid #cfe0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🛏 '+bedLabel(s.bed)+'</span>':'')+
+        '<span data-act="togglePet" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;background:#f3eef7;color:#111;border:1px solid #ddd0ea;border-radius:10px;padding:1px 7px;white-space:nowrap">🐾 '+((s.petCount||0)>0?'ペット'+s.petCount:'ペット無')+'</span>'+
         (s.changed?'<span class="badge-changed">変更済み</span>':'')+
         (s.done?'<span class="badge badge-done">対応済み</span>':'')+
         (srcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+srcL+'</span>':'')+
         '<div style="flex:1"></div>'+
         '<div class="card-actions">'+
-          '<button class="btn-sm" data-act="toggleSD" data-id="'+s.id+'">'+(s.done?'戻す':'完了')+'</button>'+
-          '<button class="btn-sm" data-act="markChanged" data-id="'+s.id+'">変更</button>'+
           '<button class="btn-sm" data-act="openEditStay" data-id="'+s.id+'">編集</button>'+
           '<button class="btn-sm btn-danger" data-act="delStay" data-id="'+s.id+'">削除</button>'+
         '</div>'+
@@ -1030,7 +1033,8 @@ function renderList(){
       linkedH+
       (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">📝 '+s.memo+'</div>':'')+
       (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">🏠 '+s.addr+'</div>':'')+
-      (showCiCo?'<div style="text-align:right;font-size:11px;color:#aaa;margin-top:2px">IN '+fac.ci+' ／ OUT '+fac.co+'</div>':'');
+      (showCiCo?'<div style="text-align:right;font-size:11px;color:#aaa;margin-top:2px">IN '+fac.ci+' ／ OUT '+fac.co+'</div>':'')+
+      '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+'</div>';
     if(s.checkin!==lastDate){dateDivider(s.checkin);lastDate=s.checkin;}
     c.appendChild(div);
   });
@@ -1118,6 +1122,8 @@ function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=(bedCod
 function detectOtaFromText(t){t=String(t||'');if(/ソウエクスペリ|そうエクスペリ|sou/i.test(t))return'sou';if(/じゃらん/.test(t))return'jalan';if(/楽天/.test(t))return'rakuten';return'';}
 // ペット数をタップで 0→1→2→3→0 と切替（料金も再計算）
 function togglePet(id){var s=stays.find(x=>x.id===id);if(!s)return;var n=((s.petCount||0)+1)%4;s.petCount=n;s.petFee=n*3000*(s.nights||1);sv(STKEY,stays);autoPush();renderList();}
+// 状況チェック（部屋準備/会計/案内/OUT）をタップで✅切替
+function toggleWf(id,k){var s=stays.find(x=>x.id===id);if(!s)return;if(!s.wf)s.wf={};s.wf[k]=!s.wf[k];sv(STKEY,stays);autoPush();renderList();}
 function markChanged(id){const s=stays.find(x=>x.id===id);if(s){s.changed=!s.changed;sv(STKEY,stays);autoPush();renderList();showToast(s.changed?'変更済みにしました':'変更済みを解除しました',s.changed?'#c00':'#555');}}
 function markChangedDay(id){const r=reservations.find(x=>x.id===id);if(r){r.changed=!r.changed;sv(RKEY,reservations);autoPush();renderList();showToast(r.changed?'変更済みにしました':'変更済みを解除しました',r.changed?'#c00':'#555');}}
 let _confirmCb=null;
@@ -1915,6 +1921,7 @@ document.addEventListener('click',function(e){
   else if(act==='toggleUnitSel')toggleUnitSel(id);
   else if(act==='toggleBed')toggleBed(id);
   else if(act==='togglePet')togglePet(id);
+  else if(act==='toggleWf')toggleWf(id,btn.dataset.wf);
 });
 
 // PWA無効化

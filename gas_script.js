@@ -11,7 +11,7 @@
 var DAY_SHEET  = '予約_日帰り';
 var STAY_SHEET = '予約_宿泊';
 var DAY_COLS   = ['日付','施設','コース','時間','名前','人数','予約サイト','メモ','_id','_json'];
-var STAY_COLS  = ['チェックイン','チェックアウト','泊数','カテゴリ','棟','ベッド','ペット','名前','人数','予約サイト','メモ','_id','_json'];
+var STAY_COLS  = ['チェックイン','チェックアウト','泊数','カテゴリ','棟','ベッド','ペット','名前','人数','予約サイト','メモ','部屋準備','会計','案内','OUT','_id','_json'];
 
 // 施設ID→表示名（スプレッドシートを読みやすく）
 var FAC_LABELS = {
@@ -111,7 +111,8 @@ function writeAll(reservations, stays){
     return [fmtMD(r.date), facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', r.id||'', JSON.stringify(r)];
   }), days.map(function(r){ return r.date||''; }));
   writeRows(getSheet(STAY_SHEET), STAY_COLS, st.map(function(s){
-    return [fmtMD(s.checkin), fmtMD(s.checkout), s.nights||'', s.facGroup||'', (s.facility?facLabel(s.facility):'（棟未選択）'), bedLabelG(s.bed), (s.petCount||''), s.name||'', s.ninzu||'', srcLabel(s.source), s.memo||'', s.id||'', JSON.stringify(s)];
+    var w=s.wf||{};
+    return [fmtMD(s.checkin), fmtMD(s.checkout), s.nights||'', s.facGroup||'', (s.facility?facLabel(s.facility):'（棟未選択）'), bedLabelG(s.bed), (s.petCount||''), s.name||'', s.ninzu||'', srcLabel(s.source), s.memo||'', (w.prep?'✅':''), (w.pay?'✅':''), (w.guide?'✅':''), (w.out?'✅':''), s.id||'', JSON.stringify(s)];
   }), st.map(function(s){ return s.checkin||''; }));
 }
 
@@ -182,6 +183,13 @@ function readSheet(name){
       if(idx['人数']!==undefined && String(col('人数'))!==''){ obj.ninzu = numVal(col('人数')); obj.totalPpl = obj.ninzu; }
       if(idx['予約サイト']!==undefined) obj.source = srcKey(col('予約サイト'));
       if(idx['メモ']!==undefined)     obj.memo     = String(col('メモ')||'');
+      if(idx['部屋準備']!==undefined||idx['会計']!==undefined||idx['案内']!==undefined||idx['OUT']!==undefined){
+        obj.wf = obj.wf || {};
+        if(idx['部屋準備']!==undefined) obj.wf.prep  = !!String(col('部屋準備')).trim();
+        if(idx['会計']!==undefined)     obj.wf.pay   = !!String(col('会計')).trim();
+        if(idx['案内']!==undefined)     obj.wf.guide = !!String(col('案内')).trim();
+        if(idx['OUT']!==undefined)      obj.wf.out   = !!String(col('OUT')).trim();
+      }
     }
     if(obj.id || obj.wpId || obj.name || obj.date || obj.checkin) out.push(obj);
   }
