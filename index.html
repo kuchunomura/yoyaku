@@ -444,8 +444,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=65;
-const APP_BUILD_DATE='2026/06/25 19:18';
+const APP_VERSION=66;
+const APP_BUILD_DATE='2026/06/26 09:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -519,14 +519,15 @@ function clearRange(){_clearRangeInputs();if(!dateFilter&&!searchQ)listFromToday
 function renderQuickDates(){
   var c=document.getElementById('list-quickdate');if(!c)return;
   var hasRange=!!(dateFrom||dateTo);
+  var onSt='background:#efe8df;color:#5a4632;border-color:#d8cab5;font-weight:600'; // 選択時の控えめな配色
   var btns=[['昨日',-1],['今日',0],['明日',1],['明後日',2]];
-  var bh=btns.map(function(b){var ds=offsetStr(b[1]);var on=(dateFilter===ds);return '<button class="btn-sm" onclick="quickDate('+b[1]+')" style="'+(on?'background:#7a1030;color:#fff;border-color:#7a1030':'')+'">'+b[0]+'</button>';}).join('');
+  var bh=btns.map(function(b){var ds=offsetStr(b[1]);var on=(dateFilter===ds);return '<button class="btn-sm" onclick="quickDate('+b[1]+')" style="'+(on?onSt:'')+'">'+b[0]+'</button>';}).join('');
   var todayOn=(!dateFilter&&listFromToday&&!searchQ&&!hasRange);
   var allOn=(!dateFilter&&!listFromToday&&!searchQ&&!hasRange);
-  bh+='<button class="btn-sm" onclick="showFromToday()" style="'+(todayOn?'background:#7a1030;color:#fff;border-color:#7a1030':'')+'">今日以降</button>';
-  bh+='<button class="btn-sm" onclick="showAllDates()" style="'+(allOn?'background:#555;color:#fff;border-color:#555':'')+'">全期間</button>';
+  bh+='<button class="btn-sm" onclick="showFromToday()" style="'+(todayOn?onSt:'')+'">今日以降</button>';
+  bh+='<button class="btn-sm" onclick="showAllDates()" style="'+(allOn?onSt:'')+'">全期間</button>';
   var filtActive=!!(searchQ||hasRange);
-  bh+='<button class="btn-sm" onclick="toggleListFilter()" style="'+(filtActive?'background:#224466;color:#fff;border-color:#224466':'')+'">🔍 検索/期間</button>';
+  bh+='<button class="btn-sm" onclick="toggleListFilter()" style="'+(filtActive?onSt:'')+'">🔍 検索/期間</button>';
   c.innerHTML=bh;
   // 検索や期間が有効なときはパネルを開いたままにする
   var fp=document.getElementById('list-filter');
