@@ -260,9 +260,9 @@ b,strong,.card-name,.card-total{font-weight:600}
     <label>予約者名</label>
     <input type="text" id="stay-name" placeholder="予約者名を入力">
     <div class="separator"></div>
-    <label>大人人数</label>
+    <label>大人人数（3歳以上含む）</label>
     <input type="number" id="stay-ninzu" min="1" placeholder="大人人数" oninput="calcStay()">
-    <label>子供人数（3歳未満・料金無料）</label>
+    <label>子供人数（3歳未満 0〜2歳・料金無料）</label>
     <input type="number" id="stay-child" min="0" placeholder="0" oninput="calcStay()">
     <div id="cap-warn" style="font-size:12px;color:#c00;margin-top:4px;display:none"></div>
     <label>ベッド配置</label>
@@ -444,8 +444,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=75;
-const APP_BUILD_DATE='2026/06/26 10:40';
+const APP_VERSION=76;
+const APP_BUILD_DATE='2026/06/26 10:52';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -838,6 +838,24 @@ function _likelyLink(a,b){
   if(a.source&&b.source&&a.source===b.source&&_isOta(a.source))return true;
   return false;
 }
+// 同名/同OTAの日帰り↔宿泊を前後±1日で自動紐づけ（追加のみ。解除は編集で可能）
+function autoLinkAll(){
+  var changed=false;
+  stays.forEach(function(s){
+    if(!s.checkin)return;
+    var base=new Date(s.checkin);
+    var adj=[-1,0,1].map(function(d){var dx=new Date(base);dx.setDate(dx.getDate()+d);return dx.toISOString().slice(0,10);});
+    reservations.forEach(function(r){
+      if(!r.date||adj.indexOf(r.date)<0)return;
+      if(!_likelyLink(s,r))return;
+      s.linkedDayIds=s.linkedDayIds||[];
+      r.linkedStayIds=r.linkedStayIds||[];
+      if(s.linkedDayIds.indexOf(r.id)<0){s.linkedDayIds.push(r.id);changed=true;}
+      if(r.linkedStayIds.indexOf(s.id)<0){r.linkedStayIds.push(s.id);changed=true;}
+    });
+  });
+  return changed;
+}
 function updDayStayLink(){
   const c=document.getElementById('day-staylink');if(!c)return;
   c.innerHTML='';
@@ -857,7 +875,7 @@ function updDayStayLink(){
     const srcL=s.source?'【'+getSrcLabel(s.source)+'】':'【直接予約】';
     const id='dsl_'+s.id;
     const row=document.createElement('div');row.className='link-check-item';
-    row.innerHTML='<input type="checkbox" id="'+id+'" value="'+s.id+'"><label for="'+id+'"'+(lk?' style="font-weight:700;color:#1c5c39"':'')+'>'+(lk?'◎ ':'')+fmtDate(s.checkin)+' '+fac.label+(s.name?' '+s.name:'')+' '+srcL+'</label>';
+    row.innerHTML='<input type="checkbox" id="'+id+'" value="'+s.id+'"'+(lk?' checked':'')+'><label for="'+id+'"'+(lk?' style="font-weight:700;color:#1c5c39"':'')+'>'+(lk?'◎ ':'')+fmtDate(s.checkin)+' '+fac.label+(s.name?' '+s.name:'')+' '+srcL+'</label>';
     c.appendChild(row);
   });
 }
@@ -965,7 +983,7 @@ function updDayLink(){
     const srcL=r.source?'【'+getSrcLabel(r.source)+'】':'【直接予約】';
     const id='sdl_'+r.id;
     const row=document.createElement('div');row.className='link-check-item';
-    row.innerHTML='<input type="checkbox" id="'+id+'" value="'+r.id+'"><label for="'+id+'"'+(lk?' style="font-weight:700;color:#1c5c39"':'')+'>'+(lk?'◎ ':'')+(r.date?fmtDate(r.date)+' ':'')+fac.label+(r.name?' '+r.name:'')+(r.startTime?' '+r.startTime:'')+' '+srcL+'</label>';
+    row.innerHTML='<input type="checkbox" id="'+id+'" value="'+r.id+'"'+(lk?' checked':'')+'><label for="'+id+'"'+(lk?' style="font-weight:700;color:#1c5c39"':'')+'>'+(lk?'◎ ':'')+(r.date?fmtDate(r.date)+' ':'')+fac.label+(r.name?' '+r.name:'')+(r.startTime?' '+r.startTime:'')+' '+srcL+'</label>';
     c.appendChild(row);
   });
 }
@@ -1118,7 +1136,7 @@ function renderList(){
         '</div>'
       : '';
     const rt=(s.rental||[]).reduce((sum,i)=>sum+i.price*i.qty,0);
-    const totalPpl=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));
+    const totalPpl=(s.totalPpl||s.ninzu);
     const base=s.unitPrice*totalPpl*s.nights;
     const grand=base+(s.petFee||0)+rt;
     const srcL=(s.source||detectOtaFromText(s.memo))?getSrcLabel(s.source||detectOtaFromText(s.memo)):'';
@@ -1262,7 +1280,7 @@ function renderList(){
 
 function toggleDD(id){const r=reservations.find(x=>x.id===id);if(r){r.done=!r.done;sv(RKEY,reservations);autoPush();renderList();}}
 function toggleSD(id){const s=stays.find(x=>x.id===id);if(s){s.done=!s.done;sv(STKEY,stays);autoPush();renderList();}}
-function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;const u=getSFac(unitId);if(!u)return;s.facility=unitId;const tp=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));s.unitPrice=getSPrice(u,tp);sv(STKEY,stays);autoPush();renderList();showToast('棟を「'+u.label+'」に設定');}
+function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;const u=getSFac(unitId);if(!u)return;s.facility=unitId;const tp=(s.totalPpl||s.ninzu);s.unitPrice=getSPrice(u,tp);sv(STKEY,stays);autoPush();renderList();showToast('棟を「'+u.label+'」に設定');}
 function toggleUnitSel(id){var el=document.getElementById('unitsel-'+id);if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'flex':'none';}
 // ベッド構成（ドーム・ツリーハウス）。タップで切替
 function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=(bedCode(s.bed)==='ws')?'ww':'ws';sv(STKEY,stays);autoPush();renderList();}
@@ -1473,8 +1491,8 @@ function openEditStay(id){
     '<label>チェックイン日</label><input type="date" id="es-cin" value="'+s.checkin+'">'+
     '<label>泊数</label><input type="number" id="es-nights" value="'+s.nights+'" min="1">'+
     '<label>予約者名</label><input type="text" id="es-name" value="'+(s.name||'')+'">'+
-    '<label>大人人数</label><input type="number" id="es-ninzu" value="'+s.ninzu+'" min="1">'+
-    '<label>子供人数</label><input type="number" id="es-child" value="'+(s.child||0)+'" min="0">'+
+    '<label>大人人数（3歳以上含む）</label><input type="number" id="es-ninzu" value="'+s.ninzu+'" min="1">'+
+    '<label>子供人数（3歳未満 0〜2歳・料金無料）</label><input type="number" id="es-child" value="'+(s.child||0)+'" min="0">'+
     '<label>ベッド配置</label>'+
     '<div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:#fff;border:1px solid #ddd;border-radius:8px;margin-bottom:4px">'+
       '<div style="display:flex;align-items:center;gap:10px">'+
@@ -1945,6 +1963,7 @@ function importCSV(){
       if(exIdx>=0){ rec.done=arr[exIdx].done; rec.changed=arr[exIdx].changed; arr[exIdx]=rec; updated++; }
       else { arr.push(rec); added++; }
     });
+    autoLinkAll(); // 取込後に同名/同OTAを自動紐づけ
     sv(RKEY,reservations); sv(STKEY,stays); autoPush();
     res.style.color='#1a7a3a';
     res.innerHTML='✓ 取込完了：追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'')
@@ -2136,7 +2155,7 @@ function renderCal(){
         const grp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
         const ab=CAL_STAY_ABBR[grp]; if(!ab)return;
         if(!showCancelled&&isCancelled(s))return;
-        const ppl=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));
+        const ppl=(s.totalPpl||s.ninzu);
         entries.push({order:ab.order,color:isCancelled(s)?'#bbb':ab.color,abbr:ab.abbr,time:'',ppl:ppl,name:s.name||''});
       });
     }
@@ -2180,7 +2199,7 @@ function renderCalDetail(dateStr){
   c.innerHTML='<div style="font-size:13px;font-weight:600;margin-bottom:8px">'+fmtDate(dateStr)+'の予約</div>';
   sl.forEach(s=>{
     const fac=getSFac(s.facility);if(!fac)return;
-    const totalPpl=s.totalPpl||(s.ninzu+(parseInt(s.child)||0));
+    const totalPpl=(s.totalPpl||s.ninzu);
     const div=document.createElement('div');div.className='card';div.style.marginBottom='8px';
     div.innerHTML=
       '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+
