@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=203;
-const APP_BUILD_DATE='2026/06/29 22:05';
+const APP_VERSION=204;
+const APP_BUILD_DATE='2026/06/29 22:10';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1208,7 +1208,7 @@ function renderList(){
       // 1行目：日付〜 泊数 人数 名前（右に金額）
       '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
         '<span style="font-size:15.5px;color:#222;font-weight:700">'+
-          (s.nights>=2?fmtMD(s.checkin)+'-'+fmtMD(s.checkout):fmtMD(s.checkin))+'　'+s.nights+'泊　'+s.ninzu+'名'+
+          (s.nights>=2?fmtMD(s.checkin)+'-'+fmtMD(s.checkout)+'　':'')+s.nights+'泊　'+s.ninzu+'名'+
           (childN>0?'+子'+childN:'')+(petN>0?'+ペット'+petN:'')+(nm?'　'+nm:'')+
         '</span>'+
         '<span style="font-size:13px;color:#999">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
@@ -1274,7 +1274,7 @@ function renderList(){
       // 主要情報行：左に 日付 時間 人数 名前／右に 金額（宿泊カードと同じ配置）
       '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
         '<span style="font-size:15.5px;color:#222;font-weight:700">'+
-          (r.date?fmtMD(r.date)+'　':'')+r.startTime+'〜'+end+
+          r.startTime+'〜'+end+
           (ninzu>0?'　'+ninzu+fac.priceUnit:'')+(r.name?'　'+r.name:'')+
           (fac.note?'<span style="font-size:12px;color:#aaa;font-weight:400">（'+fac.note+'）</span>':'')+
         '</span>'+
