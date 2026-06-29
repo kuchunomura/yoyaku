@@ -444,8 +444,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=78;
-const APP_BUILD_DATE='2026/06/26 11:18';
+const APP_VERSION=79;
+const APP_BUILD_DATE='2026/06/26 11:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1537,13 +1537,15 @@ var RENTAL_ALIAS={
   b19:/寝袋.{0,2}夏|夏.{0,2}寝袋/, b20:/寝袋.{0,2}冬|冬.{0,2}寝袋/
 };
 function esReadMemoRental(){
-  var memo=(document.getElementById('es-memo')||{}).value||'';
+  var memoEl=document.getElementById('es-memo'); if(!memoEl)return;
+  var memo=memoEl.value||'';
   if(!memo.trim()){showToast('メモが空です','#777');return;}
-  var hit=0, exNeeded=false;
+  var hit=0, exNeeded=false, marks=[];
   ALL_ITEMS.forEach(function(it){
     var re=RENTAL_ALIAS[it.id]; if(!re)return;
     var m=re.exec(memo); if(!m)return;
-    var after=memo.slice(m.index+m[0].length, m.index+m[0].length+8);
+    var matchEnd=m.index+m[0].length;
+    var after=memo.slice(matchEnd, matchEnd+8);
     var qm=after.match(/[×xX]?\s*([0-9０-９]+)/);
     var qty=1; if(qm){var n=parseInt(qm[1].replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);}),10); if(n>0)qty=n;}
     var cb=document.getElementById('esr_'+it.id); if(!cb)return;
@@ -1551,9 +1553,20 @@ function esReadMemoRental(){
     var qs=document.getElementById('esrs_'+it.id); if(qs)qs.textContent=qty;
     if(it.col)exNeeded=true;
     hit++;
+    // 読み取った文言（品名＋数量）の直後に✓を挿入する位置を記録
+    var rest=memo.slice(matchEnd);
+    var sepRel=rest.search(/[・、,，\/\n\s]/);
+    var tokenEnd=sepRel<0?memo.length:matchEnd+sepRel;
+    marks.push(tokenEnd);
   });
+  // 後ろの位置から挿入（既に✓があればスキップ）
+  marks.sort(function(a,b){return b-a;}).forEach(function(pos){
+    if(memo.charAt(pos-1)==='✓')return;
+    memo=memo.slice(0,pos)+'✓'+memo.slice(pos);
+  });
+  memoEl.value=memo;
   if(exNeeded){var d=document.getElementById('esr-ex');if(d)d.style.display='';}
-  showToast(hit?('✓ '+hit+'点を読み取りました（要確認）'):'該当する備品が見つかりませんでした',hit?'#1a7a3a':'#777');
+  showToast(hit?('✓ '+hit+'点を読み取りました（✓印・要確認）'):'該当する備品が見つかりませんでした',hit?'#1a7a3a':'#777');
 }
 function esrChg(id){document.getElementById('esrq_'+id).style.display=document.getElementById('esr_'+id).checked?'flex':'none';}
 function esrChgQ(id,delta){const el=document.getElementById('esrs_'+id);el.textContent=Math.max(1,parseInt(el.textContent)+delta);}
@@ -2002,6 +2015,9 @@ function importCSV(){
         var old=arr[exIdx];
         rec.done=old.done; rec.changed=old.changed;
         if(old.wf) rec.wf=old.wf;
+        if(old.cancelled) rec.cancelled=old.cancelled;
+        if(old.rental&&old.rental.length) rec.rental=old.rental; // 手入力した備品を保持
+        if(old.customValues) rec.customValues=old.customValues;
         rec.linkedDayIds=(old.linkedDayIds&&old.linkedDayIds.length)?old.linkedDayIds:(rec.linkedDayIds||[]);
         if(type==='day') rec.linkedStayIds=(old.linkedStayIds&&old.linkedStayIds.length)?old.linkedStayIds:(rec.linkedStayIds||[]);
         arr[exIdx]=rec; updated++;
