@@ -444,8 +444,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=81;
-const APP_BUILD_DATE='2026/06/26 11:48';
+const APP_VERSION=82;
+const APP_BUILD_DATE='2026/06/26 12:10';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1118,7 +1118,10 @@ function renderList(){
     const cm=dayCounts[d]||{};
     const keys=Object.keys(cm).sort((a,b)=>{var ia=COUNT_ORDER.indexOf(a),ib=COUNT_ORDER.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);});
     const parts=keys.filter(l=>cm[l]>0).map(l=>'<span style="margin-left:8px;font-size:12px;font-weight:400;color:#888">'+(COUNT_SHORT[l]||l)+'×'+cm[l]+'</span>');
-    dv.innerHTML='<span style="font-weight:700">'+(d?fmtMD(d):'日付未定')+'</span>'+parts.join('');
+    // 土=青／日・祝=赤／平日=既定色。祝日名も表示
+    let col='#224466',holName='';
+    if(d){const p=d.split('-').map(Number);const dt=new Date(p[0],p[1]-1,p[2]);const dow=dt.getDay();holName=getHolidays(p[0])[d]||'';if(dow===0||holName)col='#c0392b';else if(dow===6)col='#1565c0';}
+    dv.innerHTML='<span style="font-weight:700;font-size:17px;color:'+col+'">'+(d?fmtMD(d):'日付未定')+'</span>'+(holName?'<span style="font-size:11px;color:#c0392b;margin-left:4px">'+holName+'</span>':'')+parts.join('');
     c.appendChild(dv);
   };
   const ciCoShown={};
@@ -1292,6 +1295,7 @@ let showCancelled=false;
 function isCancelled(o){return !!(o&&o.cancelled)||/キャンセル/.test((o&&o.memo)||'');}
 // メモ内の備品表記「○○1個」「○○:2個」「○○１個」を「○○×1」に整形（顧客の自由記述はそのまま）
 function fmtMemoText(m){return String(m||'').replace(/\s*[:：]?\s*([0-9０-９]+)\s*個/g,function(_,n){return '×'+n.replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);});});}
+function htmlEscape(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function toggleShowCancelled(){showCancelled=!showCancelled;renderFltTabs();renderList();renderCal();}
 // ペット数をタップで 0→1→2→3→0 と切替（料金も再計算）
 function togglePet(id){var s=stays.find(x=>x.id===id);if(!s)return;var n=((s.petCount||0)+1)%4;s.petCount=n;s.petFee=n*3000*(s.nights||1);sv(STKEY,stays);autoPush();renderList();}
@@ -1515,13 +1519,26 @@ function openEditStay(id){
     '<label>ペット</label><select id="es-pet">'+[0,1,2,3].map(n=>'<option value="'+n+'"'+((s.petCount||0)===n?' selected':'')+'>'+( n===0?'なし':n+'匹')+'</option>').join('')+'</select>'+
     '<label>同日の日帰り予約との紐づけ</label><div id="es-daylink" class="link-check-list">'+lCks+'</div>'+
     '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
-    '<label>メモ</label><textarea id="es-memo">'+(s.memo||'')+'</textarea>'+
+    '<label>メモ（ドラッグで広げられます）</label>'+
+    '<div id="es-memo" contenteditable="true" style="min-height:90px;max-height:50vh;overflow-y:auto;resize:vertical;border:1px solid #ccc;border-radius:8px;padding:8px;font-size:14px;line-height:1.6;background:#fff;white-space:pre-wrap;-webkit-overflow-scrolling:touch">'+htmlEscape(s.memo||'')+'</div>'+
     '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px"><span style="font-size:14px;font-weight:600;color:#633806">備品レンタル</span>'+
-      '<button type="button" onclick="esReadMemoRental()" style="font-size:12px;padding:5px 10px;border:1px solid #6b4f20;color:#6b4f20;background:#fff;border-radius:6px;cursor:pointer">📋 メモから自動入力</button></div>'+
-    rItms(ALL_ITEMS.filter(x=>!x.col))+
-    '<div style="font-size:13px;color:#888;cursor:pointer;padding:8px 0" onclick="togEsrEx(this)">▶ その他（'+ALL_ITEMS.filter(x=>x.col).length+'点）</div>'+
-    '<div id="esr-ex" style="display:none">'+rItms(ALL_ITEMS.filter(x=>x.col))+'</div>';
+    '<div class="section-title" style="cursor:pointer;user-select:none;margin:0" onclick="togColl(this,\'es-rental-body\')">▶ 備品レンタル</div>'+
+    '<div id="es-rental-body" style="display:none">'+
+      '<button type="button" onclick="esReadMemoRental()" style="font-size:13px;padding:6px 12px;border:1px solid #6b4f20;color:#6b4f20;background:#fff;border-radius:6px;cursor:pointer;margin:6px 0">📋 メモから自動入力</button>'+
+      '<div class="section-title" style="cursor:pointer;user-select:none;font-size:12px;color:#888;margin:2px 0" onclick="togColl(this,\'es-rental-help\')">▶ 自動入力の説明</div>'+
+      '<div id="es-rental-help" style="display:none;font-size:12px;color:#666;line-height:1.7;background:#faf7f1;border:1px solid #e6ddcc;border-radius:8px;padding:8px;margin-bottom:8px">'+
+        '・「📋メモから自動入力」を押すと、メモの客記載から備品を推定してチェック＆数量入力します。<br>'+
+        '・認識した文言の直後に<span style="color:#e67700;font-weight:700">✓</span>が付きます。文言が違うと拾えません。<br>'+
+        '・<b>ランタンは1宿泊1つ無料貸出のため意図的に除外</b>（自動では入りません）。<br>'+
+        '・<b>単独の「薪」は無人販売のため対象外</b>（拾うのは「薪割」のみ）。<br>'+
+        '・CSVを再同期するとメモが更新され✓は消えますが、もう一度ボタンを押せば再度✓が付きチェックされます（手入力した備品自体は保持されます）。<br>'+
+        '<b>表記ゆれ辞書（拾う言葉の例）</b><br>'+
+        '机/つくえ/テーブル→ローテーブル ／ 椅子/いす/チェア→ベンチ ／ 鍋/フライパン/鉄板→スキレット＋鍋 ／ 焚火/たき火→焚火台セット ／ やかん/薬缶→ケトル ／ 飯盒/メスティン→飯ごう ／ 台車/ワゴン/リヤカー→カート ／ ライター/チャッカマン→マッチ ／ 火おこし/チャコールスターター→火起こし器 ／ シュラフ＋夏/冬→寝袋 ／ 炭/すみ→木炭 ／ コンロ→ガスコンロ＋ガス ／ トーチ→バーナー'+
+      '</div>'+
+      rItms(ALL_ITEMS.filter(x=>!x.col))+
+      '<div style="font-size:13px;color:#888;cursor:pointer;padding:8px 0" onclick="togEsrEx(this)">▶ その他（'+ALL_ITEMS.filter(x=>x.col).length+'点）</div>'+
+      '<div id="esr-ex" style="display:none">'+rItms(ALL_ITEMS.filter(x=>x.col))+'</div>'+
+    '</div>';
   document.getElementById('edit-modal-title').textContent='宿泊予約を編集';
   document.getElementById('edit-modal-content').innerHTML=html;
   document.getElementById('edit-modal').classList.add('open');document.body.style.overflow='hidden';
@@ -1556,7 +1573,7 @@ var RENTAL_ALIAS={
 };
 function esReadMemoRental(){
   var memoEl=document.getElementById('es-memo'); if(!memoEl)return;
-  var memo=memoEl.value||'';
+  var memo=(memoEl.innerText||'').replace(/✓/g,''); // 既存の✓は一旦除去して付け直す
   if(!memo.trim()){showToast('メモが空です','#777');return;}
   var hit=0, exNeeded=false, marks=[];
   ALL_ITEMS.forEach(function(it){
@@ -1571,18 +1588,17 @@ function esReadMemoRental(){
     var qs=document.getElementById('esrs_'+it.id); if(qs)qs.textContent=qty;
     if(it.col)exNeeded=true;
     hit++;
-    // 読み取った文言（品名＋数量）の直後に✓を挿入する位置を記録
+    // 読み取った文言（品名＋数量）の直後に✓を入れる位置
     var rest=memo.slice(matchEnd);
     var sepRel=rest.search(/[・、,，\/\n\s]/);
-    var tokenEnd=sepRel<0?memo.length:matchEnd+sepRel;
-    marks.push(tokenEnd);
+    marks.push(sepRel<0?memo.length:matchEnd+sepRel);
   });
-  // 後ろの位置から挿入（既に✓があればスキップ）
-  marks.sort(function(a,b){return b-a;}).forEach(function(pos){
-    if(memo.charAt(pos-1)==='✓')return;
-    memo=memo.slice(0,pos)+'✓'+memo.slice(pos);
-  });
-  memoEl.value=memo;
+  // 後ろの位置からプレースホルダ挿入 → エスケープ後に橙色✓へ置換
+  marks=marks.filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return a-b;});
+  var _h='',_p=0;
+  marks.forEach(function(pos){ _h+=htmlEscape(memo.slice(_p,pos))+'<span style="color:#e67700;font-weight:700">✓</span>'; _p=pos; });
+  _h+=htmlEscape(memo.slice(_p));
+  memoEl.innerHTML=_h;
   if(exNeeded){var d=document.getElementById('esr-ex');if(d)d.style.display='';}
   showToast(hit?('✓ '+hit+'点を読み取りました（✓印・要確認）'):'該当する備品が見つかりませんでした',hit?'#1a7a3a':'#777');
 }
@@ -1596,7 +1612,7 @@ function onSourceChange(){
   if(src)m.value=getSrcLabel(src)+'　料金支払い済み';
 }
 
-function esSrcChg(){const src=document.getElementById('es-src').value;const m=document.getElementById('es-memo');if(src)m.value=getSrcLabel(src)+'　料金支払い済み';}
+function esSrcChg(){const src=document.getElementById('es-src').value;const m=document.getElementById('es-memo');if(src&&m)m.innerText=getSrcLabel(src)+'　料金支払い済み';}
 function togEditEx(el){const d=document.getElementById('edit-ex');const o=d.style.display!=='none';d.style.display=o?'none':'';el.textContent=(o?'▶':'▼')+' その他（'+ALL_ITEMS.filter(x=>x.col).length+'点）';}
 // 汎用の折り畳み（見出しの先頭▶/▼を切替）
 function togColl(el,bodyId){var b=document.getElementById(bodyId);if(!b)return;var open=b.style.display!=='none';b.style.display=open?'none':'';el.textContent=(open?'▶':'▼')+el.textContent.slice(1);}
@@ -1668,7 +1684,7 @@ function saveEditStay(){
   const fac=getSFac(s.facility);s.unitPrice=getSPrice(fac,s.totalPpl);
   s.rental=ALL_ITEMS.filter(item=>{const el=document.getElementById('esr_'+item.id);return el&&el.checked;})
     .map(item=>({id:item.id,name:item.name,price:item.price,qty:parseInt(document.getElementById('esrs_'+item.id).textContent)||1}));
-  s.memo=document.getElementById('es-memo').value;
+  s.memo=(document.getElementById('es-memo').innerText||'').trim();
   const dl=document.getElementById('es-daylink');
   const newLinked=[...dl.querySelectorAll('input[type=checkbox]:checked')].map(el=>el.value);
   const oldLinked=s.linkedDayIds||[];
