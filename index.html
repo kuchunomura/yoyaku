@@ -156,7 +156,7 @@ b,strong,.card-name,.card-total{font-weight:600}
   <div id="tab-day" class="tab-content" style="display:none">
     <div class="section-title">📥 WordPress予約CSV取込</div>
       <div style="background:#fff7e6;border:1px solid #e8c878;border-radius:8px;padding:12px;margin-top:4px">
-        <div id="csv-help-tog" onclick="(function(){var b=document.getElementById('csv-help-body');var t=document.getElementById('csv-help-tog');var o=(b.style.display==='none');b.style.display=o?'block':'none';t.textContent=(o?'▲ 説明・最終CSV取込日時を隠す':'▼ 説明・最終CSV取込日時を見る');})()" style="cursor:pointer;user-select:none;font-size:14px;font-weight:600;color:#6b4f20;margin-bottom:8px">▼ 説明・最終CSV取込日時を見る</div>
+        <button type="button" id="csv-help-tog" onclick="(function(){var b=document.getElementById('csv-help-body');var t=document.getElementById('csv-help-tog');var o=(b.style.display==='none');b.style.display=o?'block':'none';t.textContent=(o?'▲ 説明・最終CSV取込日時を隠す':'▼ 説明・最終CSV取込日時を見る');})()" style="display:block;width:100%;text-align:left;cursor:pointer;user-select:none;font-size:14px;font-weight:600;color:#6b4f20;background:#fff;border:1px solid #d9b676;border-radius:8px;padding:9px 12px;margin-bottom:8px;font-family:inherit">▼ 説明・最終CSV取込日時を見る</button>
         <div id="csv-help-body" style="display:none">
         <div style="font-size:13.5px;color:#6b4f20;margin-bottom:8px;line-height:1.6">
           商品ごとのCSVを選んで取り込みます。文字コードは自動判定（UTF-8/Shift-JIS）。<b>メール・電話は取り込まず</b>、住所は<b>市区町村まで</b>に丸めます。予約IDで<b>重複は自動更新</b>。
@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=97;
-const APP_BUILD_DATE='2026/06/29 21:18';
+const APP_VERSION=98;
+const APP_BUILD_DATE='2026/06/29 21:22';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
