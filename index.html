@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=102;
-const APP_BUILD_DATE='2026/06/29 21:55';
+const APP_VERSION=103;
+const APP_BUILD_DATE='2026/06/29 22:02';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1215,7 +1215,7 @@ function renderList(){
       '</div>'+
       ((s.rental||[]).length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px"><span style="color:#aaa;font-weight:400">レンタル </span>'+s.rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div>':'')+
       linkedH+
-      (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoText(s.memo)+'</div>':'')+
+      (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoChecks(s.memo,s.rental)+'</div>':'')+
       (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+s.addr+'</div>':'')+
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px">'+
         '<span style="font-size:11px;color:#aaa">'+(showCiCo?'IN '+fac.ci+' ／ OUT '+fac.co:'')+'</span>'+
@@ -1282,7 +1282,7 @@ function renderList(){
       '</div>'+
       (rental.length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px"><span style="color:#aaa;font-weight:400">レンタル </span>'+rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div>':'')+
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
-      (r.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoText(r.memo)+'</div>':'')+
+      (r.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoChecks(r.memo,r.rental)+'</div>':'')+
       (r.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+r.addr+'</div>':'')+
       // 下部：操作ボタン（▼で開閉。会計＝2回タップ／キャンセル＝2回タップ／編集／削除）
       '<div style="display:flex;justify-content:flex-end;align-items:center;margin-top:6px">'+
@@ -1346,6 +1346,25 @@ function isCancelled(o){return !!(o&&o.cancelled)||/キャンセル/.test((o&&o.
 // メモ内の備品表記「○○1個」「○○:2個」「○○１個」を「○○×1」に整形（顧客の自由記述はそのまま）
 function fmtMemoText(m){return String(m||'').replace(/\s*[:：]?\s*([0-9０-９]+)\s*個/g,function(_,n){return '×'+n.replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);});});}
 function htmlEscape(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// カードの備考表示：現在の備品(rental)に対応する文言の直後へ橙色✓を付ける（何を認識できたかが一目で分かる）
+function fmtMemoChecks(memo,rental){
+  memo=String(memo||'').replace(/✓/g,'');
+  if(!memo)return '';
+  var marks=[];
+  (rental||[]).forEach(function(it){
+    var re=RENTAL_ALIAS[it.id]; if(!re)return;
+    var m=re.exec(memo); if(!m)return;
+    var matchEnd=m.index+m[0].length;
+    var rest=memo.slice(matchEnd);
+    var sepRel=rest.search(/[・、,，\/\n\s]/);
+    marks.push(sepRel<0?memo.length:matchEnd+sepRel);
+  });
+  marks=marks.filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return a-b;});
+  var h='',p=0;
+  marks.forEach(function(pos){ h+=fmtMemoText(htmlEscape(memo.slice(p,pos)))+'<span style="color:#e67700;font-weight:700">✓</span>'; p=pos; });
+  h+=fmtMemoText(htmlEscape(memo.slice(p)));
+  return h;
+}
 function toggleShowCancelled(){showCancelled=!showCancelled;renderFltTabs();renderList();renderCal();}
 // ペット数をタップで 0→1→2→3→0 と切替（料金も再計算）
 function togglePet(id){var s=stays.find(x=>x.id===id);if(!s)return;var n=((s.petCount||0)+1)%4;s.petCount=n;s.petFee=n*3000*(s.nights||1);sv(STKEY,stays);autoPush();renderList();}
