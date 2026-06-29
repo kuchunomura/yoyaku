@@ -444,8 +444,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=77;
-const APP_BUILD_DATE='2026/06/26 11:02';
+const APP_VERSION=78;
+const APP_BUILD_DATE='2026/06/26 11:18';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1147,6 +1147,7 @@ function renderList(){
     }).join('');
     const wf=s.wf||{};
     const wfBtn=(k,lb)=>{var armed=wfArm&&wfArm.id===s.id&&wfArm.key===k;return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="'+k+'" class="wf-btn'+(wf[k]?' on':'')+(armed?' arm':'')+'">'+(armed?'もう1タップで確定':((wf[k]?'✅':'')+lb))+'</button>';};
+    const cancelBtn=(()=>{var cArmed=wfArm&&wfArm.id===s.id&&wfArm.key==='cancel';return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="cancel" class="wf-btn'+(cArmed?' arm':'')+'" style="'+(s.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(cArmed?'もう1タップで確定':((s.cancelled?'✅':'')+'キャンセル'))+'</button>';})();
     const ddStyle='display:none;position:absolute;top:100%;left:0;z-index:20;background:#fff;border:1px solid #ccc;border-radius:8px;padding:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);margin-top:3px';
     const bedSel=BED_GROUPS.includes(grp)?'<div id="bedsel-'+s.id+'" style="'+ddStyle+'">'+['ベッド2台','ベッド1台'].map(o=>'<button class="btn-sm" onclick="setBed(\''+s.id+'\',\''+o+'\')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(bedLabel(s.bed)===o?'background:#e9e1d4;color:#5a4a2a;border-color:#d3c7b3':'')+'">'+o+'</button>').join('')+'</div>':'';
     const petSel='<div id="petsel-'+s.id+'" style="'+ddStyle+'">'+[0,1,2,3].map(n=>'<button class="btn-sm" onclick="setPet(\''+s.id+'\','+n+')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(((s.petCount||0)===n)?'background:#f1eef4;color:#5a4a6a;border-color:#ddd6e6':'')+'">'+(n===0?'ペット無':'ペット'+n)+'</button>').join('')+'</div>';
@@ -1182,7 +1183,7 @@ function renderList(){
           '<button class="btn-sm" data-act="delStay" data-id="'+s.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
         '</span>'+
       '</div>'+
-      '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+'</div>';
+      '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+cancelBtn+'</div>';
     return div;
   }
 
@@ -1288,7 +1289,7 @@ function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=(bedCod
 function detectOtaFromText(t){t=String(t||'');if(/ソウエクスペリ|そうエクスペリ|sou/i.test(t))return'sou';if(/じゃらん/.test(t))return'jalan';if(/楽天/.test(t))return'rakuten';return'';}
 // キャンセル判定（メモに「キャンセル」を含む）と表示トグル
 let showCancelled=false;
-function isCancelled(o){return /キャンセル/.test((o&&o.memo)||'');}
+function isCancelled(o){return !!(o&&o.cancelled)||/キャンセル/.test((o&&o.memo)||'');}
 // メモ内の備品表記「○○1個」「○○:2個」「○○１個」を「○○×1」に整形（顧客の自由記述はそのまま）
 function fmtMemoText(m){return String(m||'').replace(/\s*[:：]?\s*([0-9０-９]+)\s*個/g,function(_,n){return '×'+n.replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);});});}
 function toggleShowCancelled(){showCancelled=!showCancelled;renderFltTabs();renderList();renderCal();}
@@ -1303,6 +1304,13 @@ function setPet(id,val){var s=stays.find(x=>x.id===id);if(!s)return;var n=parseI
 let wfArm=null;
 function toggleWf(id,k){
   var s=stays.find(x=>x.id===id);if(!s)return;
+  // キャンセルは s.cancelled をトグル（二回タップ／✅は1タップ解除）
+  if(k==='cancel'){
+    if(s.cancelled){s.cancelled=false;wfArm=null;clearTimeout(window._wfArmT);sv(STKEY,stays);autoPush();renderList();return;}
+    if(wfArm&&wfArm.id===id&&wfArm.key===k){s.cancelled=true;wfArm=null;clearTimeout(window._wfArmT);sv(STKEY,stays);autoPush();renderList();}
+    else{wfArm={id:id,key:k};renderList();clearTimeout(window._wfArmT);window._wfArmT=setTimeout(function(){wfArm=null;renderList();},2500);}
+    return;
+  }
   if(!s.wf)s.wf={};
   // すでに✅なら1タップで即解除（確認不要）
   if(s.wf[k]){s.wf[k]=false;wfArm=null;clearTimeout(window._wfArmT);sv(STKEY,stays);autoPush();renderList();return;}
@@ -1507,17 +1515,46 @@ function openEditStay(id){
     '<label>ペット</label><select id="es-pet">'+[0,1,2,3].map(n=>'<option value="'+n+'"'+((s.petCount||0)===n?' selected':'')+'>'+( n===0?'なし':n+'匹')+'</option>').join('')+'</select>'+
     '<label>同日の日帰り予約との紐づけ</label><div id="es-daylink" class="link-check-list">'+lCks+'</div>'+
     '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
-    '<div style="font-size:14px;font-weight:600;color:#633806;margin-bottom:4px">備品レンタル</div>'+
+    '<label>メモ</label><textarea id="es-memo">'+(s.memo||'')+'</textarea>'+
+    '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px"><span style="font-size:14px;font-weight:600;color:#633806">備品レンタル</span>'+
+      '<button type="button" onclick="esReadMemoRental()" style="font-size:12px;padding:5px 10px;border:1px solid #6b4f20;color:#6b4f20;background:#fff;border-radius:6px;cursor:pointer">📋 メモから自動入力</button></div>'+
     rItms(ALL_ITEMS.filter(x=>!x.col))+
     '<div style="font-size:13px;color:#888;cursor:pointer;padding:8px 0" onclick="togEsrEx(this)">▶ その他（'+ALL_ITEMS.filter(x=>x.col).length+'点）</div>'+
-    '<div id="esr-ex" style="display:none">'+rItms(ALL_ITEMS.filter(x=>x.col))+'</div>'+
-    '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
-    '<label>メモ</label><textarea id="es-memo">'+(s.memo||'')+'</textarea>';
+    '<div id="esr-ex" style="display:none">'+rItms(ALL_ITEMS.filter(x=>x.col))+'</div>';
   document.getElementById('edit-modal-title').textContent='宿泊予約を編集';
   document.getElementById('edit-modal-content').innerHTML=html;
   document.getElementById('edit-modal').classList.add('open');document.body.style.overflow='hidden';
 }
 
+// メモの客自由記述から備品を推定してチェック＆数量入力（あくまで補助。文言が違うと拾えない）
+var RENTAL_ALIAS={
+  b01:/焚.?火.?台?.?セット|焚き?火/, b02:/スキレット/, b03:/ローテーブル/, b04:/ベンチ/,
+  b05:/木炭|炭/, b06:/ガスコンロ|コンロ/, b06b:/バーナー/, b06c:/マッチ/, b06d:/ランタン/,
+  b07:/薪割/, b08:/コーヒー/, b13:/電源.{0,3}大|大.{0,3}電源/, b14:/電源.{0,3}小|小.{0,3}電源/,
+  b12:/ケトル/, b12b:/飯ごう|飯盒/, b12c:/ホットサンド/, b12d:/カイト|凧/, b_toy:/玩具|おもちゃ/,
+  b09:/火起こし/, b10:/カート/, b_yutanpo:/湯たんぽ|湯タンポ/, b18:/焼き?網/,
+  b19:/寝袋.{0,2}夏|夏.{0,2}寝袋/, b20:/寝袋.{0,2}冬|冬.{0,2}寝袋/
+};
+function esReadMemoRental(){
+  var memo=(document.getElementById('es-memo')||{}).value||'';
+  if(!memo.trim()){showToast('メモが空です','#777');return;}
+  var hit=0, exNeeded=false;
+  ALL_ITEMS.forEach(function(it){
+    var re=RENTAL_ALIAS[it.id]; if(!re)return;
+    var m=re.exec(memo); if(!m)return;
+    var after=memo.slice(m.index+m[0].length, m.index+m[0].length+8);
+    var qm=after.match(/[×xX]?\s*([0-9０-９]+)/);
+    var qty=1; if(qm){var n=parseInt(qm[1].replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);}),10); if(n>0)qty=n;}
+    var cb=document.getElementById('esr_'+it.id); if(!cb)return;
+    cb.checked=true; esrChg(it.id);
+    var qs=document.getElementById('esrs_'+it.id); if(qs)qs.textContent=qty;
+    if(it.col)exNeeded=true;
+    hit++;
+  });
+  if(exNeeded){var d=document.getElementById('esr-ex');if(d)d.style.display='';}
+  showToast(hit?('✓ '+hit+'点を読み取りました（要確認）'):'該当する備品が見つかりませんでした',hit?'#1a7a3a':'#777');
+}
 function esrChg(id){document.getElementById('esrq_'+id).style.display=document.getElementById('esr_'+id).checked?'flex':'none';}
 function esrChgQ(id,delta){const el=document.getElementById('esrs_'+id);el.textContent=Math.max(1,parseInt(el.textContent)+delta);}
 function togEsrEx(el){const d=document.getElementById('esr-ex');const o=d.style.display!=='none';d.style.display=o?'none':'';el.textContent=(o?'▶':'▼')+' その他（'+ALL_ITEMS.filter(x=>x.col).length+'点）';}
