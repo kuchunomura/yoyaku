@@ -332,6 +332,7 @@ b,strong,.card-name,.card-total{font-weight:600}
   <div id="tab-settings" class="tab-content" style="display:none">
     <div class="section-title">📊 Googleスプレッドシート同期</div>
     <div style="background:#f0f6ff;border:1px solid #88aacc;border-radius:8px;padding:12px;margin-top:4px">
+      <div style="font-size:11px;color:#a33;background:#fff5f5;border:1px solid #e0a0a0;border-radius:6px;padding:8px;margin-bottom:8px;line-height:1.6">⚠ <b>同時編集に注意</b>：ほぼ同時に別の端末で同じ予約を編集すると、<b>後から保存した方で上書き</b>されます。なるべく1台ずつ操作してください。</div>
       <div style="display:flex;gap:6px">
         <button class="btn-primary" onclick="syncToSheet()" style="background:#1a7a3a;flex:1">📤 シートへ保存</button>
         <button class="btn-primary" onclick="loadFromSheet()" style="background:#224466;flex:1">📥 シートから読込</button>
@@ -451,8 +452,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=84;
-const APP_BUILD_DATE='2026/06/26 12:38';
+const APP_VERSION=85;
+const APP_BUILD_DATE='2026/06/26 12:50';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1524,14 +1525,16 @@ function openEditStay(id){
       '</div>'+
     '</div>'+
     '<label>ペット</label><select id="es-pet">'+[0,1,2,3].map(n=>'<option value="'+n+'"'+((s.petCount||0)===n?' selected':'')+'>'+( n===0?'なし':n+'匹')+'</option>').join('')+'</select>'+
-    '<label>同日の日帰り予約との紐づけ</label><div id="es-daylink" class="link-check-list">'+lCks+'</div>'+
+    '<label>同日・前後1日の予約との紐づけ（同客の可能性）</label><div id="es-daylink" class="link-check-list">'+lCks+'</div>'+
     '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
     '<label>メモ（ドラッグで広げられます）</label>'+
     '<div id="es-memo" contenteditable="true" style="min-height:90px;max-height:50vh;overflow-y:auto;resize:vertical;border:1px solid #ccc;border-radius:8px;padding:8px;font-size:14px;line-height:1.6;background:#fff;white-space:pre-wrap;-webkit-overflow-scrolling:touch">'+htmlEscape(s.memo||'')+'</div>'+
     '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
-    '<div class="section-title" style="cursor:pointer;user-select:none;margin:0" onclick="togColl(this,\'es-rental-body\')">▶ 備品レンタル</div>'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0">'+
+      '<span id="es-rental-tog" class="section-title" style="cursor:pointer;user-select:none;margin:0" onclick="togColl(this,\'es-rental-body\')">▶ 備品レンタル</span>'+
+      '<button type="button" onclick="esReadMemoRental()" style="font-size:12px;padding:6px 10px;border:1px solid #6b4f20;color:#6b4f20;background:#fff;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0">📋 メモから自動入力</button>'+
+    '</div>'+
     '<div id="es-rental-body" style="display:none">'+
-      '<button type="button" onclick="esReadMemoRental()" style="font-size:13px;padding:6px 12px;border:1px solid #6b4f20;color:#6b4f20;background:#fff;border-radius:6px;cursor:pointer;margin:6px 0">📋 メモから自動入力</button>'+
       '<div class="section-title" style="cursor:pointer;user-select:none;font-size:12px;color:#888;margin:2px 0" onclick="togColl(this,\'es-rental-help\')">▶ 自動入力の説明</div>'+
       '<div id="es-rental-help" style="display:none;font-size:12px;color:#666;line-height:1.7;background:#faf7f1;border:1px solid #e6ddcc;border-radius:8px;padding:8px;margin-bottom:8px">'+
         '・「📋メモから自動入力」を押すと、メモの客記載から備品を推定してチェック＆数量入力します。<br>'+
@@ -1606,6 +1609,9 @@ function esReadMemoRental(){
   marks.forEach(function(pos){ _h+=htmlEscape(memo.slice(_p,pos))+'<span style="color:#e67700;font-weight:700">✓</span>'; _p=pos; });
   _h+=htmlEscape(memo.slice(_p));
   memoEl.innerHTML=_h;
+  // 結果が見えるよう備品欄を開く
+  var body=document.getElementById('es-rental-body'); if(body)body.style.display='';
+  var tog=document.getElementById('es-rental-tog'); if(tog&&tog.textContent.charAt(0)==='▶')tog.textContent='▼'+tog.textContent.slice(1);
   if(exNeeded){var d=document.getElementById('esr-ex');if(d)d.style.display='';}
   showToast(hit?('✓ '+hit+'点を読み取りました（✓印・要確認）'):'該当する備品が見つかりませんでした',hit?'#1a7a3a':'#777');
 }
