@@ -175,11 +175,15 @@ function applyCancelVisibility(sh){
   var last=sh.getLastRow(); if(last<2) return;
   var lastCol=sh.getLastColumn();
   var header=sh.getRange(1,1,1,lastCol).getValues()[0];
-  var memoIdx=header.indexOf('メモ'); if(memoIdx<0) return;
+  var memoIdx=header.indexOf('メモ');
+  var cancelIdx=header.indexOf('キャンセル');
+  if(memoIdx<0 && cancelIdx<0) return;
   var hide=getHideCancelledPref();
-  var memos=sh.getRange(2,memoIdx+1,last-1,1).getValues();
-  for(var i=0;i<memos.length;i++){
-    var isC=String(memos[i][0]).indexOf('キャンセル')>=0;
+  var rng=sh.getRange(2,1,last-1,lastCol).getValues();
+  for(var i=0;i<rng.length;i++){
+    var byMemo=memoIdx>=0 && String(rng[i][memoIdx]).indexOf('キャンセル')>=0;
+    var byCol=cancelIdx>=0 && String(rng[i][cancelIdx]).trim()!=='';
+    var isC=byMemo||byCol;
     if(isC && hide) sh.hideRows(2+i); else sh.showRows(2+i);
   }
 }
