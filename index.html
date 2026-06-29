@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=96;
-const APP_BUILD_DATE='2026/06/29 21:10';
+const APP_VERSION=97;
+const APP_BUILD_DATE='2026/06/29 21:18';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1599,7 +1599,7 @@ function openEditStay(id){
         '・<b>単独の「薪」は無人販売のため対象外</b>（拾うのは「薪割」のみ）。<br>'+
         '・CSVを再同期するとメモが更新され✓は消えますが、もう一度ボタンを押せば再度✓が付きチェックされます（手入力した備品自体は保持されます）。<br>'+
         '<b>表記ゆれ辞書（拾う言葉の例）</b><br>'+
-        '机/つくえ/テーブル→ローテーブル ／ 椅子/いす/チェア→ベンチ ／ 鍋/フライパン/鉄板→スキレット＋鍋 ／ 焚火/たき火→焚火台セット ／ やかん/薬缶→ケトル ／ 飯盒/メスティン→飯ごう ／ 台車/ワゴン/リヤカー→カート ／ ライター/チャッカマン→マッチ ／ 火おこし/チャコールスターター→火起こし器 ／ シュラフ＋夏/冬→寝袋 ／ 炭/すみ→木炭 ／ コンロ→ガスコンロ＋ガス ／ トーチ→バーナー'+
+        '机/つくえ/テーブル→ローテーブル ／ 椅子/いす/チェア→ベンチ ／ 鍋/フライパン/鉄板→スキレット＋鍋 ／ 焚火/たき火→焚火台セット ／ やかん/薬缶→ケトル ／ 飯盒/メスティン→飯ごう ／ 台車/ワゴン/リヤカー→カート ／ ライター/チャッカマン→マッチ ／ 火おこし/チャコールスターター→火起こし器 ／ 寝袋/シュラフ→寝袋夏（「冬」付きは寝袋冬） ／ 炭/すみ→木炭 ／ コンロ→ガスコンロ＋ガス ／ トーチ→バーナー'+
       '</div>'+
       rItms(ALL_ITEMS.filter(x=>!x.col))+
       '<div style="font-size:13px;color:#888;cursor:pointer;padding:8px 0" onclick="togEsrEx(this)">▶ その他（'+ALL_ITEMS.filter(x=>x.col).length+'点）</div>'+
@@ -1634,8 +1634,8 @@ var RENTAL_ALIAS={
   b10:/カート|台車|ワゴン|リ[ヤア]カー/,
   b_yutanpo:/湯たんぽ|湯タンポ|ゆたんぽ/,
   b18:/焼き?網|あみ焼/,
-  b19:/(寝袋|シュラフ).{0,3}夏|夏.{0,3}(寝袋|シュラフ)/,
-  b20:/(寝袋|シュラフ).{0,3}冬|冬.{0,3}(寝袋|シュラフ)/
+  b20:/(寝袋|シュラフ).{0,3}冬|冬.{0,3}(寝袋|シュラフ)/,
+  b19:/(寝袋|シュラフ)(?!.{0,4}冬)/
 };
 // 現在チェックされている備品に対応する文言の直後だけに橙色✓を付け直す（チェック状態と連動）
 function esRebuildMemoChecks(){
@@ -1666,9 +1666,12 @@ function esReadMemoRental(){
     var re=RENTAL_ALIAS[it.id]; if(!re)return;
     var m=re.exec(memo); if(!m)return;
     var matchEnd=m.index+m[0].length;
-    var after=memo.slice(matchEnd, matchEnd+8);
-    var qm=after.match(/[×xX]?\s*([0-9０-９]+)/);
-    var qty=1; if(qm){var n=parseInt(qm[1].replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);}),10); if(n>0)qty=n;}
+    var after=memo.slice(matchEnd, matchEnd+16);
+    // 「２個→１個へ変更」「２個を１個に訂正」等は変更後の数量を優先。それが無ければ最初の数量。
+    var qm=after.match(/([0-9０-９]+)\s*個?\s*[へに]\s*(?:変更|訂正|修正)/)
+         ||after.match(/[→⇒]+\s*[×xX]?\s*([0-9０-９]+)/)
+         ||after.match(/[×xX]?\s*([0-9０-９]+)/);
+    var qty=1; if(qm){var n=parseInt(String(qm[1]).replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);}),10); if(n>0)qty=n;}
     var cb=document.getElementById('esr_'+it.id); if(!cb)return;
     cb.checked=true;
     var qbox=document.getElementById('esrq_'+it.id); if(qbox)qbox.style.display='flex';
