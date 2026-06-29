@@ -219,7 +219,7 @@ b,strong,.card-name,.card-total{font-weight:600}
     <input type="number" id="add-ninzu" min="1" placeholder="人数を入力" oninput="calcTime()">
     <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px;background:#fff;border:1px solid #ddd;border-radius:8px">
       <input type="checkbox" id="day-mura" style="width:22px;height:22px;cursor:pointer;flex-shrink:0" onchange="calcTime()">
-      <label for="day-mura" style="font-size:14px;font-weight:600;color:#111;cursor:pointer">村内　（空中ウォーク・ツリーハウス昼：半額／BBQ・レンタル：無料）</label>
+      <label for="day-mura" style="font-size:14px;font-weight:600;color:#111;cursor:pointer">村内　（空中ウォーク・ツリーハウス昼：半額／BBQ：無料／レンタル：有料）</label>
     </div>
     <div id="bbq-rental-section" style="display:none">
       <div class="separator"></div>
@@ -297,7 +297,7 @@ b,strong,.card-name,.card-total{font-weight:600}
     <div id="pet-warn" style="font-size:12px;color:#c00;margin-top:4px;display:none"></div>
     <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px;background:#fff;border:1px solid #ddd;border-radius:8px">
       <input type="checkbox" id="stay-mura" style="width:22px;height:22px;cursor:pointer;flex-shrink:0" onchange="calcStay()">
-      <label for="stay-mura" style="font-size:14px;font-weight:600;color:#111;cursor:pointer">村内　（宿泊料金：半額／レンタル：無料）</label>
+      <label for="stay-mura" style="font-size:14px;font-weight:600;color:#111;cursor:pointer">村内　（宿泊料金：半額／レンタル：有料）</label>
     </div>
     <div id="stay-free-items" style="margin:6px 0"></div>
     <label>同日の日帰り予約との紐づけ</label>
@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=98;
-const APP_BUILD_DATE='2026/06/29 21:22';
+const APP_VERSION=99;
+const APP_BUILD_DATE='2026/06/29 21:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -721,18 +721,18 @@ function calcTime(){
   const noteH=fac.note?'　<span style="font-size:12px;font-weight:400;color:#aaa">（'+fac.note+'）</span>':'';
   const ovH=(addFacId==='tree'&&checkOverlap(st,addCourse,null))?'　<span style="font-size:13px;font-weight:600;color:#c00">重複</span>':'';
   document.getElementById('time-display').innerHTML=st+' 〜 '+getEnd(st,addCourse,addFacId)+noteH+ovH;
-  // 村内：BBQ・レンタルは無料、空中ウォーク・ツリーハウスは半額
+  // 村内：BBQは無料・空中ウォーク・ツリーハウスは半額。レンタルは村内でも有料
   const price=mura?(fac.fixedCount?0:Math.floor(basePrice/2)):basePrice;
-  const rt=mura?0:calcRT(rentalSt);
+  const rt=calcRT(rentalSt);
   if(mura){
     document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 → 村内割引';
   }else{
     document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 / 1'+fac.priceUnit+(fac.note?'　（'+fac.note+'）':'');
   }
   if(fac.fixedCount){
-    document.getElementById('price-total-text').textContent=mura?'BBQ無料 / レンタル無料　合計　0円':(rt>0?'レンタル代 '+price.toLocaleString()+'円 ＋ 備品 '+rt.toLocaleString()+'円　合計 '+(price+rt).toLocaleString()+'円':'合計　'+price.toLocaleString()+'円');
+    document.getElementById('price-total-text').textContent=mura?('BBQ無料'+(rt>0?' ＋ 備品 '+rt.toLocaleString()+'円':'')+'　合計　'+rt.toLocaleString()+'円'):(rt>0?'レンタル代 '+price.toLocaleString()+'円 ＋ 備品 '+rt.toLocaleString()+'円　合計 '+(price+rt).toLocaleString()+'円':'合計　'+price.toLocaleString()+'円');
   }else if(ninzu>0){
-    document.getElementById('price-total-text').textContent=mura?'半額　合計　'+(price*ninzu).toLocaleString()+'円（'+ninzu+fac.priceUnit+'）':'合計　'+(price*ninzu).toLocaleString()+'円（'+ninzu+fac.priceUnit+'）';
+    document.getElementById('price-total-text').textContent=(mura?'半額':'')+(rt>0?(mura?' ＋ 備品 '+rt.toLocaleString()+'円':' 備品 '+rt.toLocaleString()+'円含む'):'')+'　合計　'+(price*ninzu+rt).toLocaleString()+'円（'+ninzu+fac.priceUnit+'）';
   }else document.getElementById('price-total-text').textContent='';
 }
 
@@ -1046,7 +1046,7 @@ function calcStay(){
   const fac=getSFac(fid);if(!fac)return;
   const baseUnit=getSPrice(fac,totalPpl);
   const unit=mura?Math.floor(baseUnit/2):baseUnit;
-  const rt=mura?0:calcRT(stayRentalSt);
+  const rt=calcRT(stayRentalSt);
   const pet=parseInt(document.getElementById('stay-pet').value)||0;
   const petFee=pet*3000*nights;
   const base=unit*totalPpl*nights;
@@ -1240,11 +1240,11 @@ function renderList(){
     const price=mura?(fac.fixedCount?0:Math.floor(basePrice/2)):basePrice;
     const ninzu=parseInt(r.ninzu)||0;
     const rental=r.rental||[];
-    const rt=mura?0:rental.reduce((s,i)=>s+i.price*i.qty,0);
+    const rt=rental.reduce((s,i)=>s+i.price*i.qty,0);
     const isOv=r.facility==='tree'&&!r.done&&checkOverlap(r.startTime,r.course,r.id);
-    // 金額表示（宿泊カードと同様に右側へ：単価×人数 ＋備品 計◯円）
+    // 金額表示（宿泊カードと同様に右側へ：単価×人数 ＋備品 計◯円）。レンタルは村内でも有料
     let amountText;
-    if(mura){ amountText='村内割引　計'+(fac.fixedCount?0:price*ninzu).toLocaleString()+'円'; }
+    if(mura){ var muraBase=fac.fixedCount?0:price*ninzu; amountText='村内割引'+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(muraBase+rt).toLocaleString()+'円'; }
     else if(fac.fixedCount){ amountText=price.toLocaleString()+'円／'+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price+rt).toLocaleString()+'円'; }
     else { amountText=price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
     const div=document.createElement('div');div.className='card'+(r.done?' done':'')+(isCancelled(r)?' cancelled':'');
