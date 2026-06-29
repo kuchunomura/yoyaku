@@ -223,7 +223,7 @@ b,strong,.card-name,.card-total{font-weight:600}
     </div>
     <div id="bbq-rental-section" style="display:none">
       <div class="separator"></div>
-      <div style="font-size:14px;font-weight:600;color:#633806;margin-bottom:4px;cursor:pointer;user-select:none" onclick="togColl(this,'rental-body-day')">▶ 備品レンタル</div>
+      <button type="button" onclick="togColl(this,'rental-body-day')" style="display:block;width:100%;text-align:left;font-size:15px;font-weight:700;color:#6b4f20;background:#fff7e6;border:1.5px solid #d9b676;border-radius:8px;padding:11px 14px;margin-bottom:6px;cursor:pointer;user-select:none;font-family:inherit">▶ 備品レンタル</button>
       <div id="rental-body-day" style="display:none">
         <div id="rental-items-form"></div>
         <div id="rental-summary-form" class="rental-summary" style="display:none;margin-top:8px"></div>
@@ -303,7 +303,7 @@ b,strong,.card-name,.card-total{font-weight:600}
     <label>同日の日帰り予約との紐づけ</label>
     <div id="stay-daylink" class="link-check-list"></div>
     <div class="separator"></div>
-    <div style="font-size:14px;font-weight:600;color:#633806;margin-bottom:4px;cursor:pointer;user-select:none" onclick="togColl(this,'rental-body-stay')">▶ 備品レンタル</div>
+    <button type="button" onclick="togColl(this,'rental-body-stay')" style="display:block;width:100%;text-align:left;font-size:15px;font-weight:700;color:#6b4f20;background:#fff7e6;border:1.5px solid #d9b676;border-radius:8px;padding:11px 14px;margin-bottom:6px;cursor:pointer;user-select:none;font-family:inherit">▶ 備品レンタル</button>
     <div id="rental-body-stay" style="display:none">
       <div id="stay-rental-form"></div>
       <div id="stay-rental-summary" class="rental-summary" style="display:none;margin-top:8px"></div>
@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=100;
-const APP_BUILD_DATE='2026/06/29 21:36';
+const APP_VERSION=101;
+const APP_BUILD_DATE='2026/06/29 21:48';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1666,12 +1666,16 @@ function esReadMemoRental(){
     var re=RENTAL_ALIAS[it.id]; if(!re)return;
     var m=re.exec(memo); if(!m)return;
     var matchEnd=m.index+m[0].length;
-    var after=memo.slice(matchEnd, matchEnd+16);
-    // 「２個→１個へ変更」「２個を１個に訂正」等は変更後の数量を優先。それが無ければ最初の数量。
-    var qm=after.match(/([0-9０-９]+)\s*個?\s*[へに]\s*(?:変更|訂正|修正)/)
-         ||after.match(/[→⇒]+\s*[×xX]?\s*([0-9０-９]+)/)
-         ||after.match(/[×xX]?\s*([0-9０-９]+)/);
-    var qty=1; if(qm){var n=parseInt(String(qm[1]).replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);}),10); if(n>0)qty=n;}
+    var after=memo.slice(matchEnd, matchEnd+24);
+    var qty=1, qn=null;
+    // 「×２→×１へ変更」「２個を１個に訂正」等＝変更後を優先。「変更/訂正/修正」の手前にある最後の数字＝確定数量。
+    var cuePos=after.search(/変更|訂正|修正|に直/);
+    if(cuePos>=0){ var nb=after.slice(0,cuePos).match(/[0-9０-９]+/g); if(nb&&nb.length)qn=nb[nb.length-1]; }
+    // 矢印・「から」の後の数字
+    if(qn==null){ var am=after.match(/(?:[→⇒➡]|から)\s*[×xX]?\s*([0-9０-９]+)/); if(am)qn=am[1]; }
+    // それも無ければ最初の数量
+    if(qn==null){ var fm=after.match(/[×xX]?\s*([0-9０-９]+)/); if(fm)qn=fm[1]; }
+    if(qn!=null){var n=parseInt(String(qn).replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);}),10); if(n>0)qty=n;}
     var cb=document.getElementById('esr_'+it.id); if(!cb)return;
     cb.checked=true;
     var qbox=document.getElementById('esrq_'+it.id); if(qbox)qbox.style.display='flex';
