@@ -453,8 +453,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=88;
-const APP_BUILD_DATE='2026/06/26 13:30';
+const APP_VERSION=89;
+const APP_BUILD_DATE='2026/06/26 13:45';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1178,7 +1178,7 @@ function renderList(){
     }).join('');
     const wf=s.wf||{};
     const wfBtn=(k,lb)=>{var armed=wfArm&&wfArm.id===s.id&&wfArm.key===k;return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="'+k+'" class="wf-btn'+(wf[k]?' on':'')+(armed?' arm':'')+'">'+(armed?'もう1タップで確定':((wf[k]?'✅':'')+lb))+'</button>';};
-    const cancelBtn=(()=>{var cArmed=wfArm&&wfArm.id===s.id&&wfArm.key==='cancel';return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="cancel" class="wf-btn'+(cArmed?' arm':'')+'" style="'+(s.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(cArmed?'もう1タップで確定':(s.cancelled?'✅取消を戻す':'キャンセル'))+'</button>';})();
+    const cancelBtn=(()=>{var cArmed=wfArm&&wfArm.id===s.id&&wfArm.key==='cancel';return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="cancel" class="wf-btn'+(cArmed?' arm':'')+'" style="'+(s.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(cArmed?'もう1タップで確定':(s.cancelled?'↩ キャンセルを取り消し':'キャンセル'))+'</button>';})();
     const ddStyle='display:none;position:absolute;top:100%;left:0;z-index:20;background:#fff;border:1px solid #ccc;border-radius:8px;padding:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);margin-top:3px';
     const bedSel=BED_GROUPS.includes(grp)?'<div id="bedsel-'+s.id+'" style="'+ddStyle+'">'+['ベッド2台','ベッド1台'].map(o=>'<button class="btn-sm" onclick="setBed(\''+s.id+'\',\''+o+'\')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(bedLabel(s.bed)===o?'background:#e9e1d4;color:#5a4a2a;border-color:#d3c7b3':'')+'">'+o+'</button>').join('')+'</div>':'';
     const petSel='<div id="petsel-'+s.id+'" style="'+ddStyle+'">'+[0,1,2,3].map(n=>'<button class="btn-sm" onclick="setPet(\''+s.id+'\','+n+')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(((s.petCount||0)===n)?'background:#f1eef4;color:#5a4a6a;border-color:#ddd6e6':'')+'">'+(n===0?'ペット無':'ペット'+n)+'</button>').join('')+'</div>';
@@ -1271,9 +1271,10 @@ function renderList(){
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
       (r.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">'+fmtMemoText(r.memo)+'</div>':'')+
       (r.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+r.addr+'</div>':'')+
-      // 下部：操作ボタン（会計＝2回タップ／編集／削除）
-      '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:6px">'+
+      // 下部：操作ボタン（会計＝2回タップ／キャンセル＝2回タップ／編集／削除）
+      '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">'+
         '<button data-act="toggleDayPay" data-id="'+r.id+'" class="wf-btn'+(r.done?' on':'')+(dayArm===r.id?' arm':'')+'" style="flex:0 0 auto;padding:4px 16px">'+(dayArm===r.id?'もう1タップで確定':((r.done?'✅':'')+'会計'))+'</button>'+
+        '<button data-act="toggleDayCancel" data-id="'+r.id+'" class="wf-btn'+(dayCancelArm===r.id?' arm':'')+'" style="flex:0 0 auto;padding:4px 12px;'+(r.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(dayCancelArm===r.id?'もう1タップで確定':(r.cancelled?'↩ キャンセルを取り消し':'キャンセル'))+'</button>'+
         '<button class="btn-sm" data-act="openEdit" data-id="'+r.id+'">編集</button>'+
         '<button class="btn-sm" data-act="delDay" data-id="'+r.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
       '</div>';
@@ -1295,6 +1296,7 @@ function renderList(){
   // 日付ごとの施設別件数を集計（宿泊=カテゴリ、日帰り=施設名。ツリーハウス昼は区別）
   dayCounts={};
   entries.forEach(e=>{
+    if(isCancelled(e.item))return; // キャンセルは集計に数えない
     const d=e.date||'';if(!dayCounts[d])dayCounts[d]={};
     let label;
     if(e.kind===0){ label=e.item.facGroup||((getSFac(e.item.facility)||{}).group)||'宿泊'; }
@@ -1369,6 +1371,20 @@ function toggleDayPay(id){
     dayArm=id;renderList();
     clearTimeout(window._dayArmT);
     window._dayArmT=setTimeout(function(){dayArm=null;renderList();},2500);
+  }
+}
+// 日帰りのキャンセル（二回タップ／キャンセル済みは1タップで取り消し）
+let dayCancelArm=null;
+function toggleDayCancel(id){
+  var r=reservations.find(x=>x.id===id);if(!r)return;
+  if(r.cancelled){r.cancelled=false;delete _cancelKeep[id];dayCancelArm=null;clearTimeout(window._dayCancelT);sv(RKEY,reservations);autoPush();renderList();return;}
+  if(dayCancelArm===id){
+    r.cancelled=true;_cancelKeep[id]=true;dayCancelArm=null;clearTimeout(window._dayCancelT);
+    sv(RKEY,reservations);autoPush();renderList();
+  }else{
+    dayCancelArm=id;renderList();
+    clearTimeout(window._dayCancelT);
+    window._dayCancelT=setTimeout(function(){dayCancelArm=null;renderList();},2500);
   }
 }
 function markChanged(id){const s=stays.find(x=>x.id===id);if(s){s.changed=!s.changed;sv(STKEY,stays);autoPush();renderList();showToast(s.changed?'変更済みにしました':'変更済みを解除しました',s.changed?'#c00':'#555');}}
@@ -1819,7 +1835,7 @@ async function syncToSheet(silent){
     const res=await fetch(url,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({type:'sync_all',stays,reservations})
+      body:JSON.stringify({type:'sync_all',stays,reservations,otaack:(ld('yv_otaack')||{})})
     });
     const json=await res.json();
     if(json.status==='ok'){
@@ -1847,6 +1863,7 @@ async function loadFromSheet(silent){
     if(json.status==='ok'){
       if(Array.isArray(json.reservations))reservations=json.reservations;
       if(Array.isArray(json.stays))stays=json.stays;
+      if(json.otaack&&typeof json.otaack==='object')sv('yv_otaack',json.otaack);
       sv(RKEY,reservations);sv(STKEY,stays);
       if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 読込完了';
       markSync('同期');
@@ -2403,6 +2420,7 @@ document.addEventListener('click',function(e){
   const act=btn.dataset.act,id=btn.dataset.id;
   if(act==='toggleDD')toggleDD(id);
   else if(act==='toggleDayPay')toggleDayPay(id);
+  else if(act==='toggleDayCancel')toggleDayCancel(id);
   else if(act==='toggleSD')toggleSD(id);
   else if(act==='markChanged')markChanged(id);
   else if(act==='markChangedDay')markChangedDay(id);
