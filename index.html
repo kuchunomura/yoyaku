@@ -444,8 +444,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=72;
-const APP_BUILD_DATE='2026/06/26 10:14';
+const APP_VERSION=73;
+const APP_BUILD_DATE='2026/06/26 10:20';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1103,7 +1103,9 @@ function renderList(){
     const grp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
     const grpFacs=STAY_FACS.filter(x=>x.group===grp);
     const fac=getSFac(s.facility)||grpFacs[0];if(!fac)return null;
-    const showCiCo=!ciCoShown[grp];ciCoShown[grp]=true;
+    // IN/OUT時刻は「日ごと×カテゴリごと」の最初のカードのみ表示（日が変わればまた表示）
+    const ciCoKey=(s.checkin||'')+'|'+grp;
+    const showCiCo=!ciCoShown[ciCoKey];ciCoShown[ciCoKey]=true;
     const childN=parseInt(s.child)||0, petN=s.petCount||0, nm=s.name||'';
     const unitToggle=grpFacs.length>1
       ? '<div id="unitsel-'+s.id+'" style="display:none;margin:4px 0;flex-wrap:wrap;gap:4px;align-items:center">'+
