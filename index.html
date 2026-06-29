@@ -66,9 +66,9 @@ textarea{resize:vertical;min-height:60px}
 .card-header{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap}
 .badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px}
 .badge-walk{background:#ddeeff;color:#224466}
-.badge-tree{background:#fff0d0;color:#633806}
+.badge-tree{background:#d3e6f6;color:#1c4a70}
 .badge-bbq{background:#f5f5f5;color:#555}
-.badge-stay{background:#e9e1d4;color:#5a4a2a}
+.badge-stay{background:#f2d7d2;color:#8a3b2e}
 .badge-done{background:#eee;color:#999}
 .badge-overlap{font-size:11px;font-weight:600;color:#c00;border:1px solid #c00;border-radius:20px;padding:2px 8px}
 .badge-changed{font-size:11px;font-weight:600;color:#c00;border:1px solid #c00;border-radius:20px;padding:2px 8px}
@@ -444,8 +444,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=70;
-const APP_BUILD_DATE='2026/06/26 09:55';
+const APP_VERSION=71;
+const APP_BUILD_DATE='2026/06/26 10:05';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -519,7 +519,7 @@ function clearRange(){_clearRangeInputs();if(!dateFilter&&!searchQ)listFromToday
 function renderQuickDates(){
   var c=document.getElementById('list-quickdate');if(!c)return;
   var hasRange=!!(dateFrom||dateTo);
-  var onSt='background:#efe8df;color:#5a4632;border-color:#d8cab5;font-weight:600'; // 選択時の控えめな配色
+  var onSt='background:#e6eef7;color:#224466;border-color:#c2d6ea;font-weight:600'; // 選択時：カード調の淡い色
   var btns=[['昨日',-1],['今日',0],['明日',1],['明後日',2]];
   var bh=btns.map(function(b){var ds=offsetStr(b[1]);var on=(dateFilter===ds);return '<button class="btn-sm" onclick="quickDate('+b[1]+')" style="'+(on?onSt:'')+'">'+b[0]+'</button>';}).join('');
   var todayOn=(!dateFilter&&listFromToday&&!searchQ&&!hasRange);
@@ -1126,13 +1126,13 @@ function renderList(){
     const bedSel=BED_GROUPS.includes(grp)?'<div id="bedsel-'+s.id+'" style="'+ddStyle+'">'+['ベッド2台','ベッド1台'].map(o=>'<button class="btn-sm" onclick="setBed(\''+s.id+'\',\''+o+'\')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(bedLabel(s.bed)===o?'background:#e9e1d4;color:#5a4a2a;border-color:#d3c7b3':'')+'">'+o+'</button>').join('')+'</div>':'';
     const petSel='<div id="petsel-'+s.id+'" style="'+ddStyle+'">'+[0,1,2,3].map(n=>'<button class="btn-sm" onclick="setPet(\''+s.id+'\','+n+')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(((s.petCount||0)===n)?'background:#f1eef4;color:#5a4a6a;border-color:#ddd6e6':'')+'">'+(n===0?'ペット無':'ペット'+n)+'</button>').join('')+'</div>';
     const div=document.createElement('div');div.className='card'+(s.done?' done':'')+(isCancelled(s)?' cancelled':'');
-    div.style.background='#fbeeec';
+    div.style.background='#fdf5f4';
     div.innerHTML=
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
         '<span style="font-size:12px;font-weight:600;color:#111'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grpFacs.length>1?(grp+'（棟未選択）'):(grpFacs[0]?grpFacs[0].label:grp)))+(grpFacs.length>1?' ▾':'')+'</span>'+
-        (BED_GROUPS.includes(grp)?'<span style="position:relative;display:inline-block"><span data-act="toggleBedSel" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;color:#555;border-radius:10px;padding:1px 7px;white-space:nowrap;background:#fbf8f3;border:1px solid #e6ddcc">'+bedLabel(s.bed)+' ▾</span>'+bedSel+'</span>':'')+
-        '<span style="position:relative;display:inline-block"><span data-act="togglePetSel" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;color:#555;border-radius:10px;padding:1px 7px;white-space:nowrap;'+((s.petCount||0)>0?'background:#f8f6fb;border:1px solid #e8e3ef':'background:#fafafa;border:1px solid #e6e6e6')+'">'+((s.petCount||0)>0?'ペット'+s.petCount:'ペット無')+' ▾</span>'+petSel+'</span>'+
+        (BED_GROUPS.includes(grp)?'<span style="position:relative;display:inline-block"><span data-act="toggleBedSel" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;color:#555;border-radius:10px;padding:1px 7px;white-space:nowrap;background:#f9e8e5;border:1px solid #ecd0cb">'+bedLabel(s.bed)+' ▾</span>'+bedSel+'</span>':'')+
+        '<span style="position:relative;display:inline-block"><span data-act="togglePetSel" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;color:#555;border-radius:10px;padding:1px 7px;white-space:nowrap;'+((s.petCount||0)>0?'background:#f6dcd7;border:1px solid #e3bcb4':'background:#f9e8e5;border:1px solid #ecd0cb')+'">'+((s.petCount||0)>0?'ペット'+s.petCount:'ペット無')+' ▾</span>'+petSel+'</span>'+
         (s.changed?'<span class="badge-changed">変更済み</span>':'')+
         (s.done?'<span class="badge badge-done">対応済み</span>':'')+
         (srcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+srcL+'</span>':'')+
@@ -1262,7 +1262,7 @@ function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=(bedCod
 // メモ等のテキストからOTAを判定（ソウエクスペリ/SOU/じゃらん/楽天）
 function detectOtaFromText(t){t=String(t||'');if(/ソウエクスペリ|そうエクスペリ|sou/i.test(t))return'sou';if(/じゃらん/.test(t))return'jalan';if(/楽天/.test(t))return'rakuten';return'';}
 // キャンセル判定（メモに「キャンセル」を含む）と表示トグル
-let showCancelled=true;
+let showCancelled=false;
 function isCancelled(o){return /キャンセル/.test((o&&o.memo)||'');}
 // メモ内の備品表記「○○1個」「○○:2個」「○○１個」を「○○×1」に整形（顧客の自由記述はそのまま）
 function fmtMemoText(m){return String(m||'').replace(/\s*[:：]?\s*([0-9０-９]+)\s*個/g,function(_,n){return '×'+n.replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);});});}
