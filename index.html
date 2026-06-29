@@ -452,8 +452,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=86;
-const APP_BUILD_DATE='2026/06/26 13:02';
+const APP_VERSION=87;
+const APP_BUILD_DATE='2026/06/26 13:14';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1110,7 +1110,8 @@ function renderList(){
   if(facFilter==='stay'){dl=[];}
   else if(facFilter==='day'){sl=[];}
   else if(facFilter!=='all'){sl=[];dl=dl.filter(r=>r.facility===facFilter);}
-  if(!showCancelled){dl=dl.filter(r=>!isCancelled(r));sl=sl.filter(s=>!isCancelled(s));}
+  // キャンセル非表示でも、今キャンセルしたばかりのカードは取消せるよう残す
+  if(!showCancelled){dl=dl.filter(r=>!isCancelled(r)||_cancelKeep[r.id]);sl=sl.filter(s=>!isCancelled(s)||_cancelKeep[s.id]);}
   sl.sort((a,b)=>a.checkin.localeCompare(b.checkin));
   dl.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||a.startTime.localeCompare(b.startTime));
   if(!dl.length&&!sl.length){c.innerHTML='<div class="empty">'+(searchQ?'「'+searchQ+'」に一致する予約はありません':((dateFrom||dateTo)?'指定期間の予約はありません':(dateFilter?fmtDate(dateFilter)+'の予約はありません':(listFromToday?'今日以降の予約はありません（「全期間」で過去も表示）':'予約がありません'))))+'</div>';return;}
@@ -1158,7 +1159,7 @@ function renderList(){
     }).join('');
     const wf=s.wf||{};
     const wfBtn=(k,lb)=>{var armed=wfArm&&wfArm.id===s.id&&wfArm.key===k;return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="'+k+'" class="wf-btn'+(wf[k]?' on':'')+(armed?' arm':'')+'">'+(armed?'もう1タップで確定':((wf[k]?'✅':'')+lb))+'</button>';};
-    const cancelBtn=(()=>{var cArmed=wfArm&&wfArm.id===s.id&&wfArm.key==='cancel';return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="cancel" class="wf-btn'+(cArmed?' arm':'')+'" style="'+(s.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(cArmed?'もう1タップで確定':((s.cancelled?'✅':'')+'キャンセル'))+'</button>';})();
+    const cancelBtn=(()=>{var cArmed=wfArm&&wfArm.id===s.id&&wfArm.key==='cancel';return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="cancel" class="wf-btn'+(cArmed?' arm':'')+'" style="'+(s.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(cArmed?'もう1タップで確定':(s.cancelled?'✅取消を戻す':'キャンセル'))+'</button>';})();
     const ddStyle='display:none;position:absolute;top:100%;left:0;z-index:20;background:#fff;border:1px solid #ccc;border-radius:8px;padding:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);margin-top:3px';
     const bedSel=BED_GROUPS.includes(grp)?'<div id="bedsel-'+s.id+'" style="'+ddStyle+'">'+['ベッド2台','ベッド1台'].map(o=>'<button class="btn-sm" onclick="setBed(\''+s.id+'\',\''+o+'\')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(bedLabel(s.bed)===o?'background:#e9e1d4;color:#5a4a2a;border-color:#d3c7b3':'')+'">'+o+'</button>').join('')+'</div>':'';
     const petSel='<div id="petsel-'+s.id+'" style="'+ddStyle+'">'+[0,1,2,3].map(n=>'<button class="btn-sm" onclick="setPet(\''+s.id+'\','+n+')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(((s.petCount||0)===n)?'background:#f1eef4;color:#5a4a6a;border-color:#ddd6e6':'')+'">'+(n===0?'ペット無':'ペット'+n)+'</button>').join('')+'</div>';
@@ -1300,6 +1301,7 @@ function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=(bedCod
 function detectOtaFromText(t){t=String(t||'');if(/ソウエクスペリ|そうエクスペリ|sou/i.test(t))return'sou';if(/じゃらん/.test(t))return'jalan';if(/楽天/.test(t))return'rakuten';return'';}
 // キャンセル判定（メモに「キャンセル」を含む）と表示トグル
 let showCancelled=false;
+let _cancelKeep={}; // この表示中にキャンセルしたカードを一時的に残す（取消し操作のため）
 function isCancelled(o){return !!(o&&o.cancelled)||/キャンセル/.test((o&&o.memo)||'');}
 // メモ内の備品表記「○○1個」「○○:2個」「○○１個」を「○○×1」に整形（顧客の自由記述はそのまま）
 function fmtMemoText(m){return String(m||'').replace(/\s*[:：]?\s*([0-9０-９]+)\s*個/g,function(_,n){return '×'+n.replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);});});}
@@ -1318,8 +1320,8 @@ function toggleWf(id,k){
   var s=stays.find(x=>x.id===id);if(!s)return;
   // キャンセルは s.cancelled をトグル（二回タップ／✅は1タップ解除）
   if(k==='cancel'){
-    if(s.cancelled){s.cancelled=false;wfArm=null;clearTimeout(window._wfArmT);sv(STKEY,stays);autoPush();renderList();return;}
-    if(wfArm&&wfArm.id===id&&wfArm.key===k){s.cancelled=true;wfArm=null;clearTimeout(window._wfArmT);sv(STKEY,stays);autoPush();renderList();}
+    if(s.cancelled){s.cancelled=false;delete _cancelKeep[id];wfArm=null;clearTimeout(window._wfArmT);sv(STKEY,stays);autoPush();renderList();return;}
+    if(wfArm&&wfArm.id===id&&wfArm.key===k){s.cancelled=true;_cancelKeep[id]=true;wfArm=null;clearTimeout(window._wfArmT);sv(STKEY,stays);autoPush();renderList();}
     else{wfArm={id:id,key:k};renderList();clearTimeout(window._wfArmT);window._wfArmT=setTimeout(function(){wfArm=null;renderList();},2500);}
     return;
   }
