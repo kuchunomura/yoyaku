@@ -137,6 +137,7 @@ b,strong,.card-name,.card-total{font-weight:600}
 
   <div id="tab-list" class="tab-content">
     <div id="date-filter-bar" style="display:none;align-items:center;gap:8px;background:#fff0f4;border:1px solid #d06080;border-radius:8px;padding:8px 12px;margin-bottom:10px"><span style="font-size:14px;font-weight:600;color:#7a1030;flex:1" id="date-filter-label"></span><button class="btn-sm" onclick="clearDateFilter()" style="color:#c00;border-color:#fcc;white-space:nowrap">✕ 絞り込み解除</button></div>
+    <div id="ota-alert" style="display:none;background:#fff5f5;border:1px solid #e0a0a0;border-radius:8px;padding:8px 10px;margin-bottom:8px"></div>
     <div id="list-quickdate" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px"></div>
     <div id="list-filter" style="display:none;margin-bottom:8px">
       <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;font-size:12px;color:#555;flex-wrap:wrap">
@@ -452,8 +453,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=87;
-const APP_BUILD_DATE='2026/06/26 13:14';
+const APP_VERSION=88;
+const APP_BUILD_DATE='2026/06/26 13:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -545,6 +546,23 @@ function renderQuickDates(){
   if(fp&&filtActive)fp.style.display='block';
 }
 function toggleListFilter(){var el=document.getElementById('list-filter');if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'block':'none';if(el.style.display==='block'){var s=document.getElementById('list-search');if(s)s.focus();}}
+// 同日・同カテゴリー2件以上＝OTA要締切。各行のチェックで解除（端末ローカル保存）
+function renderOtaAlerts(){
+  var el=document.getElementById('ota-alert'); if(!el)return;
+  var cnt={};
+  stays.forEach(function(s){ if(isCancelled(s)||!s.checkin)return; var g=s.facGroup||((getSFac(s.facility)||{}).group)||''; if(!g)return; var k=s.checkin+'|'+g; cnt[k]=(cnt[k]||0)+1; });
+  var keys=Object.keys(cnt).filter(function(k){return cnt[k]>=2;}).sort();
+  if(!keys.length){ el.style.display='none'; el.innerHTML=''; return; }
+  var ack=ld('yv_otaack')||{};
+  el.style.display='block';
+  el.innerHTML='<div style="font-size:12px;font-weight:700;color:#b00;margin-bottom:4px">⚠ OTA要締切（同日・同カテゴリー2件以上）</div>'+
+    keys.map(function(k){
+      var p=k.split('|'); var done=!!ack[k];
+      return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:3px 0;cursor:pointer;'+(done?'color:#999;text-decoration:line-through':'color:#7a1030;font-weight:600')+'">'+
+        '<input type="checkbox" data-otaack="'+k+'" '+(done?'checked':'')+' style="width:18px;height:18px;flex-shrink:0">'+
+        '<span>'+fmtMD(p[0])+'　'+p[1]+'（'+cnt[k]+'件）　OTA要締切</span></label>';
+    }).join('');
+}
 
 // Android対応：date inputの値変化をポーリングで検知
 let _pollTimer=null,_pollId=null,_pollCb=null,_pollLast='';
@@ -1075,6 +1093,7 @@ function saveStay(){
 function renderList(){
   renderFltTabs();
   renderQuickDates();
+  renderOtaAlerts();
   // 日付フィルターバー
   const bar=document.getElementById('date-filter-bar');
   const lbl=document.getElementById('date-filter-label');
@@ -2398,6 +2417,13 @@ document.addEventListener('click',function(e){
   else if(act==='toggleBedSel')toggleBedSel(id);
   else if(act==='togglePetSel')togglePetSel(id);
   else if(act==='toggleWf')toggleWf(id,btn.dataset.wf);
+});
+// OTA要締切のチェック（解除/再表示）
+document.addEventListener('change',function(e){
+  var cb=e.target&&e.target.closest&&e.target.closest('[data-otaack]'); if(!cb)return;
+  var ack=ld('yv_otaack')||{}; var k=cb.getAttribute('data-otaack');
+  if(cb.checked)ack[k]=true; else delete ack[k];
+  sv('yv_otaack',ack); renderOtaAlerts();
 });
 
 // 編集モーダル：上端から下スワイプで閉じる（一覧に戻る）
