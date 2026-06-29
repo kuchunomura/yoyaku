@@ -453,8 +453,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=90;
-const APP_BUILD_DATE='2026/06/26 13:58';
+const APP_VERSION=91;
+const APP_BUILD_DATE='2026/06/26 14:12';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -546,28 +546,33 @@ function renderQuickDates(){
   if(fp&&filtActive)fp.style.display='block';
 }
 function toggleListFilter(){var el=document.getElementById('list-filter');if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'block':'none';if(el.style.display==='block'){var s=document.getElementById('list-search');if(s)s.focus();}}
-// 同日・同カテゴリー2件以上＝OTA要締切。今日以降のみ・折りたたみ・各行に解除/削除（同期共有）
-let _otaOpen=false;
+// 同日・同カテゴリー2件以上＝OTA要締切。既定は今日以降のみ・折りたたみ・各行に解除/削除（同期共有）。過去は一時表示トグルで確認可
+let _otaOpen=false, _otaPast=false;
 function toggleOtaOpen(){_otaOpen=!_otaOpen;renderOtaAlerts();}
+function toggleOtaPast(){_otaPast=!_otaPast;_otaOpen=true;renderOtaAlerts();}
 function renderOtaAlerts(){
   var el=document.getElementById('ota-alert'); if(!el)return;
   var today=todayStr();
   var cnt={};
-  stays.forEach(function(s){ if(isCancelled(s)||!s.checkin)return; if(s.checkin<today)return; var g=s.facGroup||((getSFac(s.facility)||{}).group)||''; if(!g)return; var k=s.checkin+'|'+g; cnt[k]=(cnt[k]||0)+1; });
+  stays.forEach(function(s){ if(isCancelled(s)||!s.checkin)return; var g=s.facGroup||((getSFac(s.facility)||{}).group)||''; if(!g)return; var k=s.checkin+'|'+g; cnt[k]=(cnt[k]||0)+1; });
   var ack=ld('yv_otaack')||{};
-  var keys=Object.keys(cnt).filter(function(k){return cnt[k]>=2 && ack[k]!=='del';}).sort();
-  if(!keys.length){ el.style.display='none'; el.innerHTML=''; return; }
+  var allKeys=Object.keys(cnt).filter(function(k){return cnt[k]>=2 && ack[k]!=='del';});
+  if(!allKeys.length){ el.style.display='none'; el.innerHTML=''; return; }
+  var keys=allKeys.filter(function(k){ return _otaPast || k.split('|')[0]>=today; }).sort();
   var pend=keys.filter(function(k){return !ack[k];}).length;
   el.style.display='block';
-  var rows=keys.map(function(k){
-    var p=k.split('|'); var done=ack[k]===true;
-    return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;'+(done?'color:#999':'color:#7a1030;font-weight:600')+'">'+
+  var rows=keys.length?keys.map(function(k){
+    var p=k.split('|'); var done=ack[k]===true; var past=p[0]<today;
+    return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;'+(done?'color:#999':(past?'color:#aaa':'color:#7a1030;font-weight:600'))+'">'+
       '<input type="checkbox" data-otaack="'+k+'" '+(done?'checked':'')+' style="width:18px;height:18px;flex-shrink:0">'+
-      '<span style="flex:1'+(done?';text-decoration:line-through':'')+'">'+fmtMD(p[0])+'　'+p[1]+'（'+cnt[k]+'件）　OTA要締切</span>'+
+      '<span style="flex:1'+(done?';text-decoration:line-through':'')+'">'+(past?'【過去】':'')+fmtMD(p[0])+'　'+p[1]+'（'+cnt[k]+'件）　OTA要締切</span>'+
       '<button data-otadel="'+k+'" style="font-size:12px;color:#b00;background:#fff;border:1px solid #e0a0a0;border-radius:6px;padding:2px 8px;cursor:pointer;flex-shrink:0">✕削除</button>'+
     '</div>';
-  }).join('');
-  el.innerHTML='<div onclick="toggleOtaOpen()" style="cursor:pointer;user-select:none;font-size:12px;font-weight:700;color:#b00">'+(_otaOpen?'▼':'▶')+' ⚠ OTA要締切（未対応 '+pend+'件）</div>'+
+  }).join(''):'<div style="font-size:12px;color:#999;padding:4px 0">今日以降の該当はありません（「過去も表示」で過去分を確認）</div>';
+  el.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'+
+      '<span onclick="toggleOtaOpen()" style="cursor:pointer;user-select:none;font-size:12px;font-weight:700;color:#b00">'+(_otaOpen?'▼':'▶')+' ⚠ OTA要締切（未対応 '+pend+'件）</span>'+
+      '<button onclick="toggleOtaPast()" style="font-size:11px;color:#555;background:#fff;border:1px solid #ccc;border-radius:6px;padding:2px 8px;cursor:pointer;flex-shrink:0">'+(_otaPast?'過去を隠す':'過去も表示')+'</button>'+
+    '</div>'+
     '<div style="display:'+(_otaOpen?'block':'none')+';margin-top:4px">'+rows+'</div>';
 }
 
