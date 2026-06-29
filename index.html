@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=99;
-const APP_BUILD_DATE='2026/06/29 21:30';
+const APP_VERSION=100;
+const APP_BUILD_DATE='2026/06/29 21:36';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1586,9 +1586,9 @@ function openEditStay(id){
     '<label>メモ（ドラッグで広げられます）</label>'+
     '<div id="es-memo" contenteditable="true" style="min-height:90px;max-height:50vh;overflow-y:auto;resize:vertical;border:1px solid #ccc;border-radius:8px;padding:8px;font-size:14px;line-height:1.6;background:#fff;white-space:pre-wrap;-webkit-overflow-scrolling:touch">'+htmlEscape(s.memo||'')+'</div>'+
     '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
-    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0">'+
-      '<span id="es-rental-tog" class="section-title" style="cursor:pointer;user-select:none;margin:0" onclick="togColl(this,\'es-rental-body\')">▶ 備品レンタル</span>'+
-      '<button type="button" onclick="esReadMemoRental()" style="font-size:12px;padding:6px 10px;border:1px solid #6b4f20;color:#6b4f20;background:#fff;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0">📋 メモから自動入力</button>'+
+    '<div style="display:flex;align-items:stretch;gap:8px;margin:8px 0">'+
+      '<button type="button" id="es-rental-tog" onclick="togColl(this,\'es-rental-body\')" style="flex:1;text-align:left;cursor:pointer;user-select:none;font-size:15px;font-weight:700;color:#6b4f20;background:#fff7e6;border:1.5px solid #d9b676;border-radius:8px;padding:11px 14px;font-family:inherit">▶ 備品レンタル</button>'+
+      '<button type="button" onclick="esReadMemoRental()" style="font-size:13px;font-weight:600;padding:6px 12px;border:1.5px solid #6b4f20;color:#fff;background:#6b4f20;border-radius:8px;cursor:pointer;white-space:nowrap;flex-shrink:0;font-family:inherit">📋 メモから自動入力</button>'+
     '</div>'+
     '<div id="es-rental-body" style="display:none">'+
       '<div class="section-title" style="cursor:pointer;user-select:none;font-size:12px;color:#888;margin:2px 0" onclick="togColl(this,\'es-rental-help\')">▶ 自動入力の説明</div>'+
