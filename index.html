@@ -453,8 +453,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=92;
-const APP_BUILD_DATE='2026/06/26 14:28';
+const APP_VERSION=93;
+const APP_BUILD_DATE='2026/06/29 20:58';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1204,11 +1204,11 @@ function renderList(){
       unitToggle+
       // 1行目：日付〜 泊数 人数 名前（右に金額）
       '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
-        '<span style="font-size:14px;color:#333;font-weight:600">'+
+        '<span style="font-size:15.5px;color:#222;font-weight:700">'+
           (s.nights>=2?fmtMD(s.checkin)+'-'+fmtMD(s.checkout):fmtMD(s.checkin))+'　'+s.nights+'泊　'+s.ninzu+'名'+
           (childN>0?'+子'+childN:'')+(petN>0?'+ペット'+petN:'')+(nm?'　'+nm:'')+
         '</span>'+
-        '<span style="font-size:13px;color:#111">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
+        '<span style="font-size:13px;color:#999">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
       '</div>'+
       ((s.rental||[]).length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px">'+s.rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div>':'')+
       linkedH+
@@ -1267,12 +1267,12 @@ function renderList(){
       '</div>'+
       // 主要情報行：左に 日付 時間 人数 名前／右に 金額（宿泊カードと同じ配置）
       '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
-        '<span style="font-size:14px;color:#333;font-weight:600">'+
+        '<span style="font-size:15.5px;color:#222;font-weight:700">'+
           (r.date?fmtMD(r.date)+'　':'')+r.startTime+'〜'+end+
           (ninzu>0?'　'+ninzu+fac.priceUnit:'')+(r.name?'　'+r.name:'')+
           (fac.note?'<span style="font-size:12px;color:#aaa;font-weight:400">（'+fac.note+'）</span>':'')+
         '</span>'+
-        '<span style="font-size:13px;color:#111">'+amountText+'</span>'+
+        '<span style="font-size:13px;color:#999">'+amountText+'</span>'+
       '</div>'+
       (rental.length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px">'+rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div>':'')+
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
