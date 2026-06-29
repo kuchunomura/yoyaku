@@ -158,6 +158,13 @@ b,strong,.card-name,.card-total{font-weight:600}
         <div style="font-size:12px;color:#6b4f20;margin-bottom:8px;line-height:1.6">
           商品ごとのCSVを選んで取り込みます。文字コードは自動判定（UTF-8/Shift-JIS）。<b>メール・電話は取り込まず</b>、住所は<b>市区町村まで</b>に丸めます。予約IDで<b>重複は自動更新</b>。
         </div>
+        <div style="font-size:11px;color:#555;background:#fffdf6;border:1px dashed #e8c878;border-radius:6px;padding:8px;margin-bottom:8px;line-height:1.7">
+          ℹ <b>「CSV取込」と「同期」は別物です。</b><br>
+          ・<b>📥 CSV取込</b>＝WordPressの予約をこのアプリに取り込む（外部→アプリの一方向）。<br>
+          ・<b>📊 同期</b>（設定タブ）＝アプリ⇄Googleスプレッドシートでデータを行き来（端末間の共有・印刷用）。<br>
+          毎日の予約反映は「CSV取込」、他端末と揃えるのは「同期」です。
+        </div>
+        <div id="csv-implog" style="font-size:11px;color:#555;background:#fff;border:1px solid #e8d8b0;border-radius:6px;padding:8px;margin-bottom:8px;line-height:1.7"></div>
         <label>取込先の施設（このCSVの商品）　▼タップで選択</label>
         <select id="csv-fac" style="font-size:14px;-webkit-appearance:menulist;appearance:menulist;border:1px solid #888;border-radius:6px;padding:8px;background:#fff"></select>
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;cursor:pointer;font-weight:normal">
@@ -444,8 +451,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=82;
-const APP_BUILD_DATE='2026/06/26 12:10';
+const APP_VERSION=83;
+const APP_BUILD_DATE='2026/06/26 12:25';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -566,7 +573,7 @@ function switchTab(t,keepDateFilter){
   const tabGrp=(t==='day'||t==='stay')?'add':t;
   document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===tabGrp));
   if(t==='list'){if(!keepDateFilter){dateFilter=null;listFromToday=true;_clearSearchInput();_clearRangeInputs();}renderList();}
-  if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();renderCsvFacOptions();setTimeout(refreshDateDisps,0);}
+  if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();renderCsvFacOptions();renderCsvImpLog();setTimeout(refreshDateDisps,0);}
   if(t==='stay'){initStay();setTimeout(refreshDateDisps,0);}
   if(t==='cal')initCal();
   if(t==='settings'){renderSettings();renderStock();loadSNUI();loadGasUrl();}
@@ -1849,6 +1856,16 @@ function renderCsvFacOptions(){
 }
 // 取込先selectの値→表示名
 function csvOptLabel(val){var s=document.getElementById('csv-fac');if(s)for(var i=0;i<s.options.length;i++){if(s.options[i].value===val)return s.options[i].textContent;}return val;}
+function fmtDateTime(ts){var d=new Date(ts);return (d.getMonth()+1)+'/'+d.getDate()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
+// カテゴリ別の最終CSV取込日時を表示
+function renderCsvImpLog(){
+  var el=document.getElementById('csv-implog'); if(!el) return;
+  var imp=ld('yv_csvimp')||{};
+  var rows=[];
+  FACILITIES.forEach(function(f){var v='day:'+f.id;var lb=(f.id==='tree'?'ツリーハウス昼':f.label);rows.push([lb,imp[v]]);});
+  var seen={}; STAY_FACS.forEach(function(f){if(seen[f.group])return;seen[f.group]=true;var v='staygroup:'+f.group;rows.push([f.group+'（宿泊）',imp[v]]);});
+  el.innerHTML='<b>最終CSV取込日時</b><br>'+rows.map(function(r){return r[0]+'：'+(r[1]?'<span style="color:#1a7a3a">'+fmtDateTime(r[1])+'</span>':'<span style="color:#bbb">未取込</span>');}).join('　/　');
+}
 // 日帰り↔宿泊で同じ施設の対応（ツリーハウスは昼/夜の両方がある）
 var CSV_SIBLING={'day:tree':'staygroup:ツリーハウス','staygroup:ツリーハウス':'day:tree'};
 // 文字コード自動判定（UTF-8優先、化けたらShift_JIS）
@@ -2059,6 +2076,8 @@ function importCSV(){
       else { arr.push(rec); added++; }
     });
     autoLinkAll(); // 取込後に同名/同OTAを自動紐づけ
+    // カテゴリ別の最終取込日時を記録
+    var _imp=ld('yv_csvimp')||{}; _imp[sel]=Date.now(); sv('yv_csvimp',_imp); renderCsvImpLog();
     sv(RKEY,reservations); sv(STKEY,stays); autoPush();
     res.style.color='#1a7a3a';
     res.innerHTML='✓ 取込完了：追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'')
