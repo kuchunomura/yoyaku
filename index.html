@@ -444,8 +444,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=69;
-const APP_BUILD_DATE='2026/06/26 09:50';
+const APP_VERSION=70;
+const APP_BUILD_DATE='2026/06/26 09:55';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1126,7 +1126,7 @@ function renderList(){
     const bedSel=BED_GROUPS.includes(grp)?'<div id="bedsel-'+s.id+'" style="'+ddStyle+'">'+['ベッド2台','ベッド1台'].map(o=>'<button class="btn-sm" onclick="setBed(\''+s.id+'\',\''+o+'\')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(bedLabel(s.bed)===o?'background:#e9e1d4;color:#5a4a2a;border-color:#d3c7b3':'')+'">'+o+'</button>').join('')+'</div>':'';
     const petSel='<div id="petsel-'+s.id+'" style="'+ddStyle+'">'+[0,1,2,3].map(n=>'<button class="btn-sm" onclick="setPet(\''+s.id+'\','+n+')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(((s.petCount||0)===n)?'background:#f1eef4;color:#5a4a6a;border-color:#ddd6e6':'')+'">'+(n===0?'ペット無':'ペット'+n)+'</button>').join('')+'</div>';
     const div=document.createElement('div');div.className='card'+(s.done?' done':'')+(isCancelled(s)?' cancelled':'');
-    div.style.background='#f3e2dd';
+    div.style.background='#fbeeec';
     div.innerHTML=
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
