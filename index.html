@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=101;
-const APP_BUILD_DATE='2026/06/29 21:48';
+const APP_VERSION=102;
+const APP_BUILD_DATE='2026/06/29 21:55';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1213,9 +1213,9 @@ function renderList(){
         '</span>'+
         '<span style="font-size:13px;color:#999">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
       '</div>'+
-      ((s.rental||[]).length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px">'+s.rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div>':'')+
+      ((s.rental||[]).length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px"><span style="color:#aaa;font-weight:400">レンタル </span>'+s.rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div>':'')+
       linkedH+
-      (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">'+fmtMemoText(s.memo)+'</div>':'')+
+      (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoText(s.memo)+'</div>':'')+
       (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+s.addr+'</div>':'')+
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px">'+
         '<span style="font-size:11px;color:#aaa">'+(showCiCo?'IN '+fac.ci+' ／ OUT '+fac.co:'')+'</span>'+
@@ -1280,9 +1280,9 @@ function renderList(){
         '</span>'+
         '<span style="font-size:13px;color:#999">'+amountText+'</span>'+
       '</div>'+
-      (rental.length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px">'+rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div>':'')+
+      (rental.length?'<div class="card-meta" style="font-size:12px;color:#555;margin-top:2px"><span style="color:#aaa;font-weight:400">レンタル </span>'+rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div>':'')+
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
-      (r.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600">'+fmtMemoText(r.memo)+'</div>':'')+
+      (r.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoText(r.memo)+'</div>':'')+
       (r.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+r.addr+'</div>':'')+
       // 下部：操作ボタン（▼で開閉。会計＝2回タップ／キャンセル＝2回タップ／編集／削除）
       '<div style="display:flex;justify-content:flex-end;align-items:center;margin-top:6px">'+
@@ -1597,6 +1597,7 @@ function openEditStay(id){
         '・認識した文言の直後に<span style="color:#e67700;font-weight:700">✓</span>が付きます。文言が違うと拾えません。<br>'+
         '・<b>ランタンは1宿泊1つ無料貸出のため意図的に除外</b>（自動では入りません）。<br>'+
         '・<b>単独の「薪」は無人販売のため対象外</b>（拾うのは「薪割」のみ）。<br>'+
+        '・数量は「×２→×１へ変更」のように<b>「変更／訂正／修正」の直前にある最後の数字を確定数量</b>として読み取ります（例：「×２→×１へ変更」は<b>1個</b>）。<br>'+
         '・CSVを再同期するとメモが更新され✓は消えますが、もう一度ボタンを押せば再度✓が付きチェックされます（手入力した備品自体は保持されます）。<br>'+
         '<b>表記ゆれ辞書（拾う言葉の例）</b><br>'+
         '机/つくえ/テーブル→ローテーブル ／ 椅子/いす/チェア→ベンチ ／ 鍋/フライパン/鉄板→スキレット＋鍋 ／ 焚火/たき火→焚火台セット ／ やかん/薬缶→ケトル ／ 飯盒/メスティン→飯ごう ／ 台車/ワゴン/リヤカー→カート ／ ライター/チャッカマン→マッチ ／ 火おこし/チャコールスターター→火起こし器 ／ 寝袋/シュラフ→寝袋夏（「冬」付きは寝袋冬） ／ 炭/すみ→木炭 ／ コンロ→ガスコンロ＋ガス ／ トーチ→バーナー'+
@@ -1608,6 +1609,8 @@ function openEditStay(id){
   document.getElementById('edit-modal-title').textContent='宿泊予約を編集';
   document.getElementById('edit-modal-content').innerHTML=html;
   document.getElementById('edit-modal').classList.add('open');document.body.style.overflow='hidden';
+  // 開いた時点で、現在の備品に対応する文言へ橙色✓を付け直す（再表示でグレーに戻らないように）
+  esRebuildMemoChecks();
 }
 
 // メモの客自由記述から備品を推定してチェック＆数量入力（あくまで補助。文言が違うと拾えない）
@@ -1772,7 +1775,7 @@ function saveEditStay(){
   const fac=getSFac(s.facility);s.unitPrice=getSPrice(fac,s.totalPpl);
   s.rental=ALL_ITEMS.filter(item=>{const el=document.getElementById('esr_'+item.id);return el&&el.checked;})
     .map(item=>({id:item.id,name:item.name,price:item.price,qty:parseInt(document.getElementById('esrs_'+item.id).textContent)||1}));
-  s.memo=(document.getElementById('es-memo').innerText||'').trim();
+  s.memo=(document.getElementById('es-memo').innerText||'').replace(/✓/g,'').trim();
   const dl=document.getElementById('es-daylink');
   const newLinked=[...dl.querySelectorAll('input[type=checkbox]:checked')].map(el=>el.value);
   const oldLinked=s.linkedDayIds||[];
