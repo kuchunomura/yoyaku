@@ -452,8 +452,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=85;
-const APP_BUILD_DATE='2026/06/26 12:50';
+const APP_VERSION=86;
+const APP_BUILD_DATE='2026/06/26 13:02';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1581,11 +1581,31 @@ var RENTAL_ALIAS={
   b19:/(寝袋|シュラフ).{0,3}夏|夏.{0,3}(寝袋|シュラフ)/,
   b20:/(寝袋|シュラフ).{0,3}冬|冬.{0,3}(寝袋|シュラフ)/
 };
+// 現在チェックされている備品に対応する文言の直後だけに橙色✓を付け直す（チェック状態と連動）
+function esRebuildMemoChecks(){
+  var el=document.getElementById('es-memo'); if(!el)return;
+  var memo=(el.innerText||'').replace(/✓/g,'');
+  var marks=[];
+  ALL_ITEMS.forEach(function(it){
+    var cb=document.getElementById('esr_'+it.id); if(!cb||!cb.checked)return;
+    var re=RENTAL_ALIAS[it.id]; if(!re)return;
+    var m=re.exec(memo); if(!m)return;
+    var matchEnd=m.index+m[0].length;
+    var rest=memo.slice(matchEnd);
+    var sepRel=rest.search(/[・、,，\/\n\s]/);
+    marks.push(sepRel<0?memo.length:matchEnd+sepRel);
+  });
+  marks=marks.filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return a-b;});
+  var h='',p=0;
+  marks.forEach(function(pos){ h+=htmlEscape(memo.slice(p,pos))+'<span style="color:#e67700;font-weight:700">✓</span>'; p=pos; });
+  h+=htmlEscape(memo.slice(p));
+  el.innerHTML=h;
+}
 function esReadMemoRental(){
   var memoEl=document.getElementById('es-memo'); if(!memoEl)return;
-  var memo=(memoEl.innerText||'').replace(/✓/g,''); // 既存の✓は一旦除去して付け直す
+  var memo=(memoEl.innerText||'').replace(/✓/g,'');
   if(!memo.trim()){showToast('メモが空です','#777');return;}
-  var hit=0, exNeeded=false, marks=[];
+  var hit=0, exNeeded=false;
   ALL_ITEMS.forEach(function(it){
     var re=RENTAL_ALIAS[it.id]; if(!re)return;
     var m=re.exec(memo); if(!m)return;
@@ -1594,28 +1614,20 @@ function esReadMemoRental(){
     var qm=after.match(/[×xX]?\s*([0-9０-９]+)/);
     var qty=1; if(qm){var n=parseInt(qm[1].replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);}),10); if(n>0)qty=n;}
     var cb=document.getElementById('esr_'+it.id); if(!cb)return;
-    cb.checked=true; esrChg(it.id);
+    cb.checked=true;
+    var qbox=document.getElementById('esrq_'+it.id); if(qbox)qbox.style.display='flex';
     var qs=document.getElementById('esrs_'+it.id); if(qs)qs.textContent=qty;
     if(it.col)exNeeded=true;
     hit++;
-    // 読み取った文言（品名＋数量）の直後に✓を入れる位置
-    var rest=memo.slice(matchEnd);
-    var sepRel=rest.search(/[・、,，\/\n\s]/);
-    marks.push(sepRel<0?memo.length:matchEnd+sepRel);
   });
-  // 後ろの位置からプレースホルダ挿入 → エスケープ後に橙色✓へ置換
-  marks=marks.filter(function(v,i,a){return a.indexOf(v)===i;}).sort(function(a,b){return a-b;});
-  var _h='',_p=0;
-  marks.forEach(function(pos){ _h+=htmlEscape(memo.slice(_p,pos))+'<span style="color:#e67700;font-weight:700">✓</span>'; _p=pos; });
-  _h+=htmlEscape(memo.slice(_p));
-  memoEl.innerHTML=_h;
+  if(exNeeded){var d=document.getElementById('esr-ex');if(d)d.style.display='';}
+  esRebuildMemoChecks();
   // 結果が見えるよう備品欄を開く
   var body=document.getElementById('es-rental-body'); if(body)body.style.display='';
   var tog=document.getElementById('es-rental-tog'); if(tog&&tog.textContent.charAt(0)==='▶')tog.textContent='▼'+tog.textContent.slice(1);
-  if(exNeeded){var d=document.getElementById('esr-ex');if(d)d.style.display='';}
   showToast(hit?('✓ '+hit+'点を読み取りました（✓印・要確認）'):'該当する備品が見つかりませんでした',hit?'#1a7a3a':'#777');
 }
-function esrChg(id){document.getElementById('esrq_'+id).style.display=document.getElementById('esr_'+id).checked?'flex':'none';}
+function esrChg(id){document.getElementById('esrq_'+id).style.display=document.getElementById('esr_'+id).checked?'flex':'none';esRebuildMemoChecks();}
 function esrChgQ(id,delta){const el=document.getElementById('esrs_'+id);el.textContent=Math.max(1,parseInt(el.textContent)+delta);}
 function togEsrEx(el){const d=document.getElementById('esr-ex');const o=d.style.display!=='none';d.style.display=o?'none':'';el.textContent=(o?'▶':'▼')+' その他（'+ALL_ITEMS.filter(x=>x.col).length+'点）';}
 
