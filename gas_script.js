@@ -10,8 +10,8 @@
 
 var DAY_SHEET  = '予約_日帰り';
 var STAY_SHEET = '予約_宿泊';
-var DAY_COLS   = ['日付','施設','コース','時間','名前','人数','予約サイト','メモ','会計','_id','_json'];
-var STAY_COLS  = ['チェックイン','チェックアウト','泊数','カテゴリ','棟','ベッド','ペット','名前','人数','予約サイト','メモ','部屋準備','会計','案内','OUT','_id','_json'];
+var DAY_COLS   = ['日付','施設','コース','時間','名前','人数','予約サイト','メモ','会計','キャンセル','_id','_json'];
+var STAY_COLS  = ['チェックイン','チェックアウト','泊数','カテゴリ','棟','ベッド','ペット','名前','人数','予約サイト','メモ','部屋準備','会計','案内','OUT','キャンセル','_id','_json'];
 
 // 施設ID→表示名（スプレッドシートを読みやすく）
 var FAC_LABELS = {
@@ -124,11 +124,11 @@ function writeAll(reservations, stays){
       || (stayGrpOrder(a.facGroup) - stayGrpOrder(b.facGroup));
   });
   writeRows(getSheet(DAY_SHEET), DAY_COLS, days.map(function(r){
-    return [fmtMD(r.date), facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', (r.done?'✅':''), r.id||'', JSON.stringify(r)];
+    return [fmtMD(r.date), facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', (r.done?'✅':''), ((r.cancelled||/キャンセル/.test(r.memo||''))?'✅':''), r.id||'', JSON.stringify(r)];
   }), days.map(function(r){ return r.date||''; }));
   writeRows(getSheet(STAY_SHEET), STAY_COLS, st.map(function(s){
     var w=s.wf||{};
-    return [fmtMD(s.checkin), fmtMD(s.checkout), s.nights||'', s.facGroup||'', (s.facility?facLabel(s.facility):'（棟未選択）'), bedLabelG(s.bed), (s.petCount||''), s.name||'', s.ninzu||'', srcLabel(s.source), s.memo||'', (w.prep?'✅':''), (w.pay?'✅':''), (w.guide?'✅':''), (w.out?'✅':''), s.id||'', JSON.stringify(s)];
+    return [fmtMD(s.checkin), fmtMD(s.checkout), s.nights||'', s.facGroup||'', (s.facility?facLabel(s.facility):'（棟未選択）'), bedLabelG(s.bed), (s.petCount||''), s.name||'', s.ninzu||'', srcLabel(s.source), s.memo||'', (w.prep?'✅':''), (w.pay?'✅':''), (w.guide?'✅':''), (w.out?'✅':''), ((s.cancelled||/キャンセル/.test(s.memo||''))?'✅':''), s.id||'', JSON.stringify(s)];
   }), st.map(function(s){ return s.checkin||''; }));
 }
 
@@ -139,12 +139,12 @@ function writeRows(sh, cols, rows, groupKeys){
     var rng = sh.getRange(2,1,rows.length,cols.length);
     rng.setValues(rows).setHorizontalAlignment('center').setVerticalAlignment('middle');
     var memoIdx = cols.indexOf('メモ');
+    var cancelIdx = cols.indexOf('キャンセル');
     if(memoIdx >= 0) sh.getRange(2, memoIdx+1, rows.length, 1).setHorizontalAlignment('left'); // メモは左寄せ
-    // キャンセル行は薄グレー
-    if(memoIdx >= 0){
-      for(var c=0;c<rows.length;c++){
-        if(String(rows[c][memoIdx]).indexOf('キャンセル') >= 0) sh.getRange(2+c,1,1,cols.length).setBackground('#f3f3f3').setFontColor('#999999');
-      }
+    // キャンセル行は薄グレー（メモに「キャンセル」or キャンセル列が✅）
+    for(var c=0;c<rows.length;c++){
+      var isC=(memoIdx>=0 && String(rows[c][memoIdx]).indexOf('キャンセル')>=0) || (cancelIdx>=0 && String(rows[c][cancelIdx]).trim()!=='');
+      if(isC) sh.getRange(2+c,1,1,cols.length).setBackground('#f3f3f3').setFontColor('#999999');
     }
     // 日付（グループキー）が変わる行の下に下線を引く
     if(groupKeys){
@@ -214,6 +214,7 @@ function readSheet(name){
       if(idx['予約サイト']!==undefined) obj.source  = srcKey(col('予約サイト'));
       if(idx['メモ']!==undefined)     obj.memo      = String(col('メモ')||'');
       if(idx['会計']!==undefined)     obj.done      = !!String(col('会計')).trim();
+      if(idx['キャンセル']!==undefined) obj.cancelled = !!String(col('キャンセル')).trim();
     }else{
       if(idx['チェックイン']!==undefined)   obj.checkin  = parseMD(col('チェックイン'), yh);
       if(idx['チェックアウト']!==undefined) obj.checkout = parseMD(col('チェックアウト'), yh);
@@ -233,6 +234,7 @@ function readSheet(name){
         if(idx['案内']!==undefined)     obj.wf.guide = !!String(col('案内')).trim();
         if(idx['OUT']!==undefined)      obj.wf.out   = !!String(col('OUT')).trim();
       }
+      if(idx['キャンセル']!==undefined) obj.cancelled = !!String(col('キャンセル')).trim();
     }
     if(obj.id || obj.wpId || obj.name || obj.date || obj.checkin) out.push(obj);
   }
