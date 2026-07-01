@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=207;
-const APP_BUILD_DATE='2026/06/29 22:30';
+const APP_VERSION=208;
+const APP_BUILD_DATE='2026/06/29 22:40';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2010,12 +2010,20 @@ function trimAddr(s){
   var d=s.search(/[0-9０-９]/);
   return (d>0?s.slice(0,d):s).trim();
 }
-// 人数セルから妥当な人数を取り出す（全桁連結の誤読を防ぐ。「3名」「大人2」等を優先し1〜60にクランプ）
+// 人数セルから妥当な人数を取り出す（全桁連結の誤読=332を防ぐ。1〜60にクランプ）
+// WPの人数欄は「…(including children aged 3 and over): 2 名(person)」形式で、
+// 「3歳以上」「aged 3」の“3”を誤って拾いやすい。実数は必ず「): 」の直後にあるので最優先で拾う。
 function wpPickNinzu(str){
   var s=String(str||'');
-  var m=s.match(/(\d{1,2})\s*(?:名|人|大人|guests?|people|persons)/i); // 「3名」「大人2」など優先
-  if(m){ var n=parseInt(m[1],10); if(n>=1&&n<=60) return n; }
-  var all=s.match(/\d+/g)||[]; // それ以外は最初の妥当な数字（連結しない）
+  // ①「): 2」「）：2」＝閉じ括弧＋コロンの直後（ASCIIなので文字化けにも強い）＝実際の人数
+  var m1=s.match(/[)）]\s*[:：]\s*(\d{1,2})/);
+  if(m1){ var n1=parseInt(m1[1],10); if(n1>=1&&n1<=60) return n1; }
+  // ②「2名」「大人2」「2 persons」など
+  var m2=s.match(/(\d{1,2})\s*(?:名|人|大人|persons?|guests?|people)/i);
+  if(m2){ var n2=parseInt(m2[1],10); if(n2>=1&&n2<=60) return n2; }
+  // ③ 年齢の飾り（3才以上 / aged 3 and over 等）を除いた最初の妥当な数字
+  var cleaned=s.replace(/\d+\s*(?:才|歳)以上/g,'').replace(/aged\s*\d+/gi,'').replace(/\d+\s*(?:and\s*)?over/gi,'');
+  var all=cleaned.match(/\d+/g)||[];
   for(var i=0;i<all.length;i++){ var v=parseInt(all[i],10); if(v>=1&&v<=60) return v; }
   return 0;
 }
