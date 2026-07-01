@@ -72,6 +72,9 @@ function doPost(e){
       if(data.otaack && typeof data.otaack === 'object'){
         PropertiesService.getDocumentProperties().setProperty('otaack', JSON.stringify(data.otaack));
       }
+      if(data.qack && typeof data.qack === 'object'){
+        PropertiesService.getDocumentProperties().setProperty('qack', JSON.stringify(data.qack));
+      }
       return jsonOut({status:'ok', saved:{reservations:(data.reservations||[]).length, stays:(data.stays||[]).length}});
     }
     return jsonOut({status:'error', message:'unknown type'});
@@ -83,7 +86,8 @@ function doPost(e){
 function doGet(e){
   try{
     var ota={}; try{ ota=JSON.parse(PropertiesService.getDocumentProperties().getProperty('otaack')||'{}'); }catch(e2){}
-    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota});
+    var qk={}; try{ qk=JSON.parse(PropertiesService.getDocumentProperties().getProperty('qack')||'{}'); }catch(e3){}
+    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk});
   }catch(err){
     return jsonOut({status:'error', message:String(err)});
   }
