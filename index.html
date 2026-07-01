@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=209;
-const APP_BUILD_DATE='2026/06/29 22:48';
+const APP_VERSION=210;
+const APP_BUILD_DATE='2026/06/29 23:05';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -879,10 +879,12 @@ function autoLinkAll(){
   var changed=false;
   stays.forEach(function(s){
     if(!s.checkin)return;
+    if(isCancelled(s))return; // キャンセル済みは自動紐づけしない
     var base=new Date(s.checkin);
     var adj=[-1,0,1].map(function(d){var dx=new Date(base);dx.setDate(dx.getDate()+d);return dx.toISOString().slice(0,10);});
     reservations.forEach(function(r){
       if(!r.date||adj.indexOf(r.date)<0)return;
+      if(isCancelled(r))return; // キャンセル済みは自動紐づけしない
       if(!_likelyLink(s,r))return;
       s.linkedDayIds=s.linkedDayIds||[];
       r.linkedStayIds=r.linkedStayIds||[];
@@ -896,11 +898,11 @@ function updDayStayLink(){
   const c=document.getElementById('day-staylink');if(!c)return;
   c.innerHTML='';
   const dt=normDate(document.getElementById('day-date').value);
-  let list=stays;
+  let list=stays.filter(s=>!isCancelled(s)); // キャンセル済みは候補に出さない
   if(dt){
     const base=new Date(dt);
     const dates=[-1,0,1].map(d=>{const dx=new Date(base);dx.setDate(dx.getDate()+d);return dx.toISOString().slice(0,10);});
-    list=stays.filter(s=>!s.checkin||dates.some(d=>s.checkin<=d&&s.checkout>d));
+    list=list.filter(s=>!s.checkin||dates.some(d=>s.checkin<=d&&s.checkout>d));
   }
   if(!list.length){c.innerHTML='<div style="font-size:13px;color:#aaa;padding:6px 0">宿泊予約なし</div>';return;}
   const cur={name:(document.getElementById('add-name')||{}).value,source:(document.getElementById('day-source')||{}).value};
@@ -925,7 +927,7 @@ function updDayDayLink(excludeId){
   const c=document.getElementById('day-daylink');if(!c)return;
   c.innerHTML='';
   const dt=normDate(document.getElementById('day-date').value);
-  let list=reservations.filter(r=>r.id!==excludeId);
+  let list=reservations.filter(r=>r.id!==excludeId&&!isCancelled(r)); // キャンセル済みは候補に出さない
   if(dt){
     const base=new Date(dt);
     const dates=[-1,0,1].map(d=>{const dx=new Date(base);dx.setDate(dx.getDate()+d);return dx.toISOString().slice(0,10);});
@@ -1182,7 +1184,7 @@ function renderList(){
     const grand=base+(s.petFee||0)+rt;
     const srcL=(s.source||detectOtaFromText(s.memo))?getSrcLabel(s.source||detectOtaFromText(s.memo)):'';
     const linkedH=(s.linkedDayIds||[]).map(lid=>{
-      const lr=reservations.find(r=>r.id===lid);if(!lr)return'';
+      const lr=reservations.find(r=>r.id===lid);if(!lr||isCancelled(lr))return'';
       const lf=getFac(lr.facility);
       return '<div class="card-meta" style="font-size:12px;color:#224466;margin-top:2px">📌 '+(lr.date?fmtDate(lr.date):'')+(lf?' '+lf.label:'')+( lr.name?' '+lr.name:'')+(lr.startTime?' '+lr.startTime:'')+'</div>';
     }).join('');
@@ -1251,12 +1253,12 @@ function renderList(){
     div.style.background='#eef4fb';
     const daySrcL=(r.source||detectOtaFromText(r.memo))?getSrcLabel(r.source||detectOtaFromText(r.memo)):'';
     const linkedStayH=(r.linkedStayIds||[]).map(sid=>{
-      const ls=stays.find(x=>x.id===sid);if(!ls)return'';
+      const ls=stays.find(x=>x.id===sid);if(!ls||isCancelled(ls))return'';
       const lf=getSFac(ls.facility);
       return '<div class="card-meta" style="font-size:12px;color:#7a1030;margin-top:2px">🏕 '+(lf?lf.label:'')+' '+(ls.name||'')+' '+fmtDate(ls.checkin)+'</div>';
     }).join('');
     const linkedDayH=(r.linkedDayIds||[]).map(did=>{
-      const ld=reservations.find(x=>x.id===did);if(!ld)return'';
+      const ld=reservations.find(x=>x.id===did);if(!ld||isCancelled(ld))return'';
       const lf=getFac(ld.facility);
       return '<div class="card-meta" style="font-size:12px;color:#224466;margin-top:2px">📌 '+(lf?lf.label:'')+' '+(ld.name||'')+(ld.date?' '+fmtDate(ld.date):'')+' '+(ld.startTime||'')+'</div>';
     }).join('');
@@ -1511,9 +1513,9 @@ function openEdit(id){
   const srcOpts=['','rakuten','jalan','sou','other1','other2','other3','pass_day','pass_night'].map(k=>'<option value="'+k+'"'+((r.source||'')=== k?' selected':'')+'>'+( k?getSrcLabel(k):'直接予約')+'</option>').join('');
   // 紐づけ候補は予約日の前後±1日のみ（既に紐付け済みは範囲外でも表示）
   const adjD=r.date?[-1,0,1].map(d=>{const dx=new Date(r.date);dx.setDate(dx.getDate()+d);return dx.toISOString().slice(0,10);}):null;
-  let slCks='';stays.filter(s=>{if((r.linkedStayIds||[]).includes(s.id))return true;if(!adjD||!s.checkin)return !adjD;return adjD.some(d=>s.checkin<=d&&s.checkout>d);}).sort((a,b)=>(_likelyLink(r,b)?1:0)-(_likelyLink(r,a)?1:0)).forEach(s=>{const sf=getSFac(s.facility);const chk=(r.linkedStayIds||[]).includes(s.id)?'checked':'';const lk=_likelyLink(r,s);const srcL=s.source?'【'+getSrcLabel(s.source)+'】':'【直接予約】';slCks+='<div class="link-check-item"><input type="checkbox" id="esl_'+s.id+'" value="'+s.id+'" '+chk+'><label for="esl_'+s.id+'"'+(lk?' style="font-weight:700;color:#1c5c39"':'')+'>'+(lk?'◎ ':'')+fmtDate(s.checkin)+(sf?' '+sf.label:'')+(s.name?' '+s.name:'')+' '+srcL+'</label></div>';});
+  let slCks='';stays.filter(s=>{if((r.linkedStayIds||[]).includes(s.id))return true;if(isCancelled(s))return false;if(!adjD||!s.checkin)return !adjD;return adjD.some(d=>s.checkin<=d&&s.checkout>d);}).sort((a,b)=>(_likelyLink(r,b)?1:0)-(_likelyLink(r,a)?1:0)).forEach(s=>{const sf=getSFac(s.facility);const chk=(r.linkedStayIds||[]).includes(s.id)?'checked':'';const lk=_likelyLink(r,s);const srcL=s.source?'【'+getSrcLabel(s.source)+'】':'【直接予約】';slCks+='<div class="link-check-item"><input type="checkbox" id="esl_'+s.id+'" value="'+s.id+'" '+chk+'><label for="esl_'+s.id+'"'+(lk?' style="font-weight:700;color:#1c5c39"':'')+'>'+(lk?'◎ ':'')+fmtDate(s.checkin)+(sf?' '+sf.label:'')+(s.name?' '+s.name:'')+' '+srcL+'</label></div>';});
   if(!slCks)slCks='<div style="font-size:13px;color:#aaa;padding:6px 0">前後の宿泊予約なし</div>';
-  let dlCks='';reservations.filter(x=>x.id!==r.id).filter(o=>{if((r.linkedDayIds||[]).includes(o.id))return true;if(!adjD||!o.date)return !adjD;return adjD.includes(o.date);}).forEach(o=>{const of=getFac(o.facility);const chk=(r.linkedDayIds||[]).includes(o.id)?'checked':'';const srcL=o.source?'【'+getSrcLabel(o.source)+'】':'【直接予約】';dlCks+='<div class="link-check-item"><input type="checkbox" id="edl_'+o.id+'" value="'+o.id+'" '+chk+'><label for="edl_'+o.id+'">'+(o.date?fmtDate(o.date)+' ':'')+(of?of.label:'')+(o.name?' '+o.name:'')+(o.startTime?' '+o.startTime:'')+' '+srcL+'</label></div>';});
+  let dlCks='';reservations.filter(x=>x.id!==r.id).filter(o=>{if((r.linkedDayIds||[]).includes(o.id))return true;if(isCancelled(o))return false;if(!adjD||!o.date)return !adjD;return adjD.includes(o.date);}).forEach(o=>{const of=getFac(o.facility);const chk=(r.linkedDayIds||[]).includes(o.id)?'checked':'';const srcL=o.source?'【'+getSrcLabel(o.source)+'】':'【直接予約】';dlCks+='<div class="link-check-item"><input type="checkbox" id="edl_'+o.id+'" value="'+o.id+'" '+chk+'><label for="edl_'+o.id+'">'+(o.date?fmtDate(o.date)+' ':'')+(of?of.label:'')+(o.name?' '+o.name:'')+(o.startTime?' '+o.startTime:'')+' '+srcL+'</label></div>';});
   if(!dlCks)dlCks='<div style="font-size:13px;color:#aaa;padding:6px 0">前後の日帰り予約なし</div>';
   let html='<label>施設</label><select id="edit-facility" onchange="updEditCrs()">'+facOpts+'</select>'+crBlk+
     '<label>予約日</label><input type="date" id="edit-date" value="'+(r.date||'')+'">'+
@@ -1561,7 +1563,7 @@ function openEditStay(id){
   // 候補はチェックインの前後±1日のみ（紐付け済みは範囲外でも表示）
   const eadj=s.checkin?[-1,0,1].map(d=>{const dx=new Date(s.checkin);dx.setDate(dx.getDate()+d);return dx.toISOString().slice(0,10);}):null;
   let lCks='';
-  reservations.filter(r=>{if((s.linkedDayIds||[]).includes(r.id))return true;if(!eadj||!r.date)return !eadj;return eadj.includes(r.date);}).sort((a,b)=>(_likelyLink(s,b)?1:0)-(_likelyLink(s,a)?1:0)).forEach(r=>{
+  reservations.filter(r=>{if((s.linkedDayIds||[]).includes(r.id))return true;if(isCancelled(r))return false;if(!eadj||!r.date)return !eadj;return eadj.includes(r.date);}).sort((a,b)=>(_likelyLink(s,b)?1:0)-(_likelyLink(s,a)?1:0)).forEach(r=>{
     const rf=getFac(r.facility);const lk=_likelyLink(s,r);const srcL=r.source?'【'+getSrcLabel(r.source)+'】':'【直接予約】';
     const chk=(s.linkedDayIds||[]).includes(r.id)?'checked':'';
     lCks+='<div class="link-check-item"><input type="checkbox" id="esdl_'+r.id+'" value="'+r.id+'" '+chk+'><label for="esdl_'+r.id+'"'+(lk?' style="font-weight:700;color:#1c5c39"':'')+'>'+(lk?'◎ ':'')+(r.date?fmtDate(r.date)+' ':'')+(rf?rf.label:'')+(r.name?' '+r.name:'')+(r.startTime?' '+r.startTime:'')+' '+srcL+'</label></div>';
