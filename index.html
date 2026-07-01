@@ -457,8 +457,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=211;
-const APP_BUILD_DATE='2026/06/30 00:05';
+const APP_VERSION=212;
+const APP_BUILD_DATE='2026/06/30 00:15';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1977,19 +1977,20 @@ function markSync(kind){ var txt=fmtNow(); sv('yv_lastsync',txt); var el=documen
 function showLastSync(){ var el=document.getElementById('sync-indicator'); if(!el) return; if(!ld(GAS_KEY)){ el.textContent=''; return; } var v=ld('yv_lastsync'); el.textContent = v?('🔄 最終同期 '+v):'🔄 タップで同期'; }
 
 // 過去取込の人数誤読(332等)を金額から自動修復。人単価施設(walk/tree等)のみ・キャンセル/村内は対象外。
-// 妥当な人数(1〜60)はそのまま。金額÷単価が整数になる時だけ上書き。読込時・起動時に自動実行し、直したら同期で共有。
+// 15人以上は団体/イベント等ごく稀なので、金額÷単価で必ず検算（＝金額が正なら維持、誤読なら訂正）。
+// 通常人数(1〜14)は検算不要でそのまま。金額÷単価が整数になる時だけ上書き。読込時・起動時に自動実行し、直したら同期共有。
 function repairNinzuFromAmount(){
   var changed=0;
   (reservations||[]).forEach(function(r){
     var cur=parseInt(r.ninzu,10);
-    if(cur>=1&&cur<=60)return;      // 妥当な値はそのまま
+    if(cur>=1&&cur<=14)return;      // 通常人数は検算不要。15人以上のみ金額で確認
     if(r.mura)return;               // 村内は半額のため逆算対象外
     var fac=getFac(r.facility); if(!fac||fac.fixedCount||!fac.prices)return;
     var bp=fac.prices[parseInt(r.course,10)]; if(!bp)return;
     var rt=(r.rental||[]).reduce(function(s,i){return s+i.price*i.qty;},0);
     var net=(parseInt(r.discountedPrice,10)||0)-rt; if(net<=0)return;
     var dn=net/bp;
-    if(Math.abs(dn-Math.round(dn))<0.001){ dn=Math.round(dn); if(dn>=1&&dn<=99){ r.ninzu=String(dn); changed++; } }
+    if(Math.abs(dn-Math.round(dn))<0.001){ dn=Math.round(dn); if(dn>=1&&dn<=99&&String(r.ninzu)!==String(dn)){ r.ninzu=String(dn); changed++; } }
   });
   if(changed){ sv(RKEY,reservations); }
   return changed;
