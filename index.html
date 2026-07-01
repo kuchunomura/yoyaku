@@ -457,8 +457,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=214;
-const APP_BUILD_DATE='2026/06/30 00:40';
+const APP_VERSION=215;
+const APP_BUILD_DATE='2026/06/30 00:52';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -582,9 +582,12 @@ function toggleQOpen(){_qOpen=!_qOpen;renderQuestionAlerts();}
 var Q_PATTERNS=/[?？]|(?:です|ます)か(?=[。\.\s、，]|$)|でしょうか|たいです|と思って(?:い)?ます/;
 function renderQuestionAlerts(){
   var el=document.getElementById('q-alert'); if(!el)return;
+  var today=todayStr();
   var items=[];
   function scan(o,isStay){
     if(isCancelled(o))return;
+    var d=isStay?o.checkin:o.date;
+    if(d&&d<today)return; // 過去は表示しない（今日以降のみ）
     var memo=String(o.memo||''); if(!memo)return;
     if(!Q_PATTERNS.test(memo))return;
     items.push({isStay:isStay,o:o});
