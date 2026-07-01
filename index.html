@@ -457,8 +457,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=216;
-const APP_BUILD_DATE='2026/06/30 01:05';
+const APP_VERSION=217;
+const APP_BUILD_DATE='2026/06/30 01:20';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -550,9 +550,10 @@ function renderQuickDates(){
   if(fp&&filtActive)fp.style.display='block';
 }
 function toggleListFilter(){var el=document.getElementById('list-filter');if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'block':'none';if(el.style.display==='block'){var s=document.getElementById('list-search');if(s)s.focus();}}
-// 同日・同カテゴリー2件以上＝OTA要締切。今日以降のみ・折りたたみ・各行に解除/削除（同期共有）。削除は2回タップ確定
-let _otaOpen=false, _otaDelArm=null;
+// 同日・同カテゴリー2件以上＝OTA要締切。今日以降のみ・折りたたみ。対応済み(✓)は▼で織り込む
+let _otaOpen=false, _otaDoneOpen=false;
 function toggleOtaOpen(){_otaOpen=!_otaOpen;renderOtaAlerts();}
+function toggleOtaDoneOpen(){_otaDoneOpen=!_otaDoneOpen;renderOtaAlerts();}
 function renderOtaAlerts(){
   var el=document.getElementById('ota-alert'); if(!el)return;
   var today=todayStr();
@@ -561,23 +562,27 @@ function renderOtaAlerts(){
   var ack=ld('yv_otaack')||{};
   var keys=Object.keys(cnt).filter(function(k){return cnt[k]>=2 && ack[k]!=='del';}).sort();
   if(!keys.length){ el.style.display='none'; el.innerHTML=''; return; }
-  var pend=keys.filter(function(k){return !ack[k];}).length;
-  el.style.display='block';
-  var rows=keys.map(function(k){
-    var p=k.split('|'); var done=ack[k]===true; var armed=_otaDelArm===k;
+  var pendK=keys.filter(function(k){return !ack[k];});
+  var doneK=keys.filter(function(k){return ack[k]===true;});
+  var mkRow=function(k){
+    var p=k.split('|'); var done=ack[k]===true;
     return '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;'+(done?'color:#999':'color:#7a1030;font-weight:600')+'">'+
       '<input type="checkbox" data-otaack="'+k+'" '+(done?'checked':'')+' style="width:18px;height:18px;flex-shrink:0">'+
       '<span style="flex:1'+(done?';text-decoration:line-through':'')+'">'+fmtMD(p[0])+'　'+p[1]+'（'+cnt[k]+'件）　OTA要締切</span>'+
-      '<button data-otadel="'+k+'" style="font-size:12px;color:#b00;background:'+(armed?'#fff4d6':'#fff')+';border:1px solid '+(armed?'#e0b000':'#e0a0a0')+';border-radius:6px;padding:2px 8px;cursor:pointer;flex-shrink:0">'+(armed?'もう1回で削除':'✕削除')+'</button>'+
     '</div>';
-  }).join('');
-  el.innerHTML='<div onclick="toggleOtaOpen()" style="cursor:pointer;user-select:none;font-size:12px;font-weight:700;color:#b00">'+(_otaOpen?'▼':'▶')+' ⚠ OTA要締切（未対応 '+pend+'件）</div>'+
-    '<div style="display:'+(_otaOpen?'block':'none')+';margin-top:4px">'+rows+'</div>';
+  };
+  var pendRows=pendK.map(mkRow).join('')||'<div style="font-size:12px;color:#999;padding:2px 0">未対応なし</div>';
+  var doneBlock=doneK.length?('<div onclick="toggleOtaDoneOpen()" style="cursor:pointer;user-select:none;font-size:12px;color:#999;margin-top:6px">'+(_otaDoneOpen?'▼':'▶')+' 対応済み '+doneK.length+'件</div>'+
+    '<div style="display:'+(_otaDoneOpen?'block':'none')+'">'+doneK.map(mkRow).join('')+'</div>'):'';
+  el.style.display='block';
+  el.innerHTML='<div onclick="toggleOtaOpen()" style="cursor:pointer;user-select:none;font-size:12px;font-weight:700;color:#b00">'+(_otaOpen?'▼':'▶')+' ⚠ OTA要締切（未対応 '+pendK.length+'件）</div>'+
+    '<div style="display:'+(_otaOpen?'block':'none')+';margin-top:4px">'+pendRows+doneBlock+'</div>';
 }
 
 // 備考に質問・要確認の言い回しがある予約を上部に集約（OTAの下・▼折りたたみ）
-let _qOpen=false;
+let _qOpen=false, _qDoneOpen=false;
 function toggleQOpen(){_qOpen=!_qOpen;renderQuestionAlerts();}
+function toggleQDoneOpen(){_qDoneOpen=!_qDoneOpen;renderQuestionAlerts();}
 // 質問・要確認パターン（？ / 〜ですか？ / ですか。 / でしょうか。 / ますか。 / したいです。 / と思っています。）
 var Q_PATTERNS=/[?？]|(?:です|ます)か(?=[。\.\s、，]|$)|でしょうか|たいです|と思って(?:い)?ます/;
 // 簡易ハッシュ（備考が同一かの判定用。内容が変われば値が変わる＝チェックが自動リセット）
@@ -604,14 +609,14 @@ function renderQuestionAlerts(){
   var qchanged=false; Object.keys(qack).forEach(function(k){if(!live[k]){delete qack[k];qchanged=true;}});
   if(qchanged)sv('yv_qack',qack);
   if(!items.length){ el.style.display='none'; el.innerHTML=''; return; }
-  // 未対応を上・対応済みを下。各グループ内は日付順
+  // 日付順
   items.sort(function(a,b){
-    var da=(qack[a.k]?1:0),db=(qack[b.k]?1:0); if(da!==db)return da-db;
     var xa=a.isStay?a.o.checkin:a.o.date,xb=b.isStay?b.o.checkin:b.o.date;
     return String(xa||'').localeCompare(String(xb||''));
   });
-  var pend=items.filter(function(it){return !qack[it.k];}).length;
-  var rows=items.map(function(it){
+  var pendItems=items.filter(function(it){return !qack[it.k];});
+  var doneItems=items.filter(function(it){return !!qack[it.k];});
+  var mkRow=function(it){
     var o=it.o; var d=it.isStay?o.checkin:o.date; var done=!!qack[it.k];
     var facL=it.isStay?sLinkLabel(o):dLinkLabel(o); // 昼/宿泊を明示
     var icon=it.isStay?'🏕':'☀';
@@ -624,10 +629,13 @@ function renderQuestionAlerts(){
       '</div>'+
       '<button class="btn-sm" data-act="'+act+'" data-id="'+o.id+'" style="flex-shrink:0;background:#fff;border:1px solid #d9b676;color:#6b4f20">確認</button>'+
     '</div>';
-  }).join('');
+  };
+  var pendRows=pendItems.map(mkRow).join('')||'<div style="font-size:12px;color:#999;padding:2px 0">未対応なし</div>';
+  var doneBlock=doneItems.length?('<div onclick="toggleQDoneOpen()" style="cursor:pointer;user-select:none;font-size:12px;color:#999;margin-top:6px">'+(_qDoneOpen?'▼':'▶')+' 対応済み '+doneItems.length+'件</div>'+
+    '<div style="display:'+(_qDoneOpen?'block':'none')+'">'+doneItems.map(mkRow).join('')+'</div>'):'';
   el.style.display='block';
-  el.innerHTML='<div onclick="toggleQOpen()" style="cursor:pointer;user-select:none;font-size:12px;font-weight:700;color:#b8860b">'+(_qOpen?'▼':'▶')+' ❓ 質問・要確認（未対応 '+pend+'件）</div>'+
-    '<div style="display:'+(_qOpen?'block':'none')+';margin-top:4px">'+rows+'</div>';
+  el.innerHTML='<div onclick="toggleQOpen()" style="cursor:pointer;user-select:none;font-size:12px;font-weight:700;color:#b8860b">'+(_qOpen?'▼':'▶')+' ❓ 質問・要確認（未対応 '+pendItems.length+'件）</div>'+
+    '<div style="display:'+(_qOpen?'block':'none')+';margin-top:4px">'+pendRows+doneBlock+'</div>';
 }
 // 備考から質問っぽい文だけ抜き出して短く表示（無ければ全文）
 function memoQExcerpt(memo){
@@ -2622,19 +2630,6 @@ document.addEventListener('change',function(e){
   if(cb.checked)qack[k]=true; else delete qack[k];
   sv('yv_qack',qack); renderQuestionAlerts(); autoPush();
 });
-// OTA要締切の行削除（2回タップ確定・同期共有）
-document.addEventListener('click',function(e){
-  var db=e.target&&e.target.closest&&e.target.closest('[data-otadel]'); if(!db)return;
-  var k=db.getAttribute('data-otadel');
-  if(_otaDelArm===k){
-    _otaDelArm=null; clearTimeout(window._otaDelT);
-    var ack=ld('yv_otaack')||{}; ack[k]='del'; sv('yv_otaack',ack); renderOtaAlerts(); autoPush();
-  }else{
-    _otaDelArm=k; renderOtaAlerts();
-    clearTimeout(window._otaDelT); window._otaDelT=setTimeout(function(){_otaDelArm=null;renderOtaAlerts();},2500);
-  }
-});
-
 // 編集モーダル：上端から下スワイプで閉じる（一覧に戻る）
 (function(){
   var box=document.getElementById('edit-modal-box');if(!box)return;
