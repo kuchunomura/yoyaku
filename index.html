@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=205;
-const APP_BUILD_DATE='2026/06/29 22:14';
+const APP_VERSION=206;
+const APP_BUILD_DATE='2026/06/29 22:22';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2010,6 +2010,15 @@ function trimAddr(s){
   var d=s.search(/[0-9０-９]/);
   return (d>0?s.slice(0,d):s).trim();
 }
+// 人数セルから妥当な人数を取り出す（全桁連結の誤読を防ぐ。「3名」「大人2」等を優先し1〜60にクランプ）
+function wpPickNinzu(str){
+  var s=String(str||'');
+  var m=s.match(/(\d{1,2})\s*(?:名|人|大人|guests?|people|persons)/i); // 「3名」「大人2」など優先
+  if(m){ var n=parseInt(m[1],10); if(n>=1&&n<=60) return n; }
+  var all=s.match(/\d+/g)||[]; // それ以外は最初の妥当な数字（連結しない）
+  for(var i=0;i<all.length;i++){ var v=parseInt(all[i],10); if(v>=1&&v<=60) return v; }
+  return 0;
+}
 function parseWpDateTime(s){
   s=String(s||'');
   var m=s.match(/(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日/);
@@ -2141,9 +2150,10 @@ function importCSV(){
         if(dIdx<0){ for(var k=0;k<f.length;k++){ var p=parseWpDateTime(f[k]); if(p.date){ dt=p; dIdx=k; break; } } }
         var cIdx=H.course>=0?H.course:csvFindIdx(f,/利用|分|day|終日|minutes/i);
         var ninIdx=H.ninzu>=0?H.ninzu:csvFindIdx(f,/人数|名（|名\(|people|persons/i);
-        var ninzu;
-        if(ninIdx>=0 && /\d/.test(String(f[ninIdx]||''))){ ninzu=parseInt(String(f[ninIdx]).replace(/[^\d]/g,''),10)||1; }
-        else { var ninM=f.join(' ').match(/(\d+)\s*名/); ninzu=ninM?parseInt(ninM[1],10):1; }
+        var ninzu=0;
+        if(ninIdx>=0) ninzu=wpPickNinzu(f[ninIdx]);
+        if(!ninzu){ var ninM=f.join(' ').match(/(\d{1,2})\s*名/); ninzu=ninM?parseInt(ninM[1],10):0; }
+        if(!ninzu) ninzu=1;
         [dIdx,cIdx,ninIdx].forEach(function(ii){ if(ii>=0) consumed[ii]=true; });
         rec={ wpId:wpId, id:'r_wp'+wpId, facility:facId, course:parseCourse(cIdx>=0?f[cIdx]:''),
           date:dt.date, startTime:dt.time, name:name, ninzu:String(ninzu), source:source,
