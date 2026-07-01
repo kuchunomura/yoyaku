@@ -456,8 +456,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=208;
-const APP_BUILD_DATE='2026/06/29 22:40';
+const APP_VERSION=209;
+const APP_BUILD_DATE='2026/06/29 22:48';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2181,7 +2181,9 @@ function importCSV(){
         for(var k2=0;k2<f.length;k2++){ var p2=parseWpDateTime(f[k2]); if(p2.date){ dates.push(p2.date); consumed[k2]=true; } }
         var adIdx=csvFindIdx(f,/Adults?/i), chIdx=csvFindIdx(f,/Children?/i), petIdx=csvFindIdx(f,/ペット連れ/), bedIdx=csvFindIdx(f,/ベッド/);
         [adIdx,chIdx,petIdx,bedIdx].forEach(function(ii){ if(ii>=0) consumed[ii]=true; });
-        var aM=f.join(' ').match(/Adults?\s*[:：]\s*(\d+)/i); var adults=aM?parseInt(aM[1],10):1;
+        var aM=f.join(' ').match(/Adults?\s*[:：]\s*(\d+)/i); var adults=aM?parseInt(aM[1],10):0;
+        if(!adults && adIdx>=0) adults=wpPickNinzu(f[adIdx]); // Adults列が無い形式は「): N」等から堅牢に抽出
+        if(!adults) adults=1;
         var cM=f.join(' ').match(/Children?\s*[:：]\s*(\d+)/i); var children=cM?parseInt(cM[1],10):0;
         var checkin=dates[0]||''; var checkout=dates[1]||(checkin?addDays(checkin,1):'');
         var nights=(checkin&&checkout)?Math.max(1,Math.round((new Date(checkout)-new Date(checkin))/86400000)):1;
