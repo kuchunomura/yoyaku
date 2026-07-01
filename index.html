@@ -457,8 +457,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=213;
-const APP_BUILD_DATE='2026/06/30 00:30';
+const APP_VERSION=214;
+const APP_BUILD_DATE='2026/06/30 00:40';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -596,11 +596,15 @@ function renderQuestionAlerts(){
   items.sort(function(a,b){var da=a.isStay?a.o.checkin:a.o.date;var db=b.isStay?b.o.checkin:b.o.date;return String(da||'').localeCompare(String(db||''));});
   var rows=items.map(function(it){
     var o=it.o; var d=it.isStay?o.checkin:o.date;
-    var facL=it.isStay?((getSFac(o.facility)||{}).label||o.facGroup||'宿泊'):((getFac(o.facility)||{}).label||'');
+    var facL=it.isStay?sLinkLabel(o):dLinkLabel(o); // 昼/宿泊を明示
     var icon=it.isStay?'🏕':'☀';
-    return '<div style="padding:4px 0;font-size:13px;color:#7a5b10;border-top:1px solid #f0e2bf">'+
-      '<div style="font-weight:600">'+icon+' '+(d?fmtMD(d):'日付未定')+'　'+facL+(o.name?'　'+o.name:'')+'</div>'+
-      '<div style="font-size:12px;color:#8a6f2a;margin-top:1px">'+fmtMemoText(htmlEscape(memoQExcerpt(o.memo)))+'</div>'+
+    var act=it.isStay?'openEditStay':'openEdit';
+    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-top:1px solid #f0e2bf">'+
+      '<div style="flex:1;min-width:0;font-size:13px;color:#7a5b10">'+
+        '<div style="font-weight:600">'+icon+' '+(d?fmtMD(d):'日付未定')+'　'+facL+(o.name?'　'+o.name:'')+'</div>'+
+        '<div style="font-size:12px;color:#8a6f2a;margin-top:1px">'+fmtMemoText(htmlEscape(memoQExcerpt(o.memo)))+'</div>'+
+      '</div>'+
+      '<button class="btn-sm" data-act="'+act+'" data-id="'+o.id+'" style="flex-shrink:0;background:#fff;border:1px solid #d9b676;color:#6b4f20">確認</button>'+
     '</div>';
   }).join('');
   el.style.display='block';
