@@ -461,8 +461,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=221;
-const APP_BUILD_DATE='2026/07/01 10:05';
+const APP_VERSION=222;
+const APP_BUILD_DATE='2026/07/01 10:20';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1363,10 +1363,9 @@ function renderList(){
       return '<div class="card-meta" style="font-size:12px;color:#224466;margin-top:2px">📌 '+dLinkLabel(ld)+' '+(ld.name||'')+(ld.date?' '+fmtDate(ld.date):'')+' '+(ld.startTime||'')+'</div>';
     }).join('');
     div.innerHTML=
-      // ヘッダー：施設バッジ＋コース＋各種バッジ（宿泊カードと同じ並び）
+      // ヘッダー：施設バッジ＋各種バッジ（コースは主要情報行の時間の後ろへ移動）
       '<div class="card-header">'+
         '<span class="badge '+fac.badgeCls+'">'+fac.label+'</span>'+
-        (co?'<span style="font-size:12px;font-weight:600;color:#111">'+co.minLabel+'</span>':'')+
         (mura?'<span style="font-size:11px;font-weight:600;background:#fff8e8;color:#e67700;border:1px solid #EF9F27;border-radius:20px;padding:2px 8px">村内</span>':'')+
         (isOv?'<span class="badge-overlap">重複</span>':'')+
         (isAdj?'<span style="font-size:11px;font-weight:600;color:#1565c0;border:1px solid #1565c0;border-radius:20px;padding:2px 8px">連続</span>':'')+
@@ -1378,6 +1377,7 @@ function renderList(){
       '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
         '<span style="font-size:15.5px;color:#222;font-weight:700">'+
           r.startTime+'〜'+end+
+          (co?'　'+co.minLabel:'')+
           (ninzu>0?'　'+ninzu+fac.priceUnit:'')+(r.name?'　'+r.name:'')+
           (fac.note?'<span style="font-size:12px;color:#aaa;font-weight:400">（'+fac.note+'）</span>':'')+
         '</span>'+
