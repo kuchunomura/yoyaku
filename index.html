@@ -125,6 +125,25 @@ textarea{resize:vertical;min-height:60px}
 b,strong,.card-name,.card-total{font-weight:600}
 summary::-webkit-details-marker{display:none}
 details[open] summary{opacity:0.75}
+/* ===== 印刷 ===== */
+#print-area{display:none}
+.phead{font-size:14px;font-weight:700;margin-bottom:6px}
+.pdate{font-size:15px;font-weight:700;border-bottom:2px solid #333;margin:8px 0 3px;padding-bottom:1px}
+.pcat{font-size:12px;font-weight:700;background:#eee;padding:2px 6px;margin-top:5px;border-radius:3px}
+.pio{font-weight:400;font-size:11px;color:#333;margin-left:4px}
+.prow{border:1px solid #999;border-radius:4px;padding:4px 7px;margin:3px 0;font-size:12px;break-inside:avoid}
+.prow.pempty{color:#aaa;border-style:dashed}
+.pr1{font-weight:700;font-size:13px}
+.pr2,.pr3{font-size:11px;color:#333;margin-top:1px}
+.pwf{margin-top:4px;font-size:11px;display:flex;gap:10px;flex-wrap:wrap}
+.pbox{display:inline-block;width:13px;height:13px;border:1.4px solid #333;text-align:center;line-height:12px;margin-right:3px;font-size:11px;vertical-align:-2px}
+@media print{
+  #app{display:none!important}
+  #print-area{display:block!important}
+  @page{size:A4;margin:9mm}
+  .page-break{page-break-after:always;height:0;overflow:hidden}
+  body{background:#fff}
+}
 </style>
 </head>
 <body>
@@ -145,6 +164,7 @@ details[open] summary{opacity:0.75}
     <div id="ota-alert" style="display:none;background:#fff5f5;border:1px solid #e0a0a0;border-radius:8px;padding:8px 10px;margin-bottom:8px"></div>
     <div id="q-alert" style="display:none;background:#fff9ec;border:1px solid #e2c67a;border-radius:8px;padding:8px 10px;margin-bottom:8px"></div>
     <div id="list-quickdate" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px"></div>
+    <div style="text-align:right;margin-bottom:8px"><button class="btn-sm" onclick="openPrintModal()">🖨 印刷</button></div>
     <div id="list-filter" style="display:none;margin-bottom:8px">
       <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px;font-size:12px;color:#555;flex-wrap:wrap">
         <span>期間</span>
@@ -403,6 +423,27 @@ details[open] summary{opacity:0.75}
   </div>
 </div>
 
+<div id="print-area"></div>
+
+<div class="modal-overlay" id="print-modal">
+  <div class="modal" style="max-height:auto;padding:22px 20px">
+    <div class="modal-title">🖨 印刷</div>
+    <label>種類</label>
+    <select id="print-mode" style="font-size:14px;-webkit-appearance:menulist;appearance:menulist;border:1px solid #888;border-radius:6px;padding:8px;background:#fff;width:100%">
+      <option value="stay">① 宿泊用（A4に2日分・上下）</option>
+      <option value="day">② 日帰り用</option>
+      <option value="both">③ 両方まとめ（予約少ない時）</option>
+    </select>
+    <label style="margin-top:8px">開始日</label><input type="date" id="print-from">
+    <label style="margin-top:8px">終了日</label><input type="date" id="print-to">
+    <div style="font-size:11px;color:#888;margin-top:6px;line-height:1.6">チェック欄（部屋準備・会計など）は<b>ペンで記入</b>できます。印刷時点で対応済みのものは✓が入って印刷されます。</div>
+    <div class="modal-actions">
+      <button class="btn-sm" onclick="closePrintModal()">閉じる</button>
+      <button class="btn-primary" style="background:#333" onclick="doPrint()">印刷する</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <div class="modal-overlay" id="confirm-modal">
@@ -461,8 +502,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=223;
-const APP_BUILD_DATE='2026/07/01 10:45';
+const APP_VERSION=224;
+const APP_BUILD_DATE='2026/07/01 11:20';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -589,7 +630,7 @@ function toggleQOpen(){_qOpen=!_qOpen;renderQuestionAlerts();}
 function toggleQDoneOpen(){_qDoneOpen=!_qDoneOpen;renderQuestionAlerts();}
 function toggleQPast(){_qPast=!_qPast;renderQuestionAlerts();}
 // 質問・要確認パターン（？ / 〜ですか？ / ですか。 / でしょうか。 / ますか。 / したいです。 / と思っています。）
-var Q_PATTERNS=/[?？]|(?:です|ます)か(?=[。\.\s、，]|$)|でしょうか|たいです|[のん]です[がけ]|と思って(?:い)?ます/;
+var Q_PATTERNS=/(?:です|ます)か(?=[。\.\s、，？?]|$)|でしょうか|たいです|[のん]です[がけ]|と思って(?:い)?ます/;
 // 簡易ハッシュ（備考が同一かの判定用。内容が変われば値が変わる＝チェックが自動リセット）
 function _hash(s){s=String(s||'');var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h+s.charCodeAt(i))|0;}return (h>>>0).toString(36);}
 // チェック状態のキー：予約ID＋備考ハッシュ。再取込で予約が上書きされてもIDと内容が同じなら引き継ぐ。内容が変わればリセット
@@ -2637,6 +2678,97 @@ function renderCalDetail(dateStr){
       (r.ninzu?'<div style="font-size:13px;color:#666">'+r.ninzu+'名</div>':'');
     c.appendChild(div);
   });
+}
+
+// ==================== 印刷 ====================
+const PRINT_STAY_CATS=['ツリーハウス','透明ドーム','空中テント','空中ハンモック'];
+function openPrintModal(){
+  var f=document.getElementById('print-from'),t=document.getElementById('print-to');
+  if(f&&!f.value)f.value=todayStr();
+  if(t&&!t.value)t.value=todayStr();
+  document.getElementById('print-modal').classList.add('open');
+}
+function closePrintModal(){document.getElementById('print-modal').classList.remove('open');}
+function _pDateList(from,to){var a=[],d=from,g=0;while(d<=to&&g<400){a.push(d);d=addDays(d,1);g++;}return a;}
+function _pbox(on){return '<span class="pbox">'+(on?'✓':'')+'</span>';}
+function _pStayCat(s){return s.facGroup||((getSFac(s.facility)||{}).group)||'宿泊';}
+function _pCatIO(cat){var f=STAY_FACS.find(function(x){return x.group===cat;});return f?{ci:f.ci,co:f.co}:{ci:'',co:''};}
+function _pWfStay(s){var wf=(s&&s.wf)||{};return _pbox(wf.prep)+'部屋準備'+_pbox(wf.pay)+'会計'+_pbox(wf.guide)+'案内'+_pbox(wf.out)+'OUT'+_pbox(s&&s.cancelled)+'キャンセル';}
+function _pWfDay(r){return _pbox(r&&r.done)+'会計'+_pbox(r&&r.cancelled)+'キャンセル';}
+function _pStayRow(s){
+  var fac=getSFac(s.facility);
+  var rt=(s.rental||[]).reduce(function(a,i){return a+i.price*i.qty;},0);
+  var tp=(s.totalPpl||s.ninzu);
+  var grand=(s.unitPrice*tp*s.nights)+(s.petFee||0)+rt;
+  var bedTxt=BED_GROUPS.includes(_pStayCat(s))?('　'+bedLabel(s.bed)):'';
+  var petTxt=(s.petCount||0)>0?('　ペット'+s.petCount):'';
+  var money=s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円';
+  return '<div class="prow">'+
+    '<div class="pr1">'+(fac?fac.label:(s.facGroup||''))+'　'+s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+bedTxt+petTxt+'</div>'+
+    '<div class="pr2">'+money+'</div>'+
+    ((s.rental||[]).length?'<div class="pr3">レンタル：'+s.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
+    (s.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(s.memo))+'</div>':'')+
+    (s.addr?'<div class="pr3">'+htmlEscape(s.addr)+'</div>':'')+
+    '<div class="pwf">'+_pWfStay(s)+'</div>'+
+  '</div>';
+}
+function _pDayRow(r){
+  var fac=getFac(r.facility);var co=fac.courses.find(function(x){return x.min===r.course;});
+  var end=getEnd(r.startTime,r.course,r.facility);var ninzu=parseInt(r.ninzu)||0;
+  var basePrice=fac.prices[r.course];var mura=r.mura||false;
+  var price=mura?(fac.fixedCount?0:Math.floor(basePrice/2)):basePrice;
+  var rt=(r.rental||[]).reduce(function(a,i){return a+i.price*i.qty;},0);
+  var total=(fac.fixedCount?price:price*ninzu)+rt;
+  return '<div class="prow">'+
+    '<div class="pr1">'+r.startTime+'〜'+end+(co?'　'+co.minLabel:'')+'　'+ninzu+fac.priceUnit+(r.name?'　'+r.name:'')+(mura?'　（村内）':'')+'</div>'+
+    '<div class="pr2">計'+total.toLocaleString()+'円'+(rt>0?'（レンタル'+rt.toLocaleString()+'含む）':'')+'</div>'+
+    ((r.rental||[]).length?'<div class="pr3">レンタル：'+r.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
+    (r.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(r.memo))+'</div>':'')+
+    '<div class="pwf">'+_pWfDay(r)+'</div>'+
+  '</div>';
+}
+function _pStayBlock(date){
+  var h='<div class="pdate">'+fmtDate(date)+'　【宿泊】</div>';
+  PRINT_STAY_CATS.forEach(function(cat){
+    var io=_pCatIO(cat);
+    var rows=stays.filter(function(s){return !isCancelled(s)&&s.checkin===date&&_pStayCat(s)===cat;})
+      .sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''));});
+    h+='<div class="pcat">'+cat+'<span class="pio">IN '+io.ci+' ／ OUT '+io.co+'</span></div>';
+    if(!rows.length)h+='<div class="prow pempty"><div class="pr1">（予約なし）</div><div class="pwf">'+_pWfStay(null)+'</div></div>';
+    else rows.forEach(function(s){h+=_pStayRow(s);});
+  });
+  return h;
+}
+function _pDayBlock(date){
+  var h='<div class="pdate">'+fmtDate(date)+'　【日帰り】</div>';
+  ['tree','walk','bbq'].forEach(function(fid){
+    var fac=getFac(fid);
+    var rows=reservations.filter(function(r){return !isCancelled(r)&&r.date===date&&r.facility===fid;})
+      .sort(function(a,b){return String(a.startTime||'').localeCompare(String(b.startTime||''));});
+    h+='<div class="pcat">'+fac.label+(fid==='tree'?'（昼）':'')+'</div>';
+    if(!rows.length)h+='<div class="prow pempty"><div class="pr1">（予約なし）</div><div class="pwf">'+_pWfDay(null)+'</div></div>';
+    else rows.forEach(function(r){h+=_pDayRow(r);});
+  });
+  return h;
+}
+function doPrint(){
+  var mode=document.getElementById('print-mode').value;
+  var from=normDate(document.getElementById('print-from').value)||todayStr();
+  var to=normDate(document.getElementById('print-to').value)||from;
+  if(to<from){var tmp=from;from=to;to=tmp;}
+  var dates=_pDateList(from,to);
+  var body='';
+  if(mode==='stay'){
+    dates.forEach(function(d,i){ body+='<div>'+_pStayBlock(d)+'</div>'; if(i%2===1)body+='<div class="page-break"></div>'; });
+  }else if(mode==='day'){
+    dates.forEach(function(d){ body+='<div>'+_pDayBlock(d)+'</div><div class="page-break"></div>'; });
+  }else{
+    dates.forEach(function(d){ body+='<div>'+_pStayBlock(d)+_pDayBlock(d)+'</div><div class="page-break"></div>'; });
+  }
+  var label={stay:'宿泊',day:'日帰り',both:'宿泊＋日帰り'}[mode];
+  document.getElementById('print-area').innerHTML='<div class="phead">🏕 空中の村 予約表　'+fmtDate(from)+' 〜 '+fmtDate(to)+'　（'+label+'）</div>'+body;
+  closePrintModal();
+  setTimeout(function(){window.print();},250);
 }
 
 // 起動
