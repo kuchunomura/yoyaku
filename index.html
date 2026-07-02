@@ -478,13 +478,13 @@ const FKEY='yv_f',RKEY='yv_r',STKEY='yv_st',SKKEY='yv_sk',SNKEY='yv_sn';
 const FACILITIES=[
   {id:'walk',label:'空中ウォーク',cls:'aw',badgeCls:'badge-walk',
    courses:[{min:55,minLabel:'55分'},{min:115,minLabel:'115分'},{min:0,minLabel:'1DAY'}],
-   prices:{55:2000,115:2500,0:3000},close:'17:00',priceUnit:'人',fixedCount:false},
-  {id:'tree',label:'ツリーハウス',cls:'th',badgeCls:'badge-tree',
+   prices:{55:2000,115:2500,0:3000},close:'17:00',lastAccept:'16:00',priceUnit:'人',fixedCount:false},
+  {id:'tree',label:'ツリーハウス昼',cls:'th',badgeCls:'badge-tree',
    courses:[{min:55,minLabel:'55分'},{min:115,minLabel:'115分'},{min:0,minLabel:'1DAY'}],
-   prices:{55:2000,115:3000,0:4000},close:'16:00',priceUnit:'人',fixedCount:false},
+   prices:{55:2000,115:3000,0:4000},close:'16:00',lastAccept:'15:00',priceUnit:'人',fixedCount:false},
   {id:'bbq',label:'BBQスペース',cls:'bb',badgeCls:'badge-bbq',
    courses:[{min:0,minLabel:'1DAY'}],
-   prices:{0:3000},close:'15:00',fixedEnd:'15:00',priceUnit:'か所',fixedCount:true,note:'受付14時まで'}
+   prices:{0:3000},close:'15:00',lastAccept:'14:00',fixedEnd:'15:00',priceUnit:'か所',fixedCount:true,note:'受付14時まで'}
 ];
 
 const STAY_FACS=[
@@ -502,8 +502,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=224;
-const APP_BUILD_DATE='2026/07/01 11:20';
+const APP_VERSION=225;
+const APP_BUILD_DATE='2026/07/01 11:50';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -715,7 +715,7 @@ const getSrcLabel=k=>sn[k]||SRC_BASE[k]||k;
 const sFacLabel=s=>((getSFac(s&&s.facility)||{}).label)||(s&&s.facGroup)||'宿泊';
 // 紐づけ表示用ラベル：昼(日帰り)か宿泊かを明示（ツリーハウスが昼/夜で紛らわしいため）
 const sLinkLabel=s=>sFacLabel(s)+'（宿泊）';
-const dLinkLabel=r=>{const f=getFac(r&&r.facility);return (f?f.label:'')+(r&&r.facility==='tree'?'（昼）':'');};
+const dLinkLabel=r=>{const f=getFac(r&&r.facility);return f?f.label:'';};
 
 function clearDateFilter(){dateFilter=null;renderList();}
 
@@ -784,7 +784,7 @@ function renderFltTabs(){
   wb.textContent='空中ウォーク';wb.onclick=()=>{facFilter='walk';renderFltTabs();renderList();};c.appendChild(wb);
   // ツリーハウス（昼）
   const tb=document.createElement('button');tb.className='ftab'+(facFilter==='tree'?' th':'');
-  tb.textContent='ツリーハウス（昼）';tb.onclick=()=>{facFilter='tree';renderFltTabs();renderList();};c.appendChild(tb);
+  tb.textContent='ツリーハウス昼';tb.onclick=()=>{facFilter='tree';renderFltTabs();renderList();};c.appendChild(tb);
   // BBQ
   const bb=document.createElement('button');bb.className='ftab'+(facFilter==='bbq'?' bb':'');
   bb.textContent='BBQ';bb.onclick=()=>{facFilter='bbq';renderFltTabs();renderList();};c.appendChild(bb);
@@ -1308,6 +1308,7 @@ function renderList(){
     c.appendChild(dv);
   };
   const ciCoShown={};
+  const dayInfoShown={};
   function buildStayCard(s){
     const grp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
     const grpFacs=STAY_FACS.filter(x=>x.group===grp);
@@ -1386,6 +1387,9 @@ function renderList(){
     const rental=r.rental||[];
     const rt=rental.reduce((s,i)=>s+i.price*i.qty,0);
     const isOv=r.facility==='tree'&&!r.done&&checkOverlap(r.startTime,r.course,r.id,r.date);
+    // 最終受付/終了は「日ごと×施設ごと」の最初のカードのみ表示（宿泊のIN/OUTと同じ考え方）
+    const dayInfoKey=(r.date||'')+'|'+r.facility;
+    const showDayInfo=!dayInfoShown[dayInfoKey];dayInfoShown[dayInfoKey]=true;
     // 金額表示（宿泊カードと同様に右側へ：単価×人数 ＋備品 計◯円）。レンタルは村内でも有料
     let amountText;
     if(mura){ var muraBase=fac.fixedCount?0:price*ninzu; amountText='村内割引'+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(muraBase+rt).toLocaleString()+'円'; }
@@ -1426,8 +1430,9 @@ function renderList(){
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
       (r.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoChecks(r.memo,r.rental)+'</div>':'')+
       (r.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+r.addr+'</div>':'')+
-      // 下部：操作ボタン（▼で開閉。会計＝2回タップ／キャンセル＝2回タップ／編集／削除）
-      '<div style="display:flex;justify-content:flex-end;align-items:center;margin-top:6px">'+
+      // 下部：施設の最終受付/終了（各カテゴリ最初のみ）＋操作ボタン（▼で開閉）
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px">'+
+        '<span style="font-size:11px;color:#aaa">'+(showDayInfo?'最終受付 '+(fac.lastAccept||'')+' ／ 終了 '+(fac.close||''):'')+'</span>'+
         '<button class="btn-sm" id="cardtog-'+r.id+'" data-act="toggleCardBtns" data-id="'+r.id+'" style="flex-shrink:0;color:#666">'+(_cardOpen[r.id]?'▲ 閉じる':'▼ 操作')+'</button>'+
       '</div>'+
       '<div id="cardbtns-'+r.id+'" data-disp="flex" style="display:'+(_cardOpen[r.id]?'flex':'none')+';justify-content:flex-end;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">'+
@@ -1439,14 +1444,14 @@ function renderList(){
     return div;
   }
 
-  // 日付順マージ描画：同日内は宿泊→日帰り。日帰りは施設ごとにまとめて（ツリーハウス昼→空中ウォーク→BBQ）、各施設内は予約時間順
+  // 日付順マージ描画：同日内は日帰り→宿泊。日帰りは施設ごとにまとめて（ツリーハウス昼→空中ウォーク→BBQ）、各施設内は予約時間順
   const DAY_FAC_ORDER={tree:0,walk:1,bbq:2};
   const entries=[];
   sl.forEach(s=>entries.push({date:s.checkin||'',kind:0,t:'',fo:0,ci:s.checkin||'',item:s}));
   dl.forEach(r=>entries.push({date:r.date||'',kind:1,t:r.startTime||'',fo:(DAY_FAC_ORDER[r.facility]!=null?DAY_FAC_ORDER[r.facility]:9),ci:'',item:r}));
   entries.sort((a,b)=>
     a.date.localeCompare(b.date)
-    || (a.kind-b.kind)
+    || (b.kind-a.kind)   // 日帰り(kind1)を先・宿泊(kind0)を後
     || (a.fo-b.fo)
     || a.t.localeCompare(b.t)
     || a.ci.localeCompare(b.ci)
@@ -1464,11 +1469,19 @@ function renderList(){
   // ---- 連続：同日ツリーハウスの 昼↔昼(前後15分以内) / 昼↔夜(宿泊) をクラスタ化し、隣接配置＋カード間にコネクタ ----
   const _isTreeStayE=e=>e.kind===0&&(e.item.facGroup||((getSFac(e.item.facility)||{}).group))==='ツリーハウス';
   const _isTreeDayE=e=>e.kind===1&&e.item.facility==='tree';
+  const _stayCiMin=s=>{var f=getSFac(s.facility)||STAY_FACS.find(x=>x.group===(s.facGroup||''))||{};var m=String(f.ci||'').match(/(\d{1,2}):(\d{2})/);return m?(+m[1]*60+ +m[2]):null;};
+  // 連続＝掃除の空き時間が無い（別客が続く）状態。昼↔昼は前後15分以内、昼↔夜は昼終了→宿泊IN開始が45分以内
   const _renzoku=(a,b)=>{
     if(!a.date||a.date!==b.date)return false;
     if(isCancelled(a.item)||isCancelled(b.item))return false;
     const ad=_isTreeDayE(a),bd=_isTreeDayE(b),as=_isTreeStayE(a),bs=_isTreeStayE(b);
-    if((ad&&bs)||(as&&bd))return true; // 昼↔夜（同日なら連続）
+    if((ad&&bs)||(as&&bd)){ // 昼↔夜：昼の終了と宿泊IN開始の差が45分以内なら連続（＝掃除時間なし）
+      const day=ad?a:b, stay=ad?b:a;
+      const dEnd=toMin(getEnd(day.item.startTime,day.item.course,'tree'));
+      const ci=_stayCiMin(stay.item); if(ci==null)return false;
+      const gap=ci-dEnd;
+      return gap>=0&&gap<=45;
+    }
     if(ad&&bd){ // 昼↔昼（前後15分以内・重複は除く）
       const s1=toMin(a.item.startTime),e1=toMin(getEnd(a.item.startTime,a.item.course,'tree'));
       const s2=toMin(b.item.startTime),e2=toMin(getEnd(b.item.startTime,b.item.course,'tree'));
@@ -2745,7 +2758,7 @@ function _pDayBlock(date){
     var fac=getFac(fid);
     var rows=reservations.filter(function(r){return !isCancelled(r)&&r.date===date&&r.facility===fid;})
       .sort(function(a,b){return String(a.startTime||'').localeCompare(String(b.startTime||''));});
-    h+='<div class="pcat">'+fac.label+(fid==='tree'?'（昼）':'')+'</div>';
+    h+='<div class="pcat">'+fac.label+'<span class="pio">最終受付 '+(fac.lastAccept||'')+' ／ 終了 '+(fac.close||'')+'</span></div>';
     if(!rows.length)h+='<div class="prow pempty"><div class="pr1">（予約なし）</div><div class="pwf">'+_pWfDay(null)+'</div></div>';
     else rows.forEach(function(r){h+=_pDayRow(r);});
   });
