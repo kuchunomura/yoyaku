@@ -461,8 +461,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=219;
-const APP_BUILD_DATE='2026/07/01 09:30';
+const APP_VERSION=220;
+const APP_BUILD_DATE='2026/07/01 09:45';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -586,9 +586,10 @@ function renderOtaAlerts(){
 // 備考に質問・要確認の言い回しがある予約を上部に集約（OTAの下・▼折りたたみ）
 // 【デモ用】機能紹介のためサンプル3件を表示。本番運用に戻す時は false に（1箇所変えるだけ）
 var Q_DEMO_ON=true;
-let _qOpen=Q_DEMO_ON, _qDoneOpen=false;
+let _qOpen=Q_DEMO_ON, _qDoneOpen=false, _qPast=false;
 function toggleQOpen(){_qOpen=!_qOpen;renderQuestionAlerts();}
 function toggleQDoneOpen(){_qDoneOpen=!_qDoneOpen;renderQuestionAlerts();}
+function toggleQPast(){_qPast=!_qPast;renderQuestionAlerts();}
 // 質問・要確認パターン（？ / 〜ですか？ / ですか。 / でしょうか。 / ますか。 / したいです。 / と思っています。）
 var Q_PATTERNS=/[?？]|(?:です|ます)か(?=[。\.\s、，]|$)|でしょうか|たいです|と思って(?:い)?ます/;
 // 簡易ハッシュ（備考が同一かの判定用。内容が変われば値が変わる＝チェックが自動リセット）
@@ -599,14 +600,13 @@ function renderQuestionAlerts(){
   var el=document.getElementById('q-alert'); if(!el)return;
   var today=todayStr();
   var qack=ld('yv_qack')||{};
-  var items=[];
+  var allItems=[]; // 過去も含めた全部（トグル判定・キー掃除に使用）
   function scan(o,isStay){
     if(isCancelled(o))return;
     var d=isStay?o.checkin:o.date;
-    if(d&&d<today)return; // 過去は表示しない（今日以降のみ）
     var memo=String(o.memo||''); if(!memo)return;
     if(!Q_PATTERNS.test(memo))return;
-    items.push({isStay:isStay,o:o,k:qackKey(o)});
+    allItems.push({isStay:isStay,o:o,k:qackKey(o),past:!!(d&&d<today)});
   }
   stays.forEach(function(s){scan(s,true);});
   reservations.forEach(function(r){scan(r,false);});
@@ -616,13 +616,15 @@ function renderQuestionAlerts(){
       {isStay:true, o:{id:'demo_q1',checkin:today,facility:'st_th',facGroup:'ツリーハウス',name:'（例）伊藤 亜希',memo:'レンタルで必要なものはありますか？'}},
       {isStay:false,o:{id:'demo_q2',date:today,facility:'walk',name:'（例）佐藤 花子',memo:'チェックインを少し早めたいです。'}},
       {isStay:true, o:{id:'demo_q3',checkin:today,facility:'',facGroup:'空中テント',name:'（例）鈴木 一郎',memo:'ペットは同伴できますか。'}}
-    ].forEach(function(d){ items.push({isStay:d.isStay,o:d.o,k:qackKey(d.o),demo:true}); });
+    ].forEach(function(d){ allItems.push({isStay:d.isStay,o:d.o,k:qackKey(d.o),demo:true,past:false}); });
   }
-  // 使われなくなったチェックキーを掃除（古い/変更済みの残骸を残さない）
-  var live={}; items.forEach(function(it){live[it.k]=1;});
+  // 使われなくなったチェックキーを掃除（過去分も残す＝allItems基準）
+  var live={}; allItems.forEach(function(it){live[it.k]=1;});
   var qchanged=false; Object.keys(qack).forEach(function(k){if(!live[k]){delete qack[k];qchanged=true;}});
   if(qchanged)sv('yv_qack',qack);
-  if(!items.length){ el.style.display='none'; el.innerHTML=''; return; }
+  var pastCount=allItems.filter(function(it){return it.past;}).length;
+  var items=_qPast?allItems:allItems.filter(function(it){return !it.past;});
+  if(!allItems.length){ el.style.display='none'; el.innerHTML=''; return; }
   // 日付順
   items.sort(function(a,b){
     var xa=a.isStay?a.o.checkin:a.o.date,xb=b.isStay?b.o.checkin:b.o.date;
@@ -644,12 +646,13 @@ function renderQuestionAlerts(){
       '<button class="btn-sm" data-act="'+act+'" data-id="'+o.id+'" style="flex-shrink:0;background:#fff;border:1px solid #d9b676;color:#6b4f20">確認</button>'+
     '</div>';
   };
-  var pendRows=pendItems.map(mkRow).join('')||'<div style="font-size:12px;color:#999;padding:2px 0">未対応なし</div>';
+  var pendRows=pendItems.map(mkRow).join('')||'<div style="font-size:12px;color:#999;padding:2px 0">'+(_qPast?'該当なし':'今日以降は該当なし')+'</div>';
   var doneBlock=doneItems.length?('<div onclick="toggleQDoneOpen()" style="cursor:pointer;user-select:none;font-size:12px;color:#999;margin-top:6px">'+(_qDoneOpen?'▼':'▶')+' 対応済み '+doneItems.length+'件</div>'+
     '<div style="display:'+(_qDoneOpen?'block':'none')+'">'+doneItems.map(mkRow).join('')+'</div>'):'';
+  var pastToggle=(pastCount>0||_qPast)?'<div onclick="toggleQPast()" style="cursor:pointer;user-select:none;font-size:12px;color:#1565c0;margin-top:6px">'+(_qPast?'▲ 今日以降のみ表示':'▼ 過去も表示（'+pastCount+'件）')+'</div>':'';
   el.style.display='block';
   el.innerHTML='<div onclick="toggleQOpen()" style="cursor:pointer;user-select:none;font-size:12px;font-weight:700;color:#b8860b">'+(_qOpen?'▼':'▶')+' ❓ 質問・要確認（未対応 '+pendItems.length+'件）</div>'+
-    '<div style="display:'+(_qOpen?'block':'none')+';margin-top:4px">'+pendRows+doneBlock+'</div>';
+    '<div style="display:'+(_qOpen?'block':'none')+';margin-top:4px">'+pendRows+doneBlock+pastToggle+'</div>';
 }
 // 備考から質問っぽい文だけ抜き出して短く表示（無ければ全文）
 function memoQExcerpt(memo){
