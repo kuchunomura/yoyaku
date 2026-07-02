@@ -461,8 +461,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=220;
-const APP_BUILD_DATE='2026/07/01 09:45';
+const APP_VERSION=221;
+const APP_BUILD_DATE='2026/07/01 10:05';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -584,14 +584,12 @@ function renderOtaAlerts(){
 }
 
 // 備考に質問・要確認の言い回しがある予約を上部に集約（OTAの下・▼折りたたみ）
-// 【デモ用】機能紹介のためサンプル3件を表示。本番運用に戻す時は false に（1箇所変えるだけ）
-var Q_DEMO_ON=true;
-let _qOpen=Q_DEMO_ON, _qDoneOpen=false, _qPast=false;
+let _qOpen=false, _qDoneOpen=false, _qPast=false;
 function toggleQOpen(){_qOpen=!_qOpen;renderQuestionAlerts();}
 function toggleQDoneOpen(){_qDoneOpen=!_qDoneOpen;renderQuestionAlerts();}
 function toggleQPast(){_qPast=!_qPast;renderQuestionAlerts();}
 // 質問・要確認パターン（？ / 〜ですか？ / ですか。 / でしょうか。 / ますか。 / したいです。 / と思っています。）
-var Q_PATTERNS=/[?？]|(?:です|ます)か(?=[。\.\s、，]|$)|でしょうか|たいです|と思って(?:い)?ます/;
+var Q_PATTERNS=/[?？]|(?:です|ます)か(?=[。\.\s、，]|$)|でしょうか|たいです|[のん]です[がけ]|と思って(?:い)?ます/;
 // 簡易ハッシュ（備考が同一かの判定用。内容が変われば値が変わる＝チェックが自動リセット）
 function _hash(s){s=String(s||'');var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h+s.charCodeAt(i))|0;}return (h>>>0).toString(36);}
 // チェック状態のキー：予約ID＋備考ハッシュ。再取込で予約が上書きされてもIDと内容が同じなら引き継ぐ。内容が変わればリセット
@@ -610,14 +608,6 @@ function renderQuestionAlerts(){
   }
   stays.forEach(function(s){scan(s,true);});
   reservations.forEach(function(r){scan(r,false);});
-  // 【デモ表示】機能を見せる用のサンプル3件（実データには影響なし・同期されない）。不要になったら Q_DEMO_ON=false に。
-  if(typeof Q_DEMO_ON!=='undefined'&&Q_DEMO_ON){
-    [
-      {isStay:true, o:{id:'demo_q1',checkin:today,facility:'st_th',facGroup:'ツリーハウス',name:'（例）伊藤 亜希',memo:'レンタルで必要なものはありますか？'}},
-      {isStay:false,o:{id:'demo_q2',date:today,facility:'walk',name:'（例）佐藤 花子',memo:'チェックインを少し早めたいです。'}},
-      {isStay:true, o:{id:'demo_q3',checkin:today,facility:'',facGroup:'空中テント',name:'（例）鈴木 一郎',memo:'ペットは同伴できますか。'}}
-    ].forEach(function(d){ allItems.push({isStay:d.isStay,o:d.o,k:qackKey(d.o),demo:true,past:false}); });
-  }
   // 使われなくなったチェックキーを掃除（過去分も残す＝allItems基準）
   var live={}; allItems.forEach(function(it){live[it.k]=1;});
   var qchanged=false; Object.keys(qack).forEach(function(k){if(!live[k]){delete qack[k];qchanged=true;}});
