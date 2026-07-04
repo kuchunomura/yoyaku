@@ -75,6 +75,12 @@ function doPost(e){
       if(data.qack && typeof data.qack === 'object'){
         PropertiesService.getDocumentProperties().setProperty('qack', JSON.stringify(data.qack));
       }
+      // 最終CSV取込日時：施設ごとに新しい方を残してマージ（他デバイスの取込時刻を消さない）
+      if(data.csvimp && typeof data.csvimp === 'object'){
+        var _cur={}; try{ _cur=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimp')||'{}'); }catch(_e){}
+        for(var _k in data.csvimp){ var _v=Number(data.csvimp[_k])||0; if(_v>(Number(_cur[_k])||0)) _cur[_k]=_v; }
+        PropertiesService.getDocumentProperties().setProperty('csvimp', JSON.stringify(_cur));
+      }
       return jsonOut({status:'ok', saved:{reservations:(data.reservations||[]).length, stays:(data.stays||[]).length}});
     }
     return jsonOut({status:'error', message:'unknown type'});
@@ -87,7 +93,8 @@ function doGet(e){
   try{
     var ota={}; try{ ota=JSON.parse(PropertiesService.getDocumentProperties().getProperty('otaack')||'{}'); }catch(e2){}
     var qk={}; try{ qk=JSON.parse(PropertiesService.getDocumentProperties().getProperty('qack')||'{}'); }catch(e3){}
-    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk});
+    var ci={}; try{ ci=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimp')||'{}'); }catch(e4){}
+    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci});
   }catch(err){
     return jsonOut({status:'error', message:String(err)});
   }
