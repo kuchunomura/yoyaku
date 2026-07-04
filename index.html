@@ -143,6 +143,12 @@ details[open] summary{opacity:0.75}
 .pu-frame.pu-over{border-color:#c0392b}
 .pu-head{font-weight:700;font-size:12px;border-bottom:1px solid #ccc;margin-bottom:2px;padding-bottom:1px}
 .pu-empty{color:#bbb;padding:8px 0}
+.pgap{height:7px}
+.pcompact .pu-frame{min-height:50px;padding:3px 6px;font-size:11px}
+.pcompact .pu-head{font-size:11px}
+.pcompact .pdate{font-size:14px;margin:4px 0 2px}
+.pcompact .pcat{margin-top:3px}
+.pcompact .pu-wrap{gap:4px;margin:2px 0 5px}
 @media print{
   #app{display:none!important}
   #print-area{display:block!important}
@@ -508,8 +514,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=228;
-const APP_BUILD_DATE='2026/07/04 21:34';
+const APP_VERSION=229;
+const APP_BUILD_DATE='2026/07/04 22:10';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2812,14 +2818,16 @@ function doPrint(){
   var dates=_pDateList(from,to);
   var body='';
   if(mode==='stay'){
-    dates.forEach(function(d){ body+='<div>'+_pStayBlock(d)+'</div><div class="page-break"></div>'; });
+    for(var i=0;i<dates.length;i+=2){ body+='<div>'+_pStayBlock(dates[i])+(dates[i+1]?'<div class="pgap"></div>'+_pStayBlock(dates[i+1]):'')+'</div><div class="page-break"></div>'; }
   }else if(mode==='day'){
-    dates.forEach(function(d){ body+='<div>'+_pDayBlock(d)+'</div><div class="page-break"></div>'; });
+    for(var j=0;j<dates.length;j+=2){ body+='<div>'+_pDayBlock(dates[j])+(dates[j+1]?'<div class="pgap"></div>'+_pDayBlock(dates[j+1]):'')+'</div><div class="page-break"></div>'; }
   }else{
     dates.forEach(function(d){ body+='<div>'+_pStayBlock(d)+_pDayBlock(d)+'</div><div class="page-break"></div>'; });
   }
   var label={stay:'宿泊',day:'日帰り',both:'宿泊＋日帰り'}[mode];
-  document.getElementById('print-area').innerHTML='<div class="phead">🏕 空中の村 予約表　'+fmtDate(from)+' 〜 '+fmtDate(to)+'　（'+label+'）</div>'+body;
+  var pa=document.getElementById('print-area');
+  pa.className=(mode==='both')?'':'pcompact';
+  pa.innerHTML='<div class="phead">🏕 空中の村 予約表　'+fmtDate(from)+' 〜 '+fmtDate(to)+'　（'+label+'）</div>'+body;
   closePrintModal();
   setTimeout(function(){window.print();},250);
 }
