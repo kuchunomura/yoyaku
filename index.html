@@ -137,10 +137,16 @@ details[open] summary{opacity:0.75}
 .pr2,.pr3{font-size:11px;color:#333;margin-top:1px}
 .pwf{margin-top:4px;font-size:11px;display:flex;gap:10px;flex-wrap:wrap}
 .pbox{display:inline-block;width:13px;height:13px;border:1.4px solid #333;text-align:center;line-height:12px;margin-right:3px;font-size:11px;vertical-align:-2px}
+.pu-wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:3px 0 7px}
+.pu-frame{border:1px solid #999;border-radius:4px;padding:4px 7px;font-size:12px;break-inside:avoid;box-sizing:border-box;min-height:64px}
+.pu-frame.pu-vacant{border-style:dashed}
+.pu-frame.pu-over{border-color:#c0392b}
+.pu-head{font-weight:700;font-size:12px;border-bottom:1px solid #ccc;margin-bottom:2px;padding-bottom:1px}
+.pu-empty{color:#bbb;padding:8px 0}
 @media print{
   #app{display:none!important}
   #print-area{display:block!important}
-  @page{size:A4;margin:9mm}
+  @page{size:A4 landscape;margin:9mm}
   .page-break{page-break-after:always;height:0;overflow:hidden}
   body{background:#fff}
 }
@@ -502,8 +508,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=227;
-const APP_BUILD_DATE='2026/07/04 13:03';
+const APP_VERSION=228;
+const APP_BUILD_DATE='2026/07/04 21:34';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2745,15 +2751,44 @@ function _pDayRow(r){
     '<div class="pwf">'+_pWfDay(r)+'</div>'+
   '</div>';
 }
+// 枠の中身（予約の詳細。棟名は枠のヘッダーに出すのでここには出さない）
+function _pStayInner(s){
+  var rt=(s.rental||[]).reduce(function(a,i){return a+i.price*i.qty;},0);
+  var tp=(s.totalPpl||s.ninzu);
+  var grand=(s.unitPrice*tp*s.nights)+(s.petFee||0)+rt;
+  var petTxt=(s.petCount||0)>0?('　ペット'+s.petCount):'';
+  var bedTxt=BED_GROUPS.includes(_pStayCat(s))?('　'+bedLabel(s.bed)):'';
+  var money=s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円';
+  return '<div class="pr1">'+s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+bedTxt+petTxt+'</div>'+
+    '<div class="pr2">'+money+'</div>'+
+    ((s.rental||[]).length?'<div class="pr3">レンタル：'+s.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
+    (s.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(s.memo))+'</div>':'')+
+    (s.addr?'<div class="pr3">'+htmlEscape(s.addr)+'</div>':'');
+}
+// 宿泊：カテゴリーごとに「棟数ぶんの枠」（各棟1枠）を出す。棟に一致する予約を入れ、無ければ空枠。
 function _pStayBlock(date){
   var h='<div class="pdate">'+fmtDate(date)+'　【宿泊】</div>';
   PRINT_STAY_CATS.forEach(function(cat){
     var io=_pCatIO(cat);
-    var rows=stays.filter(function(s){return !isCancelled(s)&&s.checkin===date&&_pStayCat(s)===cat;})
-      .sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''));});
-    h+='<div class="pcat">'+cat+'<span class="pio">IN '+io.ci+' ／ OUT '+io.co+'</span></div>';
-    if(!rows.length)h+='<div class="prow pempty"><div class="pr1">（予約なし）</div><div class="pwf">'+_pWfStay(null)+'</div></div>';
-    else rows.forEach(function(s){h+=_pStayRow(s);});
+    var units=STAY_FACS.filter(function(x){return x.group===cat;});
+    var rows=stays.filter(function(s){return !isCancelled(s)&&s.checkin===date&&_pStayCat(s)===cat;});
+    // 棟へ割り当て：施設(棟)が一致する予約を優先、残りは空き棟へ順に入れる
+    var assigned={},leftovers=[];
+    rows.forEach(function(s){var u=units.find(function(x){return x.id===s.facility;});if(u&&!assigned[u.id])assigned[u.id]=s;else leftovers.push(s);});
+    units.forEach(function(u){if(!assigned[u.id]&&leftovers.length)assigned[u.id]=leftovers.shift();});
+    h+='<div class="pcat">'+cat+'<span class="pio">IN '+io.ci+' ／ OUT '+io.co+'　（'+units.length+'棟）</span></div>';
+    h+='<div class="pu-wrap">';
+    units.forEach(function(u){
+      var s=assigned[u.id]||null;
+      h+='<div class="pu-frame'+(s?'':' pu-vacant')+'"><div class="pu-head">'+u.label+'</div>'+
+         (s?_pStayInner(s):'<div class="pu-empty">（空き）</div>')+
+         '<div class="pwf">'+_pWfStay(s)+'</div></div>';
+    });
+    // 棟数を超える予約があれば追加枠（赤枠）で出す
+    leftovers.forEach(function(s){
+      h+='<div class="pu-frame pu-over"><div class="pu-head">追加（棟未定）</div>'+_pStayInner(s)+'<div class="pwf">'+_pWfStay(s)+'</div></div>';
+    });
+    h+='</div>';
   });
   return h;
 }
@@ -2777,7 +2812,7 @@ function doPrint(){
   var dates=_pDateList(from,to);
   var body='';
   if(mode==='stay'){
-    dates.forEach(function(d,i){ body+='<div>'+_pStayBlock(d)+'</div>'; if(i%2===1)body+='<div class="page-break"></div>'; });
+    dates.forEach(function(d){ body+='<div>'+_pStayBlock(d)+'</div><div class="page-break"></div>'; });
   }else if(mode==='day'){
     dates.forEach(function(d){ body+='<div>'+_pDayBlock(d)+'</div><div class="page-break"></div>'; });
   }else{
