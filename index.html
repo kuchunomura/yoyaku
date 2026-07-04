@@ -502,8 +502,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=226;
-const APP_BUILD_DATE='2026/07/04 09:40';
+const APP_VERSION=227;
+const APP_BUILD_DATE='2026/07/04 13:03';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2181,7 +2181,10 @@ function renderCsvImpLog(){
   var rows=[];
   FACILITIES.forEach(function(f){var v='day:'+f.id;var lb=(f.id==='tree'?'ツリーハウス昼':f.label);rows.push([lb,imp[v]]);});
   var seen={}; STAY_FACS.forEach(function(f){if(seen[f.group])return;seen[f.group]=true;var v='staygroup:'+f.group;rows.push([f.group+'（宿泊）',imp[v]]);});
-  el.innerHTML='<b>最終CSV取込日時</b><br>'+rows.map(function(r){return r[0]+'：'+(r[1]?'<span style="color:#1a7a3a">'+fmtDateTime(r[1])+'</span>':'<span style="color:#bbb">未取込</span>');}).join('　/　');
+  el.innerHTML='<b>最終CSV取込日時</b>'
+    +'<div style="display:grid;grid-template-columns:max-content max-content;gap:3px 6px;margin-top:4px;line-height:1.5;">'
+    +rows.map(function(r){return '<div>'+r[0]+'</div><div>：'+(r[1]?'<span style="color:#1a7a3a">'+fmtDateTime(r[1])+'</span>':'<span style="color:#bbb">未取込</span>')+'</div>';}).join('')
+    +'</div>';
 }
 // 日帰り↔宿泊で同じ施設の対応（ツリーハウスは昼/夜の両方がある）
 var CSV_SIBLING={'day:tree':'staygroup:ツリーハウス','staygroup:ツリーハウス':'day:tree'};
