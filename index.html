@@ -144,15 +144,22 @@ details[open] summary{opacity:0.75}
 .pu-head{font-weight:700;font-size:12px;border-bottom:1px solid #ccc;margin-bottom:2px;padding-bottom:1px}
 .pu-empty{color:#bbb;padding:8px 0}
 .pgap{height:7px}
-.pcompact .pu-frame{min-height:50px;padding:3px 6px;font-size:11px}
-.pcompact .pu-head{font-size:11px}
-.pcompact .pdate{font-size:14px;margin:4px 0 2px}
-.pcompact .pcat{margin-top:3px}
-.pcompact .pu-wrap{gap:4px;margin:2px 0 5px}
+.pcompact .phead{font-size:12px;margin-bottom:3px}
+.pcompact .pu-frame{min-height:0;padding:2px 6px;font-size:10.5px}
+.pcompact .pu-head{font-size:10.5px;margin-bottom:1px;padding-bottom:0}
+.pcompact .pu-empty{padding:2px 0}
+.pcompact .pdate{font-size:13px;margin:2px 0 1px;padding-bottom:0}
+.pcompact .pcat{margin-top:2px;padding:1px 6px;font-size:10.5px}
+.pcompact .pio{font-size:10px}
+.pcompact .pu-wrap{gap:3px;margin:1px 0 3px}
+.pcompact .pr1{font-size:11px}
+.pcompact .pr2,.pcompact .pr3{font-size:10px}
+.pcompact .pwf{margin-top:2px;font-size:10px}
+.pcompact .pgap{height:4px}
 @media print{
   #app{display:none!important}
   #print-area{display:block!important}
-  @page{size:A4 landscape;margin:9mm}
+  @page{size:A4 landscape;margin:7mm}
   .page-break{page-break-after:always;height:0;overflow:hidden}
   body{background:#fff}
 }
@@ -514,8 +521,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=229;
-const APP_BUILD_DATE='2026/07/04 22:10';
+const APP_VERSION=230;
+const APP_BUILD_DATE='2026/07/04 22:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2829,7 +2836,9 @@ function doPrint(){
   pa.className=(mode==='both')?'':'pcompact';
   pa.innerHTML='<div class="phead">🏕 空中の村 予約表　'+fmtDate(from)+' 〜 '+fmtDate(to)+'　（'+label+'）</div>'+body;
   closePrintModal();
-  setTimeout(function(){window.print();},250);
+  window._printing=true;
+  window.addEventListener('afterprint',function _ap(){window._printing=false;window.removeEventListener('afterprint',_ap);});
+  requestAnimationFrame(function(){requestAnimationFrame(function(){window.print();});});
 }
 
 // 起動
@@ -2839,8 +2848,8 @@ renderFltTabs();renderList();showLastSync();setupCsvDrop();
 // GAS URL設定済みなら、起動時に最新をシートから取得（端末間同期）
 if(ld(GAS_KEY)) loadFromSheet(true);
 // 自動同期：60秒ごと＋画面に戻ったときにシートから読込（手動編集も自動で反映）
-setInterval(function(){ if(ld(GAS_KEY) && !document.hidden) loadFromSheet(true); }, 60000);
-document.addEventListener('visibilitychange', function(){ if(!document.hidden && ld(GAS_KEY)) loadFromSheet(true); });
+setInterval(function(){ if(ld(GAS_KEY) && !document.hidden && !window._printing) loadFromSheet(true); }, 60000);
+document.addEventListener('visibilitychange', function(){ if(!document.hidden && ld(GAS_KEY) && !window._printing) loadFromSheet(true); });
 
 // カードボタンのイベントデリゲーション（起動後に登録）
 document.addEventListener('click',function(e){
