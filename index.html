@@ -532,8 +532,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=243;
-const APP_BUILD_DATE='2026/07/05 02:35';
+const APP_VERSION=244;
+const APP_BUILD_DATE='2026/07/05 15:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2864,6 +2864,11 @@ function doPrint(){
   var pa=document.getElementById('print-area');
   pa.className=(mode==='both')?'':'pcompact';
   pa.innerHTML=body;
+  // 用紙の向き：宿泊のみ横、日帰り・両方は縦
+  var orient=(mode==='stay')?'landscape':'portrait';
+  var ps=document.getElementById('pageStyle');
+  if(!ps){ ps=document.createElement('style'); ps.id='pageStyle'; document.head.appendChild(ps); }
+  ps.textContent='@media print{@page{size:A4 '+orient+';margin:7mm}}';
   closePrintModal();
   window._printing=true;
   window.addEventListener('afterprint',function _ap(){window._printing=false;window.removeEventListener('afterprint',_ap);});
