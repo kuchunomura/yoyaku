@@ -153,7 +153,9 @@ details[open] summary{opacity:0.75}
 .pcompact .pdate{font-size:12px;margin:2px 0 1px;padding-bottom:0}
 .pcompact .pcat{margin-top:2px;padding:1px 6px;font-size:9.5px}
 .pcompact .pio{font-size:9px}
-.pcompact .pu-wrap{grid-template-columns:repeat(3,1fr);gap:3px;margin:1px 0 3px}
+.pcatblock{break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid}
+.pcompact .pcats{column-count:2;column-gap:14px}
+.pcompact .pu-wrap{grid-template-columns:repeat(2,1fr);gap:3px;margin:1px 0 5px}
 .pcompact .pr1{font-size:12px}
 .pcompact .pr2,.pcompact .pr3{font-size:9px;line-height:1.25}
 .pcompact .pwf{margin-top:2px;font-size:8.5px;gap:5px}
@@ -523,8 +525,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=233;
-const APP_BUILD_DATE='2026/07/04 23:20';
+const APP_VERSION=234;
+const APP_BUILD_DATE='2026/07/04 23:40';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2783,6 +2785,7 @@ function _pStayInner(s){
 // 宿泊：カテゴリーごとに「棟数ぶんの枠」（各棟1枠）を出す。棟に一致する予約を入れ、無ければ空枠。
 function _pStayBlock(date){
   var h='<div class="pdate">'+fmtDate(date)+'　【宿泊】</div>';
+  var cats='';
   PRINT_STAY_CATS.forEach(function(cat){
     var io=_pCatIO(cat);
     var units=STAY_FACS.filter(function(x){return x.group===cat;});
@@ -2791,21 +2794,22 @@ function _pStayBlock(date){
     var assigned={},leftovers=[];
     rows.forEach(function(s){var u=units.find(function(x){return x.id===s.facility;});if(u&&!assigned[u.id])assigned[u.id]=s;else leftovers.push(s);});
     units.forEach(function(u){if(!assigned[u.id]&&leftovers.length)assigned[u.id]=leftovers.shift();});
-    h+='<div class="pcat">'+cat+'<span class="pio">IN '+io.ci+' ／ OUT '+io.co+'　（'+units.length+'棟）</span></div>';
-    h+='<div class="pu-wrap">';
+    var c='<div class="pcatblock"><div class="pcat">'+cat+'<span class="pio">IN '+io.ci+' ／ OUT '+io.co+'　（'+units.length+'棟）</span></div>';
+    c+='<div class="pu-wrap">';
     units.forEach(function(u){
       var s=assigned[u.id]||null;
-      h+='<div class="pu-frame'+(s?'':' pu-vacant')+'"><div class="pu-head">'+u.label+'</div>'+
+      c+='<div class="pu-frame'+(s?'':' pu-vacant')+'"><div class="pu-head">'+u.label+'</div>'+
          (s?_pStayInner(s):'<div class="pu-empty">（空き）</div>')+
          '<div class="pwf">'+_pWfStay(s)+'</div></div>';
     });
     // 棟数を超える予約があれば追加枠（赤枠）で出す
     leftovers.forEach(function(s){
-      h+='<div class="pu-frame pu-over"><div class="pu-head">追加（棟未定）</div>'+_pStayInner(s)+'<div class="pwf">'+_pWfStay(s)+'</div></div>';
+      c+='<div class="pu-frame pu-over"><div class="pu-head">追加（棟未定）</div>'+_pStayInner(s)+'<div class="pwf">'+_pWfStay(s)+'</div></div>';
     });
-    h+='</div>';
+    c+='</div></div>';
+    cats+=c;
   });
-  return h;
+  return h+'<div class="pcats">'+cats+'</div>';
 }
 function _pDayBlock(date){
   var h='<div class="pdate">'+fmtDate(date)+'　【日帰り】</div>';
