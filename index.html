@@ -546,8 +546,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=256;
-const APP_BUILD_DATE='2026/07/06 15:08';
+const APP_VERSION=257;
+const APP_BUILD_DATE='2026/07/06 15:17';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -602,18 +602,9 @@ let fields=loadFields(),reservations=loadReservations(),stays=loadStays(),stock=
   if(changed)sv(STKEY,stays);
 })();
 // 数量バグ補正：客チェック方式メモ（✓＋価格リスト）の備品は数量が必ず1。
-// 過去バグで数量が金額（例800JPY→数量800）になっていた分を毎回起動時に1へ補正する。
-(function healCheckboxQty(){
-  var fixed=false;
-  function heal(arr){ arr.forEach(function(o){
-    var raw=String(o.memo||'');
-    var isCb = raw.indexOf('✓')!==-1 && /JPY/i.test(raw);
-    if(!isCb)return;
-    (o.rental||[]).forEach(function(it){ if(it.qty&&it.qty!==1){ it.qty=1; fixed=true; } });
-  }); }
-  heal(reservations); heal(stays);
-  if(fixed){ sv(RKEY,reservations); sv(STKEY,stays); }
-})();
+// 過去バグで数量が金額（例800JPY→数量800）になっていた分を1へ補正する。
+// ※シート読込でも上書きされるので loadFromSheet 内でも再実行する（関数本体は下部）。
+healRentalQty();
 let facFilter='all',addFacId='walk',addCourse=55,editId=null,editType='day';
 let rentalSt={},stayRentalSt={};
 let dateFilter=null;
@@ -2226,11 +2217,12 @@ async function loadFromSheet(silent){
       if(json.csvimp&&typeof json.csvimp==='object'){ var _ci=ld('yv_csvimp')||{}; for(var _ck in json.csvimp){ var _cv=Number(json.csvimp[_ck])||0; if(_cv>(Number(_ci[_ck])||0)) _ci[_ck]=_cv; } sv('yv_csvimp',_ci); if(typeof renderCsvImpLog==='function')renderCsvImpLog(); }
       sv(RKEY,reservations);sv(STKEY,stays);
       var _rep=repairNinzuFromAmount(); // 読込データの人数誤読を自動修復
-      if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 読込完了'+(_rep?'（人数'+_rep+'件を自動修正）':'');
+      var _rq=healRentalQty();          // 客チェック方式メモの備品数量バグ（金額=数量）を自動修復
+      if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 読込完了'+(_rep?'（人数'+_rep+'件を自動修正）':'')+(_rq?'（備品数量'+_rq+'件を自動修正）':'');
       markSync('同期');
-      if(!silent)showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）'+(_rep?'／人数'+_rep+'件を自動修正':''),'#1a7a3a');
+      if(!silent)showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）'+(_rep?'／人数'+_rep+'件を自動修正':'')+(_rq?'／備品数量'+_rq+'件を自動修正':''),'#1a7a3a');
       renderList();
-      if(_rep)autoPush(); // 修正結果をシートへ書き戻して全端末で共有
+      if(_rep||_rq)autoPush(); // 修正結果をシートへ書き戻して全端末で共有
     }else{ if(st)st.textContent='⚠ エラー: '+json.message; if(!silent)showToast('⚠ 読込失敗','#c00'); }
   }catch(e){ if(st)st.textContent='⚠ 通信エラー: '+e.message; if(!silent)showToast('⚠ 通信エラー','#c00'); }
 }
@@ -2259,6 +2251,20 @@ function repairNinzuFromAmount(){
   });
   if(changed){ sv(RKEY,reservations); }
   return changed;
+}
+
+// 客チェック方式メモ（✓＋価格リスト "800JPY" 等）から作った備品は数量が必ず1。
+// 過去バグで数量に金額が入った分（例800JPY→数量800）を1へ補正。起動時＆シート読込後に実行。
+function healRentalQty(){
+  var fixed=0;
+  function heal(arr){ (arr||[]).forEach(function(o){
+    var raw=String(o.memo||'');
+    if(raw.indexOf('✓')===-1 || !/JPY/i.test(raw))return; // 客チェック方式のメモのみ対象
+    (o.rental||[]).forEach(function(it){ if(it.qty&&it.qty!==1){ it.qty=1; fixed++; } });
+  }); }
+  heal(reservations); heal(stays);
+  if(fixed){ sv(RKEY,reservations); sv(STKEY,stays); }
+  return fixed;
 }
 
 function exportData(){
