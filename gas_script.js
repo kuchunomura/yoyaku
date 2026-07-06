@@ -75,6 +75,10 @@ function doPost(e){
       if(data.qack && typeof data.qack === 'object'){
         PropertiesService.getDocumentProperties().setProperty('qack', JSON.stringify(data.qack));
       }
+      // 共有メモ（全端末で同期。URL控え・引き継ぎ事項など）
+      if(typeof data.sharednote === 'string'){
+        PropertiesService.getDocumentProperties().setProperty('sharednote', data.sharednote);
+      }
       // 最終CSV取込日時：施設ごとに新しい方を残してマージ（他デバイスの取込時刻を消さない）
       if(data.csvimp && typeof data.csvimp === 'object'){
         var _cur={}; try{ _cur=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimp')||'{}'); }catch(_e){}
@@ -94,7 +98,8 @@ function doGet(e){
     var ota={}; try{ ota=JSON.parse(PropertiesService.getDocumentProperties().getProperty('otaack')||'{}'); }catch(e2){}
     var qk={}; try{ qk=JSON.parse(PropertiesService.getDocumentProperties().getProperty('qack')||'{}'); }catch(e3){}
     var ci={}; try{ ci=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimp')||'{}'); }catch(e4){}
-    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci});
+    var sn=PropertiesService.getDocumentProperties().getProperty('sharednote')||'';
+    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, sharednote:sn});
   }catch(err){
     return jsonOut({status:'error', message:String(err)});
   }

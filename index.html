@@ -417,6 +417,14 @@ details[open] summary{opacity:0.75}
         <button class="btn-primary" onclick="saveSheetUrl()" style="background:#777;flex:1">URLを保存</button>
         <button class="btn-primary" onclick="openSheet()" style="background:#1a7a3a;flex:1">📄 別タブで開く</button>
       </div>
+      <div style="border-top:1px solid #c2d4ea;margin:12px 0 8px"></div>
+      <label>共有メモ（全端末で同期）</label>
+      <div style="font-size:11px;color:#556;margin:2px 0 6px;line-height:1.6">スタッフ間で共有したいURL・引き継ぎ事項などを記入。同期すると全端末に反映されます（GAS URL・シートURLの控えにも便利）。</div>
+      <textarea id="shared-note" placeholder="例）&#10;GAS WebアプリURL: https://script.google.com/macros/s/.../exec&#10;スプレッドシートURL（閲覧用）: https://docs.google.com/spreadsheets/d/..." style="font-size:13px;min-height:110px;white-space:pre-wrap"></textarea>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="btn-primary" onclick="saveSharedNote()" style="background:#224466;flex:1">💾 保存して同期</button>
+        <button class="btn-primary" onclick="copySharedNote()" style="background:#777;flex:1">📋 コピー</button>
+      </div>
     </div>
     <div class="separator"></div>
     <div class="section-title">カスタム項目（日帰り）</div>
@@ -537,8 +545,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=260;
-const APP_BUILD_DATE='2026/07/06 15:47';
+const APP_VERSION=261;
+const APP_BUILD_DATE='2026/07/06 15:56';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2154,8 +2162,10 @@ function toggleOptInput(){document.getElementById('new-select-options').style.di
 // エクスポート・インポート・引き継ぎ
 // ---- Googleスプレッドシート同期 ----
 const GAS_KEY='yv_gas';
-function loadGasUrl(){const v=ld(GAS_KEY);if(v)document.getElementById('gas-url').value=v;const su=ld('yv_sheet_url');const el=document.getElementById('sheet-url');if(su&&el)el.value=su;}
+function loadGasUrl(){const v=ld(GAS_KEY);if(v)document.getElementById('gas-url').value=v;const su=ld('yv_sheet_url');const el=document.getElementById('sheet-url');if(su&&el)el.value=su;const sn=document.getElementById('shared-note');if(sn)sn.value=ld('yv_sharednote')||'';}
 function saveSheetUrl(){var u=(document.getElementById('sheet-url').value||'').trim();sv('yv_sheet_url',u);showToast('✓ スプレッドシートURLを保存しました');}
+function saveSharedNote(){var el=document.getElementById('shared-note');if(!el)return;var v=el.value||'';sv('yv_sharednote',v);autoPush();showToast('✓ 共有メモを保存して同期しました','#1a7a3a');}
+function copySharedNote(){var el=document.getElementById('shared-note');if(!el)return;var v=el.value||'';if(navigator.clipboard){navigator.clipboard.writeText(v).then(function(){showToast('✓ 共有メモをコピーしました');});}else{el.focus();el.select();try{document.execCommand('copy');showToast('✓ 共有メモをコピーしました');}catch(e){showToast('⚠ コピーできませんでした','#c00');}}}
 function openSheet(){var u=(ld('yv_sheet_url')||(document.getElementById('sheet-url')||{}).value||'').trim();if(!u){showToast('⚠ スプレッドシートURLを保存してください','#c00');return;}window.open(u,'_blank');}
 function saveGasUrl(){
   const url=document.getElementById('gas-url').value.trim();
@@ -2174,7 +2184,7 @@ async function syncToSheet(silent){
     const res=await fetch(url,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({type:'sync_all',stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{})})
+      body:JSON.stringify({type:'sync_all',stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),sharednote:(ld('yv_sharednote')||'')})
     });
     const json=await res.json();
     if(json.status==='ok'){
@@ -2204,6 +2214,8 @@ async function loadFromSheet(silent){
       if(Array.isArray(json.stays))stays=json.stays;
       if(json.otaack&&typeof json.otaack==='object')sv('yv_otaack',json.otaack);
       if(json.qack&&typeof json.qack==='object')sv('yv_qack',json.qack);
+      // 共有メモ（全端末で同期）。入力中の端末は上書きしない
+      if(typeof json.sharednote==='string'){ sv('yv_sharednote',json.sharednote); var _sn=document.getElementById('shared-note'); if(_sn&&document.activeElement!==_sn)_sn.value=json.sharednote; }
       // 最終CSV取込日時：施設ごとに新しい方を残してマージ（他デバイスの取込時刻を消さない）
       if(json.csvimp&&typeof json.csvimp==='object'){ var _ci=ld('yv_csvimp')||{}; for(var _ck in json.csvimp){ var _cv=Number(json.csvimp[_ck])||0; if(_cv>(Number(_ci[_ck])||0)) _ci[_ck]=_cv; } sv('yv_csvimp',_ci); if(typeof renderCsvImpLog==='function')renderCsvImpLog(); }
       sv(RKEY,reservations);sv(STKEY,stays);
