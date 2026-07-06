@@ -537,8 +537,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=248;
-const APP_BUILD_DATE='2026/07/05 17:45';
+const APP_VERSION=249;
+const APP_BUILD_DATE='2026/07/05 18:20';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1897,6 +1897,26 @@ var RENTAL_ALIAS={
   b20:/(寝袋|シュラフ).{0,3}冬|冬.{0,3}(寝袋|シュラフ)/,
   b19:/(寝袋|シュラフ)(?!.{0,4}冬)/
 };
+// メモ本文から備品を推定して {id,name,price,qty} の配列を返す（DOM非依存。ボタン・CSV取込の両方で使用）
+function detectRentalFromMemo(memo){
+  memo=String(memo||'').replace(/✓/g,'');
+  var out=[]; if(!memo.trim())return out;
+  ALL_ITEMS.forEach(function(it){
+    var re=RENTAL_ALIAS[it.id]; if(!re)return;
+    var m=re.exec(memo); if(!m)return;
+    var matchEnd=m.index+m[0].length;
+    var after=memo.slice(matchEnd, matchEnd+24);
+    var qty=1, qn=null;
+    // 「×２→×１へ変更」等＝変更後を優先。「変更/訂正/修正」の手前にある最後の数字＝確定数量。
+    var cuePos=after.search(/変更|訂正|修正|に直/);
+    if(cuePos>=0){ var nb=after.slice(0,cuePos).match(/[0-9０-９]+/g); if(nb&&nb.length)qn=nb[nb.length-1]; }
+    if(qn==null){ var am=after.match(/(?:[→⇒➡]|から)\s*[×xX]?\s*([0-9０-９]+)/); if(am)qn=am[1]; }
+    if(qn==null){ var fm=after.match(/[×xX]?\s*([0-9０-９]+)/); if(fm)qn=fm[1]; }
+    if(qn!=null){var n=parseInt(String(qn).replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);}),10); if(n>0)qty=n;}
+    out.push({id:it.id,name:it.name,price:it.price,qty:qty});
+  });
+  return out;
+}
 // 現在チェックされている備品に対応する文言の直後だけに橙色✓を付け直す（チェック状態と連動）
 function esRebuildMemoChecks(){
   var el=document.getElementById('es-memo'); if(!el)return;
@@ -1922,24 +1942,12 @@ function esReadMemoRental(silent){
   var memo=(memoEl.innerText||'').replace(/✓/g,'');
   if(!memo.trim()){if(!silent)showToast('メモが空です','#777');return;}
   var hit=0, exNeeded=false;
-  ALL_ITEMS.forEach(function(it){
-    var re=RENTAL_ALIAS[it.id]; if(!re)return;
-    var m=re.exec(memo); if(!m)return;
-    var matchEnd=m.index+m[0].length;
-    var after=memo.slice(matchEnd, matchEnd+24);
-    var qty=1, qn=null;
-    // 「×２→×１へ変更」「２個を１個に訂正」等＝変更後を優先。「変更/訂正/修正」の手前にある最後の数字＝確定数量。
-    var cuePos=after.search(/変更|訂正|修正|に直/);
-    if(cuePos>=0){ var nb=after.slice(0,cuePos).match(/[0-9０-９]+/g); if(nb&&nb.length)qn=nb[nb.length-1]; }
-    // 矢印・「から」の後の数字
-    if(qn==null){ var am=after.match(/(?:[→⇒➡]|から)\s*[×xX]?\s*([0-9０-９]+)/); if(am)qn=am[1]; }
-    // それも無ければ最初の数量
-    if(qn==null){ var fm=after.match(/[×xX]?\s*([0-9０-９]+)/); if(fm)qn=fm[1]; }
-    if(qn!=null){var n=parseInt(String(qn).replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);}),10); if(n>0)qty=n;}
-    var cb=document.getElementById('esr_'+it.id); if(!cb)return;
+  detectRentalFromMemo(memo).forEach(function(d){
+    var it=ALL_ITEMS.find(function(x){return x.id===d.id;}); if(!it)return;
+    var cb=document.getElementById('esr_'+d.id); if(!cb)return;
     cb.checked=true;
-    var qbox=document.getElementById('esrq_'+it.id); if(qbox)qbox.style.display='flex';
-    var qs=document.getElementById('esrs_'+it.id); if(qs)qs.textContent=qty;
+    var qbox=document.getElementById('esrq_'+d.id); if(qbox)qbox.style.display='flex';
+    var qs=document.getElementById('esrs_'+d.id); if(qs)qs.textContent=d.qty;
     if(it.col)exNeeded=true;
     hit++;
   });
@@ -2469,6 +2477,8 @@ function importCSV(){
           unitPrice:unit, totalPpl:adults, source:source, mura:false, rental:[], linkedDayIds:[], bed:bedCode(bed), addr:addr,
           memo:buildMemo(status,[rentalMemo,leftoverText(f,consumed)].filter(Boolean).join(' / ')), done:false, changed:false, createdAt:Date.now() };
       }
+      // メモから備品を自動推定して初期セット（未設定時のみ。再取込の手動調整は下のマージで優先保持）
+      if(!(rec.rental&&rec.rental.length)) rec.rental=detectRentalFromMemo(rec.memo);
       var arr = type==='day' ? reservations : stays;
       var exIdx = arr.findIndex(function(x){ return x.wpId===wpId; });
       if(exIdx>=0){
