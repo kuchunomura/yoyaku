@@ -546,8 +546,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=257;
-const APP_BUILD_DATE='2026/07/06 15:17';
+const APP_VERSION=258;
+const APP_BUILD_DATE='2026/07/06 15:23';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2253,14 +2253,16 @@ function repairNinzuFromAmount(){
   return changed;
 }
 
-// 客チェック方式メモ（✓＋価格リスト "800JPY" 等）から作った備品は数量が必ず1。
-// 過去バグで数量に金額が入った分（例800JPY→数量800）を1へ補正。起動時＆シート読込後に実行。
+// 過去バグの補正：客の価格リストメモ（"800JPY" 等）から備品を作った際、数量に金額が
+// 入ってしまった分（例 単価800→数量800）を数量1へ戻す。
+// 指紋＝「数量が単価と完全一致」。備品単価は100円以上なので、その数だけ借りることは実際にはなく誤検出しない。
+// メモに✓が保存されないケースもあるため、メモ形式に依存せず数値の指紋だけで判定する。
 function healRentalQty(){
   var fixed=0;
   function heal(arr){ (arr||[]).forEach(function(o){
-    var raw=String(o.memo||'');
-    if(raw.indexOf('✓')===-1 || !/JPY/i.test(raw))return; // 客チェック方式のメモのみ対象
-    (o.rental||[]).forEach(function(it){ if(it.qty&&it.qty!==1){ it.qty=1; fixed++; } });
+    (o.rental||[]).forEach(function(it){
+      if(it.qty && it.price>=100 && it.qty===it.price){ it.qty=1; fixed++; }
+    });
   }); }
   heal(reservations); heal(stays);
   if(fixed){ sv(RKEY,reservations); sv(STKEY,stays); }
