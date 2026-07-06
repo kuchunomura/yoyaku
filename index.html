@@ -546,8 +546,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=255;
-const APP_BUILD_DATE='2026/07/06 14:51';
+const APP_VERSION=256;
+const APP_BUILD_DATE='2026/07/06 15:08';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -600,6 +600,19 @@ let fields=loadFields(),reservations=loadReservations(),stays=loadStays(),stock=
   let changed=false;
   stays.forEach(s=>{if(map[s.facility]){s.facility=map[s.facility];changed=true;}});
   if(changed)sv(STKEY,stays);
+})();
+// 数量バグ補正：客チェック方式メモ（✓＋価格リスト）の備品は数量が必ず1。
+// 過去バグで数量が金額（例800JPY→数量800）になっていた分を毎回起動時に1へ補正する。
+(function healCheckboxQty(){
+  var fixed=false;
+  function heal(arr){ arr.forEach(function(o){
+    var raw=String(o.memo||'');
+    var isCb = raw.indexOf('✓')!==-1 && /JPY/i.test(raw);
+    if(!isCb)return;
+    (o.rental||[]).forEach(function(it){ if(it.qty&&it.qty!==1){ it.qty=1; fixed=true; } });
+  }); }
+  heal(reservations); heal(stays);
+  if(fixed){ sv(RKEY,reservations); sv(STKEY,stays); }
 })();
 let facFilter='all',addFacId='walk',addCourse=55,editId=null,editType='day';
 let rentalSt={},stayRentalSt={};
@@ -676,7 +689,7 @@ function toggleQPast(){_qPast=!_qPast;renderQuestionAlerts();}
 // 質問・要確認パターン（？ / 〜ですか？ / ですか。 / でしょうか。 / ますか。 / したいです。 / と思っています。）
 var Q_PATTERNS=/(?:です|ます)か(?=[。\.\s、，？?]|$)|でしょうか|たいです|[のん]です[がけ]|と思って(?:い)?ます/;
 // 質問ではないが要確認の言い回し（追加料金・別途・変更・要相談など）。スタッフが見落とさないよう要確認に集約する。
-var ALERT_PATTERNS=/追加料金|追加のため|追加分|別途.{0,3}(料金|費用|支払|請求)|要(?:確認|相談|対応)|至急|変更(?:希望|あり|して)|キャンセル待ち|返金/;
+var ALERT_PATTERNS=/追加料金|追加のため|追加分|別途.{0,3}(料金|費用|支払|請求)|要(?:確認|相談|対応)|至急|変更|連絡あり|仮予約|無料|キャンセル待ち|返金/;
 // 簡易ハッシュ（備考が同一かの判定用。内容が変われば値が変わる＝チェックが自動リセット）
 function _hash(s){s=String(s||'');var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h+s.charCodeAt(i))|0;}return (h>>>0).toString(36);}
 // チェック状態のキー：予約ID＋備考ハッシュ。再取込で予約が上書きされてもIDと内容が同じなら引き継ぐ。内容が変わればリセット
