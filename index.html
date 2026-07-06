@@ -537,8 +537,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=247;
-const APP_BUILD_DATE='2026/07/05 17:10';
+const APP_VERSION=248;
+const APP_BUILD_DATE='2026/07/05 17:45';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1866,6 +1866,8 @@ function openEditStay(id){
   document.getElementById('edit-modal').classList.add('open');document.body.style.overflow='hidden';
   // 開いた時点で、現在の備品に対応する文言へ橙色✓を付け直す（再表示でグレーに戻らないように）
   esRebuildMemoChecks();
+  // 備品が未設定の予約は、メモから自動で備品を読み取る（＝ボタンを自動実行。手動調整済みの予約は上書きしない）
+  if(!(s.rental&&s.rental.length)) esReadMemoRental(true);
 }
 
 // メモの客自由記述から備品を推定してチェック＆数量入力（あくまで補助。文言が違うと拾えない）
@@ -1915,10 +1917,10 @@ function esRebuildMemoChecks(){
   h+=htmlEscape(memo.slice(p));
   el.innerHTML=h;
 }
-function esReadMemoRental(){
+function esReadMemoRental(silent){
   var memoEl=document.getElementById('es-memo'); if(!memoEl)return;
   var memo=(memoEl.innerText||'').replace(/✓/g,'');
-  if(!memo.trim()){showToast('メモが空です','#777');return;}
+  if(!memo.trim()){if(!silent)showToast('メモが空です','#777');return;}
   var hit=0, exNeeded=false;
   ALL_ITEMS.forEach(function(it){
     var re=RENTAL_ALIAS[it.id]; if(!re)return;
@@ -1943,10 +1945,13 @@ function esReadMemoRental(){
   });
   if(exNeeded){var d=document.getElementById('esr-ex');if(d)d.style.display='';}
   esRebuildMemoChecks();
-  // 結果が見えるよう備品欄を開く
-  var body=document.getElementById('es-rental-body'); if(body)body.style.display='';
-  var tog=document.getElementById('es-rental-tog'); if(tog&&tog.textContent.charAt(0)==='▶')tog.textContent='▼'+tog.textContent.slice(1);
-  showToast(hit?('✓ '+hit+'点を読み取りました（✓印・要確認）'):'該当する備品が見つかりませんでした',hit?'#1a7a3a':'#777');
+  // 何か拾えたら結果が見えるよう備品欄を開く
+  if(hit){
+    var body=document.getElementById('es-rental-body'); if(body)body.style.display='';
+    var tog=document.getElementById('es-rental-tog'); if(tog&&tog.textContent.charAt(0)==='▶')tog.textContent='▼'+tog.textContent.slice(1);
+  }
+  if(silent){ if(hit)showToast('✓ メモから'+hit+'点を自動入力（要確認）','#1a7a3a'); }
+  else showToast(hit?('✓ '+hit+'点を読み取りました（✓印・要確認）'):'該当する備品が見つかりませんでした',hit?'#1a7a3a':'#777');
 }
 function esrChg(id){document.getElementById('esrq_'+id).style.display=document.getElementById('esr_'+id).checked?'flex':'none';esRebuildMemoChecks();}
 function esrChgQ(id,delta){const el=document.getElementById('esrs_'+id);el.textContent=Math.max(1,parseInt(el.textContent)+delta);}
