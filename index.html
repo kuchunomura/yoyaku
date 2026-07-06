@@ -490,7 +490,7 @@ details[open] summary{opacity:0.75}
     <div id="confirm-msg" style="font-size:16px;font-weight:500;margin-bottom:20px;text-align:center"></div>
     <div style="display:flex;gap:10px">
       <button class="btn-sm" onclick="confirmCancel()" style="flex:1;padding:12px;font-size:14px">キャンセル</button>
-      <button class="btn-sm btn-danger" onclick="confirmOk()" style="flex:1;padding:12px;font-size:14px;background:#c00;color:#fff;border-color:#c00">削除する</button>
+      <button class="btn-sm btn-danger" id="confirm-ok" onclick="confirmOk()" style="flex:1;padding:12px;font-size:14px;background:#c00;color:#fff;border-color:#c00">削除する</button>
     </div>
   </div>
 </div>
@@ -541,8 +541,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=250;
-const APP_BUILD_DATE='2026/07/05 18:45';
+const APP_VERSION=251;
+const APP_BUILD_DATE='2026/07/06 10:58';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1668,9 +1668,11 @@ function toggleDayCancel(id){
 function markChanged(id){const s=stays.find(x=>x.id===id);if(s){s.changed=!s.changed;sv(STKEY,stays);autoPush();renderList();showToast(s.changed?'変更済みにしました':'変更済みを解除しました',s.changed?'#c00':'#555');}}
 function markChangedDay(id){const r=reservations.find(x=>x.id===id);if(r){r.changed=!r.changed;sv(RKEY,reservations);autoPush();renderList();showToast(r.changed?'変更済みにしました':'変更済みを解除しました',r.changed?'#c00':'#555');}}
 let _confirmCb=null;
-function showConfirm(msg,cb){
+function showConfirm(msg,cb,okLabel,okColor){
   _confirmCb=cb;
   document.getElementById('confirm-msg').textContent=msg;
+  var ok=document.getElementById('confirm-ok');
+  if(ok){ ok.textContent=okLabel||'削除する'; var c=okColor||'#c00'; ok.style.background=c; ok.style.borderColor=c; }
   document.getElementById('confirm-modal').classList.add('open');
   document.body.style.overflow='hidden';
 }
@@ -2529,7 +2531,7 @@ function bulkDetectRental(){
     var res=document.getElementById('csv-result');
     if(res){ res.style.color=n?'#1a7a3a':'#777'; res.textContent=n?('✓ 一括反映：'+n+'件の予約に備品を自動入力（計'+items+'点）'):'該当する予約はありませんでした（未設定＆メモに備品記載がある予約なし）'; }
     showToast(n?('✓ '+n+'件に備品を自動反映'):'該当する予約なし', n?'#1a7a3a':'#777');
-  });
+  }, '実行する', '#1a7a3a');
 }
 // 選択中の施設のCSV取込分（wpId付き）だけを削除
 function delCsvImported(){
