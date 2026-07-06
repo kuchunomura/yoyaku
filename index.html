@@ -169,9 +169,13 @@ details[open] summary{opacity:0.75}
   #app{display:none!important}
   #print-area{display:block!important}
   @page{size:A4 landscape;margin:7mm}
+  @page pgLand{size:A4 landscape;margin:7mm}
+  @page pgPort{size:A4 portrait;margin:7mm}
   .page-break{page-break-after:always;height:0;overflow:hidden}
   .psheet{page-break-after:always;break-after:page}
   .psheet:last-child{page-break-after:auto;break-after:auto}
+  .psheet.land{page:pgLand}
+  .psheet.port{page:pgPort}
   body{background:#fff}
 }
 </style>
@@ -462,7 +466,7 @@ details[open] summary{opacity:0.75}
     <select id="print-mode" style="font-size:14px;-webkit-appearance:menulist;appearance:menulist;border:1px solid #888;border-radius:6px;padding:8px;background:#fff;width:100%">
       <option value="stay">① 宿泊用（A4に2日分・上下）</option>
       <option value="day">② 日帰り用</option>
-      <option value="both">③ 両方まとめ（予約少ない時）</option>
+      <option value="both">③ 両方まとめて</option>
     </select>
     <label style="margin-top:8px">開始日</label><input type="date" id="print-from">
     <label style="margin-top:8px">終了日</label><input type="date" id="print-to">
@@ -532,8 +536,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=244;
-const APP_BUILD_DATE='2026/07/05 15:30';
+const APP_VERSION=245;
+const APP_BUILD_DATE='2026/07/05 16:10';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2830,45 +2834,50 @@ function _pDayBlock(date){
   });
   return h;
 }
+// 宿泊：各日の実高さを画面外(A4横幅)で測定し、1ページに収まる範囲で最大2日まで詰める。
+// 予約が多く1日で溢れる日は自動的に単独ページになる。ページHTMLの配列を返す。
+function _pStayPages(dateList){
+  var CAP=700; // A4横の印字可能高さ(約740px)から余白ぶんを差し引いた1ページの目安
+  var meas=document.createElement('div');
+  meas.className='pcompact';
+  meas.style.cssText='position:absolute;left:-99999px;top:0;width:1060px;visibility:hidden';
+  document.body.appendChild(meas);
+  var blocks=dateList.map(function(d){ var html=_pStayBlock(d); meas.innerHTML=html; return {html:html,h:meas.offsetHeight}; });
+  document.body.removeChild(meas);
+  var out=[],cur=[],curH=0;
+  blocks.forEach(function(b){
+    if(cur.length>0 && cur.length<2 && (curH+8+b.h)<=CAP){ cur.push(b); curH+=8+b.h; }
+    else { if(cur.length) out.push(cur.map(function(x,i){return (i?'<div class="pgap"></div>':'')+x.html;}).join('')); cur=[b]; curH=b.h; }
+  });
+  if(cur.length) out.push(cur.map(function(x,i){return (i?'<div class="pgap"></div>':'')+x.html;}).join(''));
+  return out;
+}
+// 日帰り：A4縦に2日分ずつ。ページHTMLの配列を返す。
+function _pDayPages(dateList){
+  var out=[];
+  for(var j=0;j<dateList.length;j+=2){ out.push(_pDayBlock(dateList[j])+(dateList[j+1]?'<div class="pgap"></div>'+_pDayBlock(dateList[j+1]):'')); }
+  return out;
+}
 function doPrint(){
   var mode=document.getElementById('print-mode').value;
   var from=normDate(document.getElementById('print-from').value)||todayStr();
   var to=normDate(document.getElementById('print-to').value)||from;
   if(to<from){var tmp=from;from=to;to=tmp;}
   var dates=_pDateList(from,to);
-  var sheets=[]; // 1ページ分のHTMLを配列で持つ
+  var sheets=[]; // {html, cls} cls=land(横)/port(縦)
   if(mode==='stay'){
-    // 各日の実高さを画面外で測定し、1ページ(A4横)に収まる範囲で最大2日まで詰める。
-    // 予約が多く1日で溢れる日は自動的に単独ページになる。
-    var CAP=700; // A4横の印字可能高さ(約740px)から余白/見出しぶんを差し引いた1ページの目安
-    var meas=document.createElement('div');
-    meas.className='pcompact';
-    meas.style.cssText='position:absolute;left:-99999px;top:0;width:1060px;visibility:hidden';
-    document.body.appendChild(meas);
-    var blocks=dates.map(function(d){ var html=_pStayBlock(d); meas.innerHTML=html; return {html:html,h:meas.offsetHeight}; });
-    document.body.removeChild(meas);
-    var cur=[],curH=0;
-    blocks.forEach(function(b){
-      if(cur.length>0 && cur.length<2 && (curH+8+b.h)<=CAP){ cur.push(b); curH+=8+b.h; }
-      else { if(cur.length) sheets.push(cur.map(function(x,i){return (i?'<div class="pgap"></div>':'')+x.html;}).join('')); cur=[b]; curH=b.h; }
-    });
-    if(cur.length) sheets.push(cur.map(function(x,i){return (i?'<div class="pgap"></div>':'')+x.html;}).join(''));
+    _pStayPages(dates).forEach(function(h){ sheets.push({html:h,cls:'land'}); });
   }else if(mode==='day'){
-    for(var j=0;j<dates.length;j+=2){ sheets.push(_pDayBlock(dates[j])+(dates[j+1]?'<div class="pgap"></div>'+_pDayBlock(dates[j+1]):'')); }
+    _pDayPages(dates).forEach(function(h){ sheets.push({html:h,cls:'port'}); });
   }else{
-    dates.forEach(function(d){ sheets.push(_pStayBlock(d)+_pDayBlock(d)); });
+    // 両方まとめて：宿泊(A4横)をまとめて → 日帰り(A4縦)をまとめて、別ページ
+    _pStayPages(dates).forEach(function(h){ sheets.push({html:h,cls:'land'}); });
+    _pDayPages(dates).forEach(function(h){ sheets.push({html:h,cls:'port'}); });
   }
-  var label={stay:'宿泊',day:'日帰り',both:'宿泊＋日帰り'}[mode];
-  var phead='<div class="phead">🏕 空中の村 予約表　'+fmtDate(from)+' 〜 '+fmtDate(to)+'　（'+label+'）</div>';
-  var body=sheets.map(function(s,i){ return '<div class="psheet">'+(i===0?phead:'')+s+'</div>'; }).join('');
+  var body=sheets.map(function(s){ return '<div class="psheet '+s.cls+'">'+s.html+'</div>'; }).join('');
   var pa=document.getElementById('print-area');
-  pa.className=(mode==='both')?'':'pcompact';
+  pa.className='pcompact';
   pa.innerHTML=body;
-  // 用紙の向き：宿泊のみ横、日帰り・両方は縦
-  var orient=(mode==='stay')?'landscape':'portrait';
-  var ps=document.getElementById('pageStyle');
-  if(!ps){ ps=document.createElement('style'); ps.id='pageStyle'; document.head.appendChild(ps); }
-  ps.textContent='@media print{@page{size:A4 '+orient+';margin:7mm}}';
   closePrintModal();
   window._printing=true;
   window.addEventListener('afterprint',function _ap(){window._printing=false;window.removeEventListener('afterprint',_ap);});
