@@ -541,8 +541,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=253;
-const APP_BUILD_DATE='2026/07/06 14:31';
+const APP_VERSION=254;
+const APP_BUILD_DATE='2026/07/06 14:38';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -670,6 +670,8 @@ function toggleQDoneOpen(){_qDoneOpen=!_qDoneOpen;renderQuestionAlerts();}
 function toggleQPast(){_qPast=!_qPast;renderQuestionAlerts();}
 // 質問・要確認パターン（？ / 〜ですか？ / ですか。 / でしょうか。 / ますか。 / したいです。 / と思っています。）
 var Q_PATTERNS=/(?:です|ます)か(?=[。\.\s、，？?]|$)|でしょうか|たいです|[のん]です[がけ]|と思って(?:い)?ます/;
+// 質問ではないが要確認の言い回し（追加料金・別途・変更・要相談など）。スタッフが見落とさないよう要確認に集約する。
+var ALERT_PATTERNS=/追加料金|追加のため|追加分|別途.{0,3}(料金|費用|支払|請求)|要(?:確認|相談|対応)|至急|変更(?:希望|あり|して)|キャンセル待ち|返金/;
 // 簡易ハッシュ（備考が同一かの判定用。内容が変われば値が変わる＝チェックが自動リセット）
 function _hash(s){s=String(s||'');var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h+s.charCodeAt(i))|0;}return (h>>>0).toString(36);}
 // チェック状態のキー：予約ID＋備考ハッシュ。再取込で予約が上書きされてもIDと内容が同じなら引き継ぐ。内容が変わればリセット
@@ -683,7 +685,7 @@ function renderQuestionAlerts(){
     if(isCancelled(o))return;
     var d=isStay?o.checkin:o.date;
     var memo=String(o.memo||''); if(!memo)return;
-    if(!Q_PATTERNS.test(memo))return;
+    if(!Q_PATTERNS.test(memo) && !ALERT_PATTERNS.test(memo))return;
     allItems.push({isStay:isStay,o:o,k:qackKey(o),past:!!(d&&d<today)});
   }
   stays.forEach(function(s){scan(s,true);});
@@ -730,7 +732,7 @@ function memoQExcerpt(memo){
   // 文末記号で区切る（iOS12対応でlookbehind不使用）
   var parts=s.split(/([。\.？?！!\n])/);
   var sentences=[]; for(var i=0;i<parts.length;i+=2){ var t=(parts[i]||'')+(parts[i+1]||''); if(t.trim())sentences.push(t); }
-  var hit=sentences.filter(function(t){return Q_PATTERNS.test(t);});
+  var hit=sentences.filter(function(t){return Q_PATTERNS.test(t)||ALERT_PATTERNS.test(t);});
   var out=(hit.length?hit.join(' '):s).trim();
   return out.length>120?out.slice(0,120)+'…':out;
 }
@@ -1050,13 +1052,19 @@ function onDaySourceChange(){
 // 紐づけ候補の「可能性が高い」判定：同じ名前 or 同じOTA（楽天/じゃらん/SOU等）
 function _isOta(k){return ['rakuten','jalan','sou','other1','other2','other3'].indexOf(k)>=0;}
 function _normName(n){return String(n||'').replace(/[\s　]/g,'').trim();}
-function _likelyLink(a,b){
+// 予約者名が一致（完全一致 or 一方が他方を含む）
+function _nameMatch(a,b){
   var an=_normName(a.name),bn=_normName(b.name);
-  if(an&&bn&&(an===bn||an.indexOf(bn)>=0||bn.indexOf(an)>=0))return true;
+  return !!(an&&bn&&(an===bn||an.indexOf(bn)>=0||bn.indexOf(an)>=0));
+}
+// 候補として出す条件（名前一致 or 同一OTA）。◎ハイライト用。自動紐づけには使わない。
+function _likelyLink(a,b){
+  if(_nameMatch(a,b))return true;
   if(a.source&&b.source&&a.source===b.source&&_isOta(a.source))return true;
   return false;
 }
-// 同名/同OTAの日帰り↔宿泊を前後±1日で自動紐づけ（追加のみ。解除は編集で可能）
+// 予約者名が一致する日帰り↔宿泊を前後±1日で自動紐づけ（追加のみ。解除は編集で可能）
+// ※名前が違う場合は自動紐づけしない（候補には出るので手動で紐づけ可能）
 function autoLinkAll(){
   var changed=false;
   stays.forEach(function(s){
@@ -1067,7 +1075,7 @@ function autoLinkAll(){
     reservations.forEach(function(r){
       if(!r.date||adj.indexOf(r.date)<0)return;
       if(isCancelled(r))return; // キャンセル済みは自動紐づけしない
-      if(!_likelyLink(s,r))return;
+      if(!_nameMatch(s,r))return; // 予約者名が一致する時だけ自動紐づけ（名前違いは候補どまり）
       s.linkedDayIds=s.linkedDayIds||[];
       r.linkedStayIds=r.linkedStayIds||[];
       if(s.linkedDayIds.indexOf(r.id)<0){s.linkedDayIds.push(r.id);changed=true;}
@@ -1592,7 +1600,7 @@ function fmtMemoChecks(memo,rental){
   var off=0;
   for(var i=0;i<parts.length;i+=2){
     var sent=(parts[i]||'')+(parts[i+1]||'');
-    if(sent.trim() && Q_PATTERNS.test(sent)) marks.push({pos:off+sent.length,type:'q'});
+    if(sent.trim() && (Q_PATTERNS.test(sent)||ALERT_PATTERNS.test(sent))) marks.push({pos:off+sent.length,type:'q'});
     off+=sent.length;
   }
   marks.sort(function(a,b){return a.pos-b.pos||(a.type<b.type?-1:1);});
