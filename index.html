@@ -557,8 +557,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=263;
-const APP_BUILD_DATE='2026/07/07 22:24';
+const APP_VERSION=264;
+const APP_BUILD_DATE='2026/07/07 22:38';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2324,12 +2324,15 @@ function fmtDateTime(ts){var d=new Date(ts);var w=['日','月','火','水','木'
 function renderCsvImpLog(){
   var el=document.getElementById('csv-implog'); if(!el) return;
   var imp=ld('yv_csvimp')||{};
+  var mon=ld('yv_csvimp_mon')||{};
+  // 'YYYY-MM,YYYY-MM' → '7月分' / '7〜8月分'
+  function monLabel(csv){ if(!csv) return ''; var arr=String(csv).split(',').filter(Boolean).sort(); if(!arr.length) return ''; var ja=function(m){var p=m.split('-');return (+p[1])+'月';}; return (arr.length===1?ja(arr[0]):ja(arr[0])+'〜'+ja(arr[arr.length-1]))+'分'; }
   var rows=[];
-  FACILITIES.forEach(function(f){var v='day:'+f.id;var lb=(f.id==='tree'?'ツリーハウス昼':f.label);rows.push([lb,imp[v]]);});
-  var seen={}; STAY_FACS.forEach(function(f){if(seen[f.group])return;seen[f.group]=true;var v='staygroup:'+f.group;rows.push([f.group+'（宿泊）',imp[v]]);});
+  FACILITIES.forEach(function(f){var v='day:'+f.id;var lb=(f.id==='tree'?'ツリーハウス昼':f.label);rows.push([lb,imp[v],monLabel(mon[v])]);});
+  var seen={}; STAY_FACS.forEach(function(f){if(seen[f.group])return;seen[f.group]=true;var v='staygroup:'+f.group;rows.push([f.group+'（宿泊）',imp[v],monLabel(mon[v])]);});
   el.innerHTML='<b>最終CSV取込日時</b>'
     +'<div style="display:grid;grid-template-columns:max-content max-content;gap:3px 6px;margin-top:4px;line-height:1.5;">'
-    +rows.map(function(r){return '<div>'+r[0]+'</div><div>：'+(r[1]?'<span style="color:#1a7a3a">'+fmtDateTime(r[1])+'</span>':'<span style="color:#bbb">未取込</span>')+'</div>';}).join('')
+    +rows.map(function(r){return '<div>'+r[0]+'</div><div>：'+(r[1]?'<span style="color:#1a7a3a">'+fmtDateTime(r[1])+'</span>'+(r[2]?' <span style="color:#6b4f20;font-weight:700">'+r[2]+'</span>':''):'<span style="color:#bbb">未取込</span>')+'</div>';}).join('')
     +'</div>';
 }
 // 日帰り↔宿泊で同じ施設の対応（ツリーハウスは昼/夜の両方がある）
@@ -2451,6 +2454,7 @@ function importCSV(){
     if(!text||!text.trim()){ res.style.color='#c00'; res.textContent='⚠ CSVを選択するか貼り付けてください'; return; }
     var rows=parseDelimited(text);
     var added=0,updated=0,cancelled=0,mismatch=0;
+    var _impMonths={}; // 取り込んだ予約が何月分かを記録（'YYYY-MM'）
     // ヘッダー行（1行目がデータIDでない＝列名行）があれば列名で対応付け（位置ズレ対策）
     var headerRow=(rows.length && !/^\d+$/.test(String(rows[0][0]||'').trim())) ? rows[0] : null;
     function hcol(re){ if(!headerRow) return -1; for(var i=0;i<headerRow.length;i++){ if(re.test(String(headerRow[i]||''))) return i; } return -1; }
@@ -2564,6 +2568,7 @@ function importCSV(){
       }
       // メモ(客チェック方式)から備品を自動推定して初期セット。自動セットには rentalAuto フラグを付ける。
       rec.rental=detectRentalFromMemo(rec.memo); rec.rentalAuto=true;
+      var _md=(type==='day'?rec.date:rec.checkin); if(_md&&/^\d{4}-\d{2}/.test(_md)) _impMonths[_md.slice(0,7)]=true; // 何月分か記録
       var arr = type==='day' ? reservations : stays;
       var exIdx = arr.findIndex(function(x){ return x.wpId===wpId; });
       if(exIdx>=0){
@@ -2582,7 +2587,9 @@ function importCSV(){
     });
     autoLinkAll(); // 取込後に同名/同OTAを自動紐づけ
     // カテゴリ別の最終取込日時を記録
-    var _imp=ld('yv_csvimp')||{}; _imp[sel]=Date.now(); sv('yv_csvimp',_imp); renderCsvImpLog();
+    var _imp=ld('yv_csvimp')||{}; _imp[sel]=Date.now(); sv('yv_csvimp',_imp);
+    var _mon=ld('yv_csvimp_mon')||{}; _mon[sel]=Object.keys(_impMonths).sort().join(','); sv('yv_csvimp_mon',_mon); // 何月分かを記録
+    renderCsvImpLog();
     sv(RKEY,reservations); sv(STKEY,stays); autoPush();
     res.style.color='#1a7a3a';
     res.innerHTML='✓ 取込完了：追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'')
