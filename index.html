@@ -557,8 +557,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=267;
-const APP_BUILD_DATE='2026/07/07 23:28';
+const APP_VERSION=268;
+const APP_BUILD_DATE='2026/07/07 23:38';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1933,30 +1933,28 @@ var RENTAL_ALIAS={
   b19:/(寝袋|シュラフ)(?!.{0,4}冬)/
 };
 // メモ本文から備品を推定して {id,name,price,qty} の配列を返す（DOM非依存）。両フォーマット対応。
-//  ①客チェック方式：メモが「✓＋JPY価格リスト」形式のとき、品名の直後(8文字以内)に✓がある品だけ・数量1。
-//     ※OTAの説明文中の✓（例「焚き火用品レンタル（無料）✓」「すみません✓」）を誤検出しないよう、
-//       JPY価格リストであること＋✓が品名の直後にあることを必須にする。
-//  ②自由記述：品名＋数量キュー（「×N」「N個」「N台」「Nつ」「Nセット」「×2→×1変更」等）。
-//     freeMode='strict'（取込用）＝数量キューが品名の近くに無い品はスキップ（OTA説明文の誤検出防止）。
-//     freeMode=true/'lenient'（手動ボタン用）＝キューが無くても拾う（qty=1）。
+//  A. 客フォームの価格リスト「品名 English 〇〇JPY」＝JPYごとに区切り、各区切りで“価格に最も近い(右端の)”品名を選択済みとして採用・数量1。
+//     ※カード上の✓は表示用にアプリが後付けするだけ。保存メモに✓は入らないので、✓では判定しない。
+//  B. 自由記述「品名＋数量（1つ/1台/×1/N個/×2→×1変更 等）」＝品名の近くに数量キューがある品を採用。
+//     freeMode='strict'（取込用）＝キューが無い品はスキップ（OTA説明文の誤検出防止）。true/'lenient'（手動）＝キュー無しでも拾う(qty1)。
 function detectRentalFromMemo(memo, freeMode){
   var raw=String(memo||''); if(!raw.trim())return [];
-  var isCheckbox = raw.indexOf('✓')!==-1 && /JPY/i.test(raw); // 客チェックのレンタル欄（✓＋JPY価格）
   var out=[];
-  if(isCheckbox){
-    ALL_ITEMS.forEach(function(it){
-      var re=RENTAL_ALIAS[it.id]; if(!re)return;
-      var m=re.exec(raw); if(!m)return;
-      var seg=raw.slice(m.index+m[0].length, m.index+m[0].length+8); // 品名の直後だけ見る
-      if(seg.indexOf('✓')===-1)return; // 直後に✓が無い＝未選択 or 説明文中の一致
-      out.push({id:it.id,name:it.name,price:it.price,qty:1});
-    });
+  var toHalf=function(s){return String(s).replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);});};
+  // ── A：価格リスト（〇〇JPYを含む）。JPYごとに区切り、各区切りで最も価格寄り(右端)の品名を採用 ──
+  if(/[0-9０-９]+\s*JPY/i.test(raw)){
+    var segRe=/[\s\S]*?[0-9０-９]+\s*JPY/gi, seg, usedA={};
+    while((seg=segRe.exec(raw))){
+      var s=seg[0], best=null, bestIdx=-1;
+      ALL_ITEMS.forEach(function(it){ var re=RENTAL_ALIAS[it.id]; if(!re)return; var m=re.exec(s); if(!m)return; if(m.index>bestIdx){ bestIdx=m.index; best=it; } });
+      if(best && !usedA[best.id]){ usedA[best.id]=true; out.push({id:best.id,name:best.name,price:best.price,qty:1}); }
+    }
     return out;
   }
-  if(!freeMode)return []; // フリー記述を拾わない指定
-  var strict = (freeMode==='strict'); // 取込用：数量キュー必須
+  // ── B：自由記述（数量キュー）──
+  if(!freeMode)return [];
+  var strict=(freeMode==='strict');
   var base=raw.replace(/✓/g,'');
-  var toHalf=function(s){return String(s).replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);});};
   ALL_ITEMS.forEach(function(it){
     var re=RENTAL_ALIAS[it.id]; if(!re)return;
     var m=re.exec(base); if(!m)return;
