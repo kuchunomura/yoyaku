@@ -120,7 +120,7 @@ textarea{resize:vertical;min-height:60px}
 .cal-dot-s{width:6px;height:6px;border-radius:50%;background:#d06080}
 .cal-today .cal-day{background:#111;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
 .cal-selected{background:#fff0f4;border:1px solid #d06080}
-.cal-head{font-size:12px;font-weight:600;text-align:center;color:#888;padding:4px 0}
+.cal-head{font-size:12.5px;font-weight:700;text-align:center;color:#888;padding:4px 0}
 /* 太字を少し細く統一（700→600） */
 b,strong,.card-name,.card-total{font-weight:600}
 summary::-webkit-details-marker{display:none}
@@ -557,8 +557,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=264;
-const APP_BUILD_DATE='2026/07/07 22:38';
+const APP_VERSION=265;
+const APP_BUILD_DATE='2026/07/07 22:45';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2683,7 +2683,7 @@ function copyHandover(){
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calSelDate=null;
 let calFilter='all';
 // カレンダー略称・カテゴリ順（日帰り→宿泊）。狭いので短縮・スペース無し
-const CAL_DAY_ABBR={walk:{abbr:'空ウ',color:'#224466',order:1},tree:{abbr:'ツ昼',color:'#633806',order:2},bbq:{abbr:'BBQ',color:'#555',order:3}};
+const CAL_DAY_ABBR={walk:{abbr:'空ウ',color:'#224466',order:1},tree:{abbr:'ツ昼',color:'#224466',order:2},bbq:{abbr:'BBQ',color:'#555',order:3}};
 const CAL_STAY_ABBR={'ツリーハウス':{abbr:'ツ泊',color:'#7a1030',order:4},'透明ドーム':{abbr:'ドーム',color:'#9b3060',order:5},'空中テント':{abbr:'テント',color:'#c05080',order:6},'空中ハンモック':{abbr:'ハンモ',color:'#d07090',order:7}};
 function setCalFilter(f){calFilter=f;renderCal();}
 // 火曜定休。例外的に営業する日（臨時営業）を保存
@@ -2790,9 +2790,9 @@ function renderCal(){
     const hol=holidays[dateStr];
     const isTue=dow===2, sOpen=specialOpen.indexOf(dateStr)>=0, closed=isTue&&!sOpen;
     const cell=document.createElement('div');
-    cell.style.cssText='border-radius:6px;padding:2px 1px;cursor:pointer;border:1px solid '+(isSel?'#d06080':'#eee')+';background:'+(isSel?'#fff0f4':isToday?'#f7f7f7':'#fff')+';min-height:118px;overflow:hidden';
+    cell.style.cssText='border-radius:6px;padding:2px 1px;cursor:pointer;border:1px solid '+(isSel?'#d06080':'#eee')+';background:'+(isSel?'#fff0f4':isToday?'#f7f7f7':'#fff')+';min-height:140px;overflow:hidden';
     const dayDiv=document.createElement('div');
-    dayDiv.style.cssText='font-size:13px;font-weight:600;text-align:center;padding:1px 0;margin-bottom:1px;color:'+(isToday?'#fff':(dow===0||hol)?'#c00':dow===6?'#1565c0':'#111');
+    dayDiv.style.cssText='font-size:13.5px;font-weight:700;text-align:center;padding:1px 0;margin-bottom:1px;color:'+(isToday?'#fff':(dow===0||hol)?'#c00':dow===6?'#1565c0':'#111');
     if(isToday){dayDiv.style.cssText+='background:#111;border-radius:50%;width:22px;height:22px;margin:0 auto 1px;display:flex;align-items:center;justify-content:center';}
     dayDiv.textContent=d;
     cell.appendChild(dayDiv);
@@ -2802,7 +2802,7 @@ function renderCal(){
     entries.slice(0,SHOW).forEach(e=>{
       const tt=e.time?(e.time.slice(-3)===':00'?(parseInt(e.time,10)+'時'):e.time):'';
       const row=document.createElement('div');
-      row.style.cssText='font-size:9px;line-height:1.45;color:'+e.color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      row.style.cssText='font-size:9.5px;font-weight:700;line-height:1.5;color:'+e.color+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
       row.textContent='・'+e.abbr+tt+(e.ppl?e.ppl+'名':'')+e.name;
       cell.appendChild(row);
     });
