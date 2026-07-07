@@ -80,10 +80,14 @@ function doPost(e){
         PropertiesService.getDocumentProperties().setProperty('sharednote', data.sharednote);
       }
       // 最終CSV取込日時：施設ごとに新しい方を残してマージ（他デバイスの取込時刻を消さない）
+      // 併せて「何月分か（csvimpmon）」も、取込時刻が新しくなった施設だけ更新して同期する
       if(data.csvimp && typeof data.csvimp === 'object'){
         var _cur={}; try{ _cur=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimp')||'{}'); }catch(_e){}
-        for(var _k in data.csvimp){ var _v=Number(data.csvimp[_k])||0; if(_v>(Number(_cur[_k])||0)) _cur[_k]=_v; }
+        var _curM={}; try{ _curM=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimpmon')||'{}'); }catch(_eM){}
+        var _inM=(data.csvimpmon && typeof data.csvimpmon === 'object')?data.csvimpmon:{};
+        for(var _k in data.csvimp){ var _v=Number(data.csvimp[_k])||0; if(_v>(Number(_cur[_k])||0)){ _cur[_k]=_v; if(_inM[_k]!==undefined)_curM[_k]=_inM[_k]; } }
         PropertiesService.getDocumentProperties().setProperty('csvimp', JSON.stringify(_cur));
+        PropertiesService.getDocumentProperties().setProperty('csvimpmon', JSON.stringify(_curM));
       }
       return jsonOut({status:'ok', saved:{reservations:(data.reservations||[]).length, stays:(data.stays||[]).length}});
     }
@@ -98,8 +102,9 @@ function doGet(e){
     var ota={}; try{ ota=JSON.parse(PropertiesService.getDocumentProperties().getProperty('otaack')||'{}'); }catch(e2){}
     var qk={}; try{ qk=JSON.parse(PropertiesService.getDocumentProperties().getProperty('qack')||'{}'); }catch(e3){}
     var ci={}; try{ ci=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimp')||'{}'); }catch(e4){}
+    var cim={}; try{ cim=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimpmon')||'{}'); }catch(e6){}
     var sn=PropertiesService.getDocumentProperties().getProperty('sharednote')||'';
-    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, sharednote:sn});
+    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, sharednote:sn});
   }catch(err){
     return jsonOut({status:'error', message:String(err)});
   }

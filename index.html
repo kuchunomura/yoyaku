@@ -233,7 +233,7 @@ details[open] summary{opacity:0.75}
         <label style="font-size:14px"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">①</span> 取込先の施設（このCSVの商品）　<span style="font-size:12.5px;color:#9a8050">▼タップで選択</span></label>
         <select id="csv-fac" style="font-size:14px;-webkit-appearance:menulist;appearance:menulist;border:1px solid #888;border-radius:6px;padding:8px;background:#fff"></select>
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13.5px;cursor:pointer;font-weight:normal">
-          <input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む（既定はあり）
+          <input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む
         </label>
         <label style="margin-top:10px;font-size:14px;line-height:1.5"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span style="color:#c0392b;font-weight:600;font-size:12.5px">⚠ 施設は認識できません。間違えないように</span></label>
         <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:14px;text-align:center;font-size:13.5px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<br><span style="font-size:11px;color:#9a8050">（またはタップしてファイルを選択）</span></div>
@@ -557,8 +557,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=265;
-const APP_BUILD_DATE='2026/07/07 22:45';
+const APP_VERSION=266;
+const APP_BUILD_DATE='2026/07/07 22:54';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2196,7 +2196,7 @@ async function syncToSheet(silent){
     const res=await fetch(url,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({type:'sync_all',stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),sharednote:(ld('yv_sharednote')||'')})
+      body:JSON.stringify({type:'sync_all',stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),csvimpmon:(ld('yv_csvimp_mon')||{}),sharednote:(ld('yv_sharednote')||'')})
     });
     const json=await res.json();
     if(json.status==='ok'){
@@ -2229,7 +2229,7 @@ async function loadFromSheet(silent){
       // 共有メモ（全端末で同期）。入力中の端末は上書きしない
       if(typeof json.sharednote==='string'){ sv('yv_sharednote',json.sharednote); var _sn=document.getElementById('shared-note'); if(_sn&&document.activeElement!==_sn)_sn.value=json.sharednote; }
       // 最終CSV取込日時：施設ごとに新しい方を残してマージ（他デバイスの取込時刻を消さない）
-      if(json.csvimp&&typeof json.csvimp==='object'){ var _ci=ld('yv_csvimp')||{}; for(var _ck in json.csvimp){ var _cv=Number(json.csvimp[_ck])||0; if(_cv>(Number(_ci[_ck])||0)) _ci[_ck]=_cv; } sv('yv_csvimp',_ci); if(typeof renderCsvImpLog==='function')renderCsvImpLog(); }
+      if(json.csvimp&&typeof json.csvimp==='object'){ var _ci=ld('yv_csvimp')||{}; var _cm=ld('yv_csvimp_mon')||{}; var _rm=(json.csvimpmon&&typeof json.csvimpmon==='object')?json.csvimpmon:{}; for(var _ck in json.csvimp){ var _cv=Number(json.csvimp[_ck])||0; if(_cv>(Number(_ci[_ck])||0)){ _ci[_ck]=_cv; if(_rm[_ck]!==undefined)_cm[_ck]=_rm[_ck]; } } sv('yv_csvimp',_ci); sv('yv_csvimp_mon',_cm); if(typeof renderCsvImpLog==='function')renderCsvImpLog(); }
       sv(RKEY,reservations);sv(STKEY,stays);
       var _rep=repairNinzuFromAmount(); // 読込データの人数誤読を自動修復
       var _rq=healRentalQty();          // 客チェック方式メモの備品数量バグ（金額=数量）を自動修復
