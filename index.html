@@ -557,8 +557,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=266;
-const APP_BUILD_DATE='2026/07/07 22:54';
+const APP_VERSION=267;
+const APP_BUILD_DATE='2026/07/07 23:28';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1916,7 +1916,7 @@ var RENTAL_ALIAS={
   b06:/ガスコンロ|コンロ/,
   b06b:/バーナー|トーチ/,
   b06c:/マッチ|ライター|チャッカマン|着火/,
-  b07:/薪割|まきわり|マキワリ/,
+  b07:/薪割|まき割|薪わり|まきわり|マキワリ/,
   b08:/コーヒー|珈琲/,
   b13:/電源.{0,3}大|大.{0,3}電源|ポータブル電源.?大/,
   b14:/電源.{0,3}小|小.{0,3}電源|ポータブル電源.?小/,
@@ -1925,20 +1925,21 @@ var RENTAL_ALIAS={
   b12c:/ホットサンド/,
   b12d:/カイト|凧|たこ揚げ|タコ揚げ/,
   b_toy:/玩具|おもちゃ|オモチャ/,
-  b09:/火起こし|火おこし|火起し|チャコールスターター/,
+  b09:/火起こし|火おこし|火起し|チャコールスターター|ファイ[アヤ]ー?スターター/,
   b10:/カート|台車|ワゴン|リ[ヤア]カー/,
   b_yutanpo:/湯たんぽ|湯タンポ|ゆたんぽ/,
   b18:/焼き?網|あみ焼/,
   b20:/(寝袋|シュラフ).{0,3}冬|冬.{0,3}(寝袋|シュラフ)/,
   b19:/(寝袋|シュラフ)(?!.{0,4}冬)/
 };
-// メモ本文から備品を推定して {id,name,price,qty} の配列を返す（DOM非依存）。
+// メモ本文から備品を推定して {id,name,price,qty} の配列を返す（DOM非依存）。両フォーマット対応。
 //  ①客チェック方式：メモが「✓＋JPY価格リスト」形式のとき、品名の直後(8文字以内)に✓がある品だけ・数量1。
 //     ※OTAの説明文中の✓（例「焚き火用品レンタル（無料）✓」「すみません✓」）を誤検出しないよう、
 //       JPY価格リストであること＋✓が品名の直後にあることを必須にする。
-//  ②スタッフ自由記述（allowFreeText=true＝手動ボタンのみ）：品名＋「×N」「N個」で数量指定。
-//     自動処理(取込/一括)では②を行わない（OTA説明文の誤爆防止）。
-function detectRentalFromMemo(memo, allowFreeText){
+//  ②自由記述：品名＋数量キュー（「×N」「N個」「N台」「Nつ」「Nセット」「×2→×1変更」等）。
+//     freeMode='strict'（取込用）＝数量キューが品名の近くに無い品はスキップ（OTA説明文の誤検出防止）。
+//     freeMode=true/'lenient'（手動ボタン用）＝キューが無くても拾う（qty=1）。
+function detectRentalFromMemo(memo, freeMode){
   var raw=String(memo||''); if(!raw.trim())return [];
   var isCheckbox = raw.indexOf('✓')!==-1 && /JPY/i.test(raw); // 客チェックのレンタル欄（✓＋JPY価格）
   var out=[];
@@ -1952,8 +1953,8 @@ function detectRentalFromMemo(memo, allowFreeText){
     });
     return out;
   }
-  if(!allowFreeText)return []; // 自動処理はチェック方式のみ
-  // 手動ボタン用：自由記述の数量解析（×N/N個。裸の数字＝金額は拾わない）
+  if(!freeMode)return []; // フリー記述を拾わない指定
+  var strict = (freeMode==='strict'); // 取込用：数量キュー必須
   var base=raw.replace(/✓/g,'');
   var toHalf=function(s){return String(s).replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);});};
   ALL_ITEMS.forEach(function(it){
@@ -1962,11 +1963,12 @@ function detectRentalFromMemo(memo, allowFreeText){
     var after=base.slice(m.index+m[0].length, m.index+m[0].length+24);
     var qty=1, qn=null;
     var cuePos=after.search(/変更|訂正|修正|に直/);
-    if(cuePos>=0){ var nb=after.slice(0,cuePos).match(/[×xX]\s*[0-9０-９]+/g); if(nb&&nb.length){ var lm=nb[nb.length-1].match(/[0-9０-９]+/); if(lm)qn=lm[0]; } }
-    if(qn==null){ var am=after.match(/(?:[→⇒➡]|から)\s*[×xX]?\s*([0-9０-９]+)/); if(am)qn=am[1]; }
-    if(qn==null){ var fm=after.match(/[×xX]\s*([0-9０-９]+)/); if(fm)qn=fm[1]; }
-    if(qn==null){ var gm=after.match(/([0-9０-９]+)\s*個/); if(gm)qn=gm[1]; }
+    if(cuePos>=0){ var nb=after.slice(0,cuePos).match(/[×✕xX]\s*[0-9０-９]+/g); if(nb&&nb.length){ var lm=nb[nb.length-1].match(/[0-9０-９]+/); if(lm)qn=lm[0]; } }
+    if(qn==null){ var am=after.match(/(?:[→⇒➡]|から)\s*[×✕xX]?\s*([0-9０-９]+)/); if(am)qn=am[1]; }
+    if(qn==null){ var fm=after.match(/[×✕xX]\s*([0-9０-９]+)/); if(fm)qn=fm[1]; }
+    if(qn==null){ var cm=after.match(/([0-9０-９]+)\s*(?:つ|個|台|セット|組|脚|本|枚|張|点)/); if(cm)qn=cm[1]; } // 「1つ」「1台」「1セット」等
     if(qn!=null){var n=parseInt(toHalf(qn),10); if(n>0)qty=n;}
+    else if(strict) return; // 取込時：数量キューが無ければスキップ（説明文の誤検出を防ぐ）
     out.push({id:it.id,name:it.name,price:it.price,qty:qty});
   });
   return out;
@@ -2566,8 +2568,9 @@ function importCSV(){
           unitPrice:unit, totalPpl:adults, source:source, mura:false, rental:[], linkedDayIds:[], bed:bedCode(bed), addr:addr,
           memo:buildMemo(status,[rentalMemo,leftoverText(f,consumed)].filter(Boolean).join(' / ')), done:false, changed:false, createdAt:Date.now() };
       }
-      // メモ(客チェック方式)から備品を自動推定して初期セット。自動セットには rentalAuto フラグを付ける。
-      rec.rental=detectRentalFromMemo(rec.memo); rec.rentalAuto=true;
+      // メモ（客チェック方式＋自由記述）から備品を自動推定して初期セット。自動セットには rentalAuto フラグを付ける。
+      // 'strict'＝自由記述は数量キュー（1つ/1台/×1等）がある品だけ拾う（OTA説明文の誤検出防止）。
+      rec.rental=detectRentalFromMemo(rec.memo, 'strict'); rec.rentalAuto=true;
       var _md=(type==='day'?rec.date:rec.checkin); if(_md&&/^\d{4}-\d{2}/.test(_md)) _impMonths[_md.slice(0,7)]=true; // 何月分か記録
       var arr = type==='day' ? reservations : stays;
       var exIdx = arr.findIndex(function(x){ return x.wpId===wpId; });
