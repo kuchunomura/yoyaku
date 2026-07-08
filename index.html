@@ -557,8 +557,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=271;
-const APP_BUILD_DATE='2026/07/08 09:41';
+const APP_VERSION=272;
+const APP_BUILD_DATE='2026/07/08 09:57';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1417,6 +1417,7 @@ function renderList(){
         (srcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+srcL+'</span>':'')+
       '</div>'+
       unitToggle+
+      eventChipHtml(s.event)+
       // 1行目：日付〜 泊数 人数 名前（右に金額）
       '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
         '<span style="font-size:15.5px;color:#222;font-weight:700">'+
@@ -1483,6 +1484,7 @@ function renderList(){
         (r.done?'<span class="badge badge-done">会計済み</span>':'')+
         (daySrcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+daySrcL+'</span>':'')+
       '</div>'+
+      eventChipHtml(r.event)+
       // 主要情報行：左に 日付 時間 人数 名前／右に 金額（宿泊カードと同じ配置）
       '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
         '<span style="font-size:15.5px;color:#222;font-weight:700">'+
@@ -1785,7 +1787,8 @@ function openEdit(id){
   if(!slCks)slCks='<div style="font-size:13px;color:#aaa;padding:6px 0">前後の宿泊予約なし</div>';
   let dlCks='';reservations.filter(x=>x.id!==r.id).filter(o=>{if((r.linkedDayIds||[]).includes(o.id))return true;if(isCancelled(o))return false;if(!adjD||!o.date)return !adjD;return adjD.includes(o.date);}).forEach(o=>{const chk=(r.linkedDayIds||[]).includes(o.id)?'checked':'';const srcL=o.source?'【'+getSrcLabel(o.source)+'】':'【直接予約】';dlCks+='<div class="link-check-item"><input type="checkbox" id="edl_'+o.id+'" value="'+o.id+'" '+chk+'><label for="edl_'+o.id+'">'+(o.date?fmtDate(o.date)+' ':'')+dLinkLabel(o)+(o.name?' '+o.name:'')+(o.startTime?' '+o.startTime:'')+' '+srcL+'</label></div>';});
   if(!dlCks)dlCks='<div style="font-size:13px;color:#aaa;padding:6px 0">前後の日帰り予約なし</div>';
-  let html='<label>施設</label><select id="edit-facility" onchange="updEditCrs()">'+facOpts+'</select>'+crBlk+
+  let html=eventEditBlock('edit',r.event)+
+    '<label>施設</label><select id="edit-facility" onchange="updEditCrs()">'+facOpts+'</select>'+crBlk+
     '<label>予約日</label><input type="date" id="edit-date" value="'+(r.date||'')+'">'+
     '<label>予約サイト</label><select id="edit-day-src">'+srcOpts+'</select>'+
     '<label>開始時刻</label><input type="time" id="edit-start" value="'+r.startTime+'">'+
@@ -1855,7 +1858,8 @@ function openEditStay(id){
         '<button type="button" onclick="esrChgQ(\''+item.id+'\',1)">＋</button>'+
       '</div></div>';
   }).join('');
-  let html='<label>施設</label><select id="es-fac">'+facOpts+'</select>'+
+  let html=eventEditBlock('es',s.event)+
+    '<label>施設</label><select id="es-fac">'+facOpts+'</select>'+
     '<label>予約サイト</label><select id="es-src" onchange="esSrcChg()">'+srcOpts+'</select>'+
     '<label>チェックイン日</label><input type="date" id="es-cin" value="'+s.checkin+'">'+
     '<label>泊数</label><input type="number" id="es-nights" value="'+s.nights+'" min="1">'+
@@ -2059,6 +2063,7 @@ function saveEdit(){
   r.startTime=document.getElementById('edit-start').value;
   r.name=document.getElementById('edit-name').value;r.ninzu=document.getElementById('edit-ninzu').value;
   r.source=document.getElementById('edit-day-src').value;
+  r.event=readEventEdit('edit');
   // 宿泊紐づけ双方向同期
   const sl=document.getElementById('edit-staylink');
   const newLinked=[...sl.querySelectorAll('input[type=checkbox]:checked')].map(el=>el.value);
@@ -2100,6 +2105,7 @@ function saveEditStay(){
   const s=stays.find(x=>x.id===editId);if(!s)return;
   s.facility=document.getElementById('es-fac').value;
   s.source=document.getElementById('es-src').value;
+  s.event=readEventEdit('es');
   s.checkin=document.getElementById('es-cin').value;
   s.nights=parseInt(document.getElementById('es-nights').value)||1;
   s.checkout=addDays(s.checkin,s.nights);
@@ -2709,7 +2715,24 @@ let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calSelDate=n
 let calFilter='all';
 // カレンダー略称・カテゴリ順（日帰り→宿泊）。狭いので短縮・スペース無し
 const CAL_DAY_ABBR={walk:{abbr:'空ウ',color:'#224466',order:1},tree:{abbr:'ツ昼',color:'#224466',order:2},bbq:{abbr:'BBQ',color:'#555',order:3}};
-const CAL_STAY_ABBR={'ツリーハウス':{abbr:'ツ泊',color:'#7a1030',order:4},'透明ドーム':{abbr:'ドーム',color:'#9b3060',order:5},'空中テント':{abbr:'テント',color:'#c05080',order:6},'空中ハンモック':{abbr:'ハンモ',color:'#d07090',order:7}};
+const CAL_STAY_ABBR={'ツリーハウス':{abbr:'ツ泊',color:'#7a1030',order:4},'透明ドーム':{abbr:'ドーム',color:'#7a1030',order:5},'空中テント':{abbr:'テント',color:'#7a1030',order:6},'空中ハンモック':{abbr:'ハンモ',color:'#7a1030',order:7}};
+// 特記（イベント・取材・予定）の種別。予約に紐づけカード／カレンダーへ表示
+const EVENT_TYPES={'イベント':{icon:'🎪',color:'#c2185b',bg:'#fce4ec'},'取材':{icon:'📷',color:'#6a1b9a',bg:'#f3e5f5'},'予定':{icon:'📌',color:'#00695c',bg:'#e0f2f1'}};
+function attrEsc(s){return htmlEscape(s).replace(/"/g,'&quot;');}
+// 編集フォーム用：特記セレクタ＋詳細入力（prefix=edit/es）
+function eventEditBlock(prefix,ev){
+  ev=ev||{};
+  var opts=['','イベント','取材','予定'].map(function(t){return '<option value="'+t+'"'+((ev.type||'')===t?' selected':'')+'>'+(t||'なし')+'</option>';}).join('');
+  return '<label>特記（イベント・取材・予定）</label>'+
+    '<select id="'+prefix+'-event-type" onchange="onEventTypeChg(\''+prefix+'\')">'+opts+'</select>'+
+    '<input type="text" id="'+prefix+'-event-detail" placeholder="詳細（例：〇〇まつり／NHK取材／設営予定）" value="'+attrEsc(ev.detail||'')+'" style="display:'+(ev&&ev.type?'block':'none')+';margin-top:4px">';
+}
+function onEventTypeChg(prefix){var t=document.getElementById(prefix+'-event-type');var d=document.getElementById(prefix+'-event-detail');if(t&&d)d.style.display=t.value?'block':'none';}
+function readEventEdit(prefix){var t=document.getElementById(prefix+'-event-type');if(!t||!t.value)return null;var d=document.getElementById(prefix+'-event-detail');return {type:t.value,detail:d?d.value.trim():''};}
+// カード用：特記チップ
+function eventChipHtml(ev){if(!ev||!ev.type)return '';var c=EVENT_TYPES[ev.type]||{icon:'📌',color:'#555',bg:'#eee'};return '<div class="card-meta" style="margin-top:3px"><span style="display:inline-block;font-size:12px;font-weight:700;color:'+c.color+';background:'+c.bg+';border:1px solid '+c.color+'66;border-radius:6px;padding:2px 9px">'+c.icon+' '+ev.type+(ev.detail?'：'+htmlEscape(ev.detail):'')+'</span></div>';}
+// 指定日の特記一覧（キャンセル除く）。日帰り=予約日、宿泊=チェックイン日
+function eventsForDate(dateStr){var out=[];reservations.forEach(function(r){if(r.event&&r.event.type&&r.date===dateStr&&(showCancelled||!isCancelled(r)))out.push(r.event);});stays.forEach(function(s){if(s.event&&s.event.type&&s.checkin===dateStr&&(showCancelled||!isCancelled(s)))out.push(s.event);});return out;}
 function setCalFilter(f){calFilter=f;renderCal();}
 // 火曜定休。例外的に営業する日（臨時営業）を保存
 let specialOpen=ld('yv_special_open')||[];
@@ -2815,7 +2838,7 @@ function renderCal(){
     const hol=holidays[dateStr];
     const isTue=dow===2, sOpen=specialOpen.indexOf(dateStr)>=0, closed=isTue&&!sOpen;
     const cell=document.createElement('div');
-    cell.style.cssText='border-radius:6px;padding:2px 1px;cursor:pointer;border:1px solid '+(isSel?'#d06080':'#eee')+';background:'+(isSel?'#fff0f4':isToday?'#f7f7f7':'#fff')+';min-height:140px;overflow:hidden';
+    cell.style.cssText='position:relative;border-radius:6px;padding:2px 1px;cursor:pointer;border:1px solid '+(isSel?'#d06080':'#eee')+';background:'+(isSel?'#fff0f4':isToday?'#f7f7f7':'#fff')+';min-height:140px;overflow:hidden';
     const dayDiv=document.createElement('div');
     dayDiv.style.cssText='font-size:13.5px;font-weight:700;text-align:center;padding:1px 0;margin-bottom:1px;color:'+(isToday?'#fff':(dow===0||hol)?'#c00':dow===6?'#1565c0':'#111');
     if(isToday){dayDiv.style.cssText+='background:#111;border-radius:50%;width:22px;height:22px;margin:0 auto 1px;display:flex;align-items:center;justify-content:center';}
@@ -2823,6 +2846,21 @@ function renderCal(){
     cell.appendChild(dayDiv);
     if(hol){const hn=document.createElement('div');hn.style.cssText='font-size:8px;line-height:1.2;color:#c00;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';hn.textContent=hol;cell.appendChild(hn);}
     if(isTue){const chip=document.createElement('div');chip.textContent=sOpen?'臨時営業':'定休';chip.style.cssText='font-size:9px;text-align:center;border-radius:5px;margin:1px 0;padding:1px 0;cursor:pointer;'+(sOpen?'background:#e6f4ea;color:#1a7a3a;border:1px solid #9cc8ad':'background:#e8e8e8;color:#888;border:1px solid #ddd');chip.onclick=function(ev){ev.stopPropagation();toggleSpecialOpen(dateStr);};cell.appendChild(chip);}
+    // 特記（イベント・取材・予定）：日付右上にアイコン＋セル内に読みやすいチップ
+    const dEvents=eventsForDate(dateStr);
+    if(dEvents.length){
+      const corner=document.createElement('div');
+      corner.style.cssText='position:absolute;top:2px;right:3px;font-size:10px;line-height:1;letter-spacing:-1px';
+      corner.textContent=dEvents.map(e=>(EVENT_TYPES[e.type]||{icon:'📌'}).icon).join('');
+      cell.appendChild(corner);
+      dEvents.forEach(e=>{
+        const c=EVENT_TYPES[e.type]||{icon:'📌',color:'#555',bg:'#eee'};
+        const er=document.createElement('div');
+        er.style.cssText='font-size:9px;font-weight:700;line-height:1.4;color:'+c.color+';background:'+c.bg+';border-radius:4px;padding:0 3px;margin:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+        er.textContent=c.icon+e.type+(e.detail?' '+e.detail:'');
+        cell.appendChild(er);
+      });
+    }
     const SHOW=5;
     entries.slice(0,SHOW).forEach(e=>{
       const tt=e.time?(e.time.slice(-3)===':00'?(parseInt(e.time,10)+'時'):e.time):'';
@@ -2860,6 +2898,7 @@ function renderCalDetail(dateStr){
       '</div>'+
       '<div style="font-size:13px">'+fmtDate(s.checkin)+' 〜 '+fmtDate(s.checkout)+'（'+s.nights+'泊）</div>'+
       (s.name?'<div style="font-size:14px;font-weight:500;margin-top:2px">'+s.name+'</div>':'')+
+      eventChipHtml(s.event)+
       '<div style="font-size:13px;color:#666">'+totalPpl+'名'+(parseInt(s.child)>0?' 子供(3歳未満)'+s.child+'人':'')+((s.petCount||0)>0?' ペット'+s.petCount+'匹':'')+'</div>';
     c.appendChild(div);
   });
@@ -2873,6 +2912,7 @@ function renderCalDetail(dateStr){
       '</div>'+
       '<div style="font-size:18px;font-weight:600">'+r.startTime+' 〜 '+end+'</div>'+
       (r.name?'<div style="font-size:14px;font-weight:500;margin-top:2px">'+r.name+'</div>':'')+
+      eventChipHtml(r.event)+
       (r.ninzu?'<div style="font-size:13px;color:#666">'+r.ninzu+'名</div>':'');
     c.appendChild(div);
   });
@@ -3084,6 +3124,19 @@ document.addEventListener('change',function(e){
   box.addEventListener('touchstart',function(e){ if(box.scrollTop<=0){sy=e.touches[0].clientY;active=true;}else{active=false;} },{passive:true});
   box.addEventListener('touchmove',function(e){ if(!active)return; var dy=e.touches[0].clientY-sy; if(dy>0)box.style.transform='translateY('+Math.min(dy,140)+'px)'; },{passive:true});
   box.addEventListener('touchend',function(e){ if(!active)return; var dy=e.changedTouches[0].clientY-sy; box.style.transform=''; if(dy>80)closeModal(); active=false;sy=null; },{passive:true});
+})();
+
+// モーダルの枠外（暗い部分＝上部など）タップで閉じる（スクロール／キャンセル不要）
+(function(){
+  ['edit-modal','print-modal','confirm-modal'].forEach(function(id){
+    var ov=document.getElementById(id);if(!ov)return;
+    ov.addEventListener('click',function(e){
+      if(e.target!==ov)return; // 中身タップは無視。オーバーレイ本体のみ
+      if(id==='edit-modal')closeModal();
+      else if(id==='print-modal')closePrintModal();
+      else if(id==='confirm-modal'){ if(typeof confirmCancel==='function')confirmCancel(); else ov.classList.remove('open'); }
+    });
+  });
 })();
 
 // PWA無効化
