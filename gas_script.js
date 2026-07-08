@@ -79,6 +79,10 @@ function doPost(e){
       if(typeof data.sharednote === 'string'){
         PropertiesService.getDocumentProperties().setProperty('sharednote', data.sharednote);
       }
+      // 日付ごとの特記（イベント・取材・予定。全端末で同期）
+      if(data.dayevents && typeof data.dayevents === 'object'){
+        PropertiesService.getDocumentProperties().setProperty('dayevents', JSON.stringify(data.dayevents));
+      }
       // 最終CSV取込日時：施設ごとに新しい方を残してマージ（他デバイスの取込時刻を消さない）
       // 併せて「何月分か（csvimpmon）」も、取込時刻が新しくなった施設だけ更新して同期する
       if(data.csvimp && typeof data.csvimp === 'object'){
@@ -104,7 +108,8 @@ function doGet(e){
     var ci={}; try{ ci=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimp')||'{}'); }catch(e4){}
     var cim={}; try{ cim=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimpmon')||'{}'); }catch(e6){}
     var sn=PropertiesService.getDocumentProperties().getProperty('sharednote')||'';
-    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, sharednote:sn});
+    var de={}; try{ de=JSON.parse(PropertiesService.getDocumentProperties().getProperty('dayevents')||'{}'); }catch(e7){}
+    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, sharednote:sn, dayevents:de});
   }catch(err){
     return jsonOut({status:'error', message:String(err)});
   }
