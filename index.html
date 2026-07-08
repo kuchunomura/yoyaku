@@ -557,8 +557,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=273;
-const APP_BUILD_DATE='2026/07/08 10:07';
+const APP_VERSION=274;
+const APP_BUILD_DATE='2026/07/08 10:13';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1373,7 +1373,7 @@ function renderList(){
     if(d){const p=d.split('-').map(Number);const dt=new Date(p[0],p[1]-1,p[2]);const dow=dt.getDay();holName=getHolidays(p[0])[d]||'';if(dow===0||holName)col='#c0392b';else if(dow===6)col='#1565c0';}
     // 特記（イベント・取材・予定）を日付見出しの右側に表示
     const evs=d?eventsForDate(d):[];
-    const evParts=evs.map(e=>{const cc=EVENT_TYPES[e.type]||{icon:'📌',color:'#555',bg:'#eee'};return '<span style="margin-left:8px;font-size:12px;font-weight:700;color:'+cc.color+';background:'+cc.bg+';border:1px solid '+cc.color+'66;border-radius:6px;padding:1px 8px">'+cc.icon+' '+e.type+(e.detail?'：'+htmlEscape(e.detail):'')+'</span>';});
+    const evParts=evs.map(e=>{const cc=EVENT_TYPES[e.type]||{icon:'📌',color:'#555'};return '<span style="margin-left:8px;font-size:12px;font-weight:700;color:'+cc.color+';background:'+cc.color+'12;border:1px solid '+cc.color+'33;border-radius:6px;padding:1px 8px">'+cc.icon+' '+e.type+(e.detail?'：'+htmlEscape(e.detail):'')+'</span>';});
     dv.innerHTML='<span style="font-weight:700;font-size:17px;color:'+col+'">'+(d?fmtMD(d):'日付未定')+'</span>'+(holName?'<span style="font-size:11px;color:#c0392b;margin-left:4px">'+holName+'</span>':'')+parts.join('')+evParts.join('');
     c.appendChild(dv);
   };
@@ -1413,6 +1413,7 @@ function renderList(){
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
         '<span style="font-size:12px;font-weight:600;color:#111'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grpFacs.length>1?(grp+'（棟未選択）'):(grpFacs[0]?grpFacs[0].label:grp)))+(grpFacs.length>1?' ▾':'')+'</span>'+
+        eventChipHtml(s.event)+
         (BED_GROUPS.includes(grp)?'<span style="position:relative;display:inline-block"><span data-act="toggleBedSel" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;color:#555;border-radius:10px;padding:1px 7px;white-space:nowrap;background:#f9e8e5;border:1px solid #ecd0cb">'+bedLabel(s.bed)+' ▾</span>'+bedSel+'</span>':'')+
         '<span style="position:relative;display:inline-block"><span data-act="togglePetSel" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;color:#555;border-radius:10px;padding:1px 7px;white-space:nowrap;'+((s.petCount||0)>0?'background:#f6dcd7;border:1px solid #e3bcb4':'background:#f9e8e5;border:1px solid #ecd0cb')+'">'+((s.petCount||0)>0?'ペット'+s.petCount:'ペット無')+' ▾</span>'+petSel+'</span>'+
         (s.changed?'<span class="badge-changed">変更済み</span>':'')+
@@ -1420,7 +1421,6 @@ function renderList(){
         (srcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+srcL+'</span>':'')+
       '</div>'+
       unitToggle+
-      eventChipHtml(s.event)+
       // 1行目：日付〜 泊数 人数 名前（右に金額）
       '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
         '<span style="font-size:15.5px;color:#222;font-weight:700">'+
@@ -1481,13 +1481,13 @@ function renderList(){
       // ヘッダー：施設バッジ＋各種バッジ（コースは主要情報行の時間の後ろへ移動）
       '<div class="card-header">'+
         '<span class="badge '+fac.badgeCls+'">'+fac.label+'</span>'+
+        eventChipHtml(r.event)+
         (mura?'<span style="font-size:11px;font-weight:600;background:#fff8e8;color:#e67700;border:1px solid #EF9F27;border-radius:20px;padding:2px 8px">村内</span>':'')+
         (isOv?'<span class="badge-overlap">重複</span>':'')+
         (r.changed?'<span class="badge-changed">変更済み</span>':'')+
         (r.done?'<span class="badge badge-done">会計済み</span>':'')+
         (daySrcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+daySrcL+'</span>':'')+
       '</div>'+
-      eventChipHtml(r.event)+
       // 主要情報行：左に 日付 時間 人数 名前／右に 金額（宿泊カードと同じ配置）
       '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
         '<span style="font-size:15.5px;color:#222;font-weight:700">'+
@@ -2732,8 +2732,8 @@ function eventEditBlock(prefix,ev){
 }
 function onEventTypeChg(prefix){var t=document.getElementById(prefix+'-event-type');var d=document.getElementById(prefix+'-event-detail');if(t&&d)d.style.display=t.value?'block':'none';}
 function readEventEdit(prefix){var t=document.getElementById(prefix+'-event-type');if(!t||!t.value)return null;var d=document.getElementById(prefix+'-event-detail');return {type:t.value,detail:d?d.value.trim():''};}
-// カード用：特記チップ
-function eventChipHtml(ev){if(!ev||!ev.type)return '';var c=EVENT_TYPES[ev.type]||{icon:'📌',color:'#555',bg:'#eee'};return '<div class="card-meta" style="margin-top:3px"><span style="display:inline-block;font-size:12px;font-weight:700;color:'+c.color+';background:'+c.bg+';border:1px solid '+c.color+'66;border-radius:6px;padding:2px 9px">'+c.icon+' '+ev.type+(ev.detail?'：'+htmlEscape(ev.detail):'')+'</span></div>';}
+// カード用：特記チップ（インライン・薄色。ヘッダーの施設名の隣に置く）
+function eventChipHtml(ev){if(!ev||!ev.type)return '';var c=EVENT_TYPES[ev.type]||{icon:'📌',color:'#555'};return '<span style="display:inline-block;font-size:11.5px;font-weight:700;color:'+c.color+';background:'+c.color+'12;border:1px solid '+c.color+'33;border-radius:6px;padding:1px 7px;white-space:nowrap">'+c.icon+' '+ev.type+(ev.detail?'：'+htmlEscape(ev.detail):'')+'</span>';}
 // 指定日の特記一覧（キャンセル除く）。日帰り=予約日、宿泊=チェックイン日
 function eventsForDate(dateStr){var out=[];reservations.forEach(function(r){if(r.event&&r.event.type&&r.date===dateStr&&(showCancelled||!isCancelled(r)))out.push(r.event);});stays.forEach(function(s){if(s.event&&s.event.type&&s.checkin===dateStr&&(showCancelled||!isCancelled(s)))out.push(s.event);});return out;}
 function setCalFilter(f){calFilter=f;renderCal();}
@@ -2857,9 +2857,9 @@ function renderCal(){
       corner.textContent=dEvents.map(e=>(EVENT_TYPES[e.type]||{icon:'📌'}).icon).join('');
       cell.appendChild(corner);
       dEvents.forEach(e=>{
-        const c=EVENT_TYPES[e.type]||{icon:'📌',color:'#555',bg:'#eee'};
+        const c=EVENT_TYPES[e.type]||{icon:'📌',color:'#555'};
         const er=document.createElement('div');
-        er.style.cssText='font-size:9px;font-weight:700;line-height:1.4;color:'+c.color+';background:'+c.bg+';border-radius:4px;padding:0 3px;margin:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+        er.style.cssText='font-size:9px;font-weight:700;line-height:1.4;color:'+c.color+';background:'+c.color+'1a;border-radius:4px;padding:0 3px;margin:1px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
         er.textContent=c.icon+e.type+(e.detail?' '+e.detail:'');
         cell.appendChild(er);
       });
