@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=275;
-const APP_BUILD_DATE='2026/07/08 10:23';
+const APP_VERSION=276;
+const APP_BUILD_DATE='2026/07/08 10:34';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1398,6 +1398,7 @@ function renderList(){
     const totalPpl=(s.totalPpl||s.ninzu);
     const base=s.unitPrice*totalPpl*s.nights;
     const grand=base+(s.petFee||0)+rt;
+    const passPaid=isAnnualPass(s);
     const srcL=(s.source||detectOtaFromText(s.memo))?getSrcLabel(s.source||detectOtaFromText(s.memo)):'';
     const linkedH=(s.linkedDayIds||[]).map(lid=>{
       const lr=reservations.find(r=>r.id===lid);if(!lr||isCancelled(lr))return'';
@@ -1429,7 +1430,8 @@ function renderList(){
           (s.nights>=2?fmtMD(s.checkin)+'-'+fmtMD(s.checkout)+'　':'')+s.nights+'泊　'+s.ninzu+'名'+
           (childN>0?'+子'+childN:'')+(petN>0?'+ペット'+petN:'')+(nm?'　'+nm:'')+
         '</span>'+
-        '<span style="font-size:13px;color:#999">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
+        '<span style="font-size:13px;color:#999'+(passPaid?';text-decoration:line-through':'')+'">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
+        (passPaid?'<span style="font-size:11px;font-weight:700;color:#1a7a3a;background:#e6f4ea;border:1px solid #9cc8ad;border-radius:10px;padding:1px 8px;margin-left:6px;white-space:nowrap">✓ 年間パス・支払い済み</span>':'')+
       '</div>'+
       ((s.rental||[]).length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+s.rental.length+'点（'+rt.toLocaleString()+'円）</summary><div style="margin-top:2px">'+s.rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
       linkedH+
@@ -1470,6 +1472,7 @@ function renderList(){
     else { amountText=price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
     const div=document.createElement('div');div.className='card'+(r.done?' done':'')+(isCancelled(r)?' cancelled':'');
     div.style.background='#eef4fb';
+    const passPaid=isAnnualPass(r);
     const daySrcL=(r.source||detectOtaFromText(r.memo))?getSrcLabel(r.source||detectOtaFromText(r.memo)):'';
     const linkedStayH=(r.linkedStayIds||[]).map(sid=>{
       const ls=stays.find(x=>x.id===sid);if(!ls||isCancelled(ls))return'';
@@ -1498,7 +1501,8 @@ function renderList(){
           (ninzu>0?'　'+ninzu+fac.priceUnit:'')+(r.name?'　'+r.name:'')+
           (fac.note?'<span style="font-size:12px;color:#aaa;font-weight:400">（'+fac.note+'）</span>':'')+
         '</span>'+
-        '<span style="font-size:13px;color:#999">'+amountText+'</span>'+
+        '<span style="font-size:13px;color:#999'+(passPaid?';text-decoration:line-through':'')+'">'+amountText+'</span>'+
+        (passPaid?'<span style="font-size:11px;font-weight:700;color:#1a7a3a;background:#e6f4ea;border:1px solid #9cc8ad;border-radius:10px;padding:1px 8px;margin-left:6px;white-space:nowrap">✓ 年間パス・支払い済み</span>':'')+
       '</div>'+
       (rental.length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+rental.length+'点（'+rt.toLocaleString()+'円）</summary><div style="margin-top:2px">'+rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
@@ -2726,6 +2730,8 @@ const CAL_STAY_ABBR={'ツリーハウス':{abbr:'ツ泊',color:'#7a1030',order:4
 // 特記（イベント・取材・予定）の種別。予約に紐づけカード／カレンダーへ表示
 const EVENT_TYPES={'イベント':{icon:'🎪',color:'#c2185b',bg:'#fce4ec'},'取材':{icon:'📷',color:'#6a1b9a',bg:'#f3e5f5'},'予定':{icon:'📌',color:'#00695c',bg:'#e0f2f1'}};
 function attrEsc(s){return htmlEscape(s).replace(/"/g,'&quot;');}
+// 年間パス判定：予約サイト=年間パス、または備考に「年間パス」記載。宿泊料金＋レンタルは支払い済み（物販は別）
+function isAnnualPass(o){return o&&((o.source==='pass_day'||o.source==='pass_night')||/年間パス/.test(o.memo||''));}
 // 編集フォーム用：特記セレクタ＋詳細入力（prefix=edit/es）
 function eventEditBlock(prefix,ev){
   ev=ev||{};
