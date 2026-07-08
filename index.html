@@ -557,8 +557,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=272;
-const APP_BUILD_DATE='2026/07/08 09:57';
+const APP_VERSION=273;
+const APP_BUILD_DATE='2026/07/08 10:07';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1371,7 +1371,10 @@ function renderList(){
     // 土=青／日・祝=赤／平日=既定色。祝日名も表示
     let col='#224466',holName='';
     if(d){const p=d.split('-').map(Number);const dt=new Date(p[0],p[1]-1,p[2]);const dow=dt.getDay();holName=getHolidays(p[0])[d]||'';if(dow===0||holName)col='#c0392b';else if(dow===6)col='#1565c0';}
-    dv.innerHTML='<span style="font-weight:700;font-size:17px;color:'+col+'">'+(d?fmtMD(d):'日付未定')+'</span>'+(holName?'<span style="font-size:11px;color:#c0392b;margin-left:4px">'+holName+'</span>':'')+parts.join('');
+    // 特記（イベント・取材・予定）を日付見出しの右側に表示
+    const evs=d?eventsForDate(d):[];
+    const evParts=evs.map(e=>{const cc=EVENT_TYPES[e.type]||{icon:'📌',color:'#555',bg:'#eee'};return '<span style="margin-left:8px;font-size:12px;font-weight:700;color:'+cc.color+';background:'+cc.bg+';border:1px solid '+cc.color+'66;border-radius:6px;padding:1px 8px">'+cc.icon+' '+e.type+(e.detail?'：'+htmlEscape(e.detail):'')+'</span>';});
+    dv.innerHTML='<span style="font-weight:700;font-size:17px;color:'+col+'">'+(d?fmtMD(d):'日付未定')+'</span>'+(holName?'<span style="font-size:11px;color:#c0392b;margin-left:4px">'+holName+'</span>':'')+parts.join('')+evParts.join('');
     c.appendChild(dv);
   };
   const ciCoShown={};
