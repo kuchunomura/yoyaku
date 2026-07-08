@@ -557,8 +557,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=270;
-const APP_BUILD_DATE='2026/07/08 08:40';
+const APP_VERSION=271;
+const APP_BUILD_DATE='2026/07/08 09:41';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1795,6 +1795,7 @@ function openEdit(id){
     '<label>紐付き日帰り予約</label><div id="edit-daylink" class="link-check-list">'+dlCks+'</div>'+
     '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
     '<label>メモ（ドラッグで広げられます）</label>'+
+    '<div style="font-size:11px;color:#667;line-height:1.6;margin:-2px 0 6px">※メモの備品名から<b>自動でレンタルを認識</b>します（認識した文言の後ろに<span style="color:#e67700;font-weight:700">✓</span>）。<b>ランタン・ポータブル電源は各施設1個まで無料</b>＝2個以上の記載で<b>超過分のみ</b>有料計上。</div>'+
     '<div id="ed-memo" contenteditable="true" style="min-height:70px;max-height:50vh;overflow-y:auto;resize:vertical;border:1px solid #ccc;border-radius:8px;padding:8px;font-size:14px;line-height:1.6;background:#fff;white-space:pre-wrap;-webkit-overflow-scrolling:touch">'+htmlEscape(r.memo||'')+'</div>';
   if(r.facility==='bbq'){
     const rItms=(items)=>items.map(item=>{
@@ -1876,6 +1877,7 @@ function openEditStay(id){
     '<label>同日・前後1日の予約との紐づけ（同客の可能性）</label><div id="es-daylink" class="link-check-list">'+lCks+'</div>'+
     '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
     '<label>メモ（ドラッグで広げられます）</label>'+
+    '<div style="font-size:11px;color:#667;line-height:1.6;margin:-2px 0 6px">※メモの備品名から<b>自動でレンタルを認識</b>します（認識した文言の後ろに<span style="color:#e67700;font-weight:700">✓</span>）。<b>ランタン・ポータブル電源は各施設1個まで無料</b>＝2個以上の記載で<b>超過分のみ</b>有料計上。</div>'+
     '<div id="es-memo" contenteditable="true" style="min-height:90px;max-height:50vh;overflow-y:auto;resize:vertical;border:1px solid #ccc;border-radius:8px;padding:8px;font-size:14px;line-height:1.6;background:#fff;white-space:pre-wrap;-webkit-overflow-scrolling:touch">'+htmlEscape(s.memo||'')+'</div>'+
     '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
     '<div style="display:flex;align-items:stretch;gap:8px;margin:8px 0">'+
@@ -1887,7 +1889,7 @@ function openEditStay(id){
       '<div id="es-rental-help" style="display:none;font-size:12px;color:#666;line-height:1.7;background:#faf7f1;border:1px solid #e6ddcc;border-radius:8px;padding:8px;margin-bottom:8px">'+
         '・「📋メモから自動入力」を押すと、メモの客記載から備品を推定してチェック＆数量入力します。<br>'+
         '・認識した文言の直後に<span style="color:#e67700;font-weight:700">✓</span>が付きます。文言が違うと拾えません。<br>'+
-        '・<b>ランタンは1宿泊1つ無料貸出のため意図的に除外</b>（自動では入りません）。<br>'+
+        '・<b>ランタン・ポータブル電源は各施設1個まで無料</b>（2個以上の記載で超過分のみ有料計上。1個なら自動では入りません）。<br>'+
         '・<b>単独の「薪」は無人販売のため対象外</b>（拾うのは「薪割」のみ）。<br>'+
         '・数量は「×２→×１へ変更」のように<b>「変更／訂正／修正」の直前にある最後の数字を確定数量</b>として読み取ります（例：「×２→×１へ変更」は<b>1個</b>）。<br>'+
         '・CSVを再同期するとメモが更新され✓は消えますが、もう一度ボタンを押せば再度✓が付きチェックされます（手入力した備品自体は保持されます）。<br>'+
@@ -1916,10 +1918,11 @@ var RENTAL_ALIAS={
   b06:/ガスコンロ|コンロ/,
   b06b:/バーナー|トーチ/,
   b06c:/マッチ|ライター|チャッカマン|着火/,
+  b06d:/ランタン|ランプ/,
   b07:/薪割|まき割|薪わり|まきわり|マキワリ/,
   b08:/コーヒー|珈琲/,
-  b13:/電源.{0,3}大|大.{0,3}電源|ポータブル電源.?大/,
-  b14:/電源.{0,3}小|小.{0,3}電源|ポータブル電源.?小/,
+  b13:/電源.{0,3}大|大.{0,3}電源|ポータブル電源(?!.{0,3}小)|ポタ電(?!.{0,3}小)/,
+  b14:/電源.{0,3}小|小.{0,3}電源|ポータブル電源.{0,3}小|ポタ電.{0,3}小/,
   b12:/ケトル|やかん|ヤカン|薬缶/,
   b12b:/飯ごう|飯盒|はんごう|ハンゴウ|メスティン/,
   b12c:/ホットサンド/,
@@ -1957,10 +1960,13 @@ function detectRentalFromMemo(memo, freeMode){
   // メモが“文章っぽい”（丁寧語・質問・依頼・変更等）時だけ厳格に＝数量キューが無い品はスキップ（OTA説明文の誤検出防止）。
   // 単なる品名リストは文章マーカーが無いので、キュー無しでも各品を数量1で採用。
   var prosey = (freeMode==='strict') && /ます|です|ました|ません|お願い|ください|下さい|でしょう|ですが|思い|希望|確認|質問|すみ|すいません|よろしく|可能|変更|訂正|？|\?/.test(base);
+  // ランタン・ポータブル電源は各施設1個まで無料。記載数−1（超過分）だけ有料として計上する。
+  var FREE_FIRST={b06d:1,b13:1,b14:1};
   ALL_ITEMS.forEach(function(it){
     var re=RENTAL_ALIAS[it.id]; if(!re)return;
     var m=re.exec(base); if(!m)return;
     var after=base.slice(m.index+m[0].length, m.index+m[0].length+24);
+    var _sep=after.search(/[\s　、，,・\/／]/); if(_sep>=0) after=after.slice(0,_sep); // 区切りで切る＝隣の品の数量を拾わない
     var qty=1, qn=null;
     var cuePos=after.search(/変更|訂正|修正|に直/);
     if(cuePos>=0){ var nb=after.slice(0,cuePos).match(/[×✕xX]\s*[0-9０-９]+/g); if(nb&&nb.length){ var lm=nb[nb.length-1].match(/[0-9０-９]+/); if(lm)qn=lm[0]; } }
@@ -1969,6 +1975,7 @@ function detectRentalFromMemo(memo, freeMode){
     if(qn==null){ var cm=after.match(/([0-9０-９]+)\s*(?:つ|個|台|セット|組|脚|本|枚|張|点)/); if(cm)qn=cm[1]; } // 「1つ」「1台」「1セット」等
     if(qn!=null){var n=parseInt(toHalf(qn),10); if(n>0)qty=n;}
     else if(prosey) return; // 文章メモで数量キューが無ければスキップ（説明文の誤検出を防ぐ）
+    if(FREE_FIRST[it.id]){ qty=qty-1; if(qty<1)return; } // 1個無料、超過分のみ有料
     out.push({id:it.id,name:it.name,price:it.price,qty:qty});
   });
   return out;
@@ -2235,7 +2242,7 @@ async function loadFromSheet(silent){
       sv(RKEY,reservations);sv(STKEY,stays);
       var _rep=repairNinzuFromAmount(); // 読込データの人数誤読を自動修復
       var _rq=healRentalQty();          // 客チェック方式メモの備品数量バグ（金額=数量）を自動修復
-      var _rd=0; if(!ld('yv_redetect2')){ _rd=redetectRentalAll(); sv('yv_redetect2',1); } // 既存予約を一度だけメモから読み取り直す（検出改良でv2に更新）
+      var _rd=0; if(!ld('yv_redetect3')){ _rd=redetectRentalAll(); sv('yv_redetect3',1); } // 既存予約を一度だけメモから読み取り直す（検出改良のたびフラグ番号を上げる）
       if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 読込完了'+(_rep?'（人数'+_rep+'件を自動修正）':'')+(_rq?'（備品数量'+_rq+'件を自動修正）':'')+(_rd?'（備品'+_rd+'件を再読取）':'');
       markSync('同期');
       if(!silent)showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）'+(_rep?'／人数'+_rep+'件を自動修正':'')+(_rq?'／備品数量'+_rq+'件を自動修正':'')+(_rd?'／備品'+_rd+'件を再読取':''),'#1a7a3a');
