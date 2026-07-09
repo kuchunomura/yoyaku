@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=277;
-const APP_BUILD_DATE='2026/07/08 10:38';
+const APP_VERSION=278;
+const APP_BUILD_DATE='2026/07/09 09:54';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -665,7 +665,10 @@ function renderOtaAlerts(){
   var cnt={};
   stays.forEach(function(s){ if(isCancelled(s)||!s.checkin)return; if(s.checkin<today)return; var g=s.facGroup||((getSFac(s.facility)||{}).group)||''; if(!g)return; var k=s.checkin+'|'+g; cnt[k]=(cnt[k]||0)+1; });
   var ack=ld('yv_otaack')||{};
-  var keys=Object.keys(cnt).filter(function(k){return cnt[k]>=2 && ack[k]!=='del';}).sort();
+  // 要締切のしきい値（同日・同カテゴリー件数）。棟数が多い施設は満室になるまで出さない。
+  // 空中テント＝テント①②③の3棟なので3件で締切。他は既定2件。
+  var OTA_THRESHOLD={'空中テント':3};
+  var keys=Object.keys(cnt).filter(function(k){var g=k.split('|')[1]||'';var th=OTA_THRESHOLD[g]||2;return cnt[k]>=th && ack[k]!=='del';}).sort();
   if(!keys.length){ el.style.display='none'; el.innerHTML=''; return; }
   var pendK=keys.filter(function(k){return !ack[k];});
   var doneK=keys.filter(function(k){return ack[k]===true;});
