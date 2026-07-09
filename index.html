@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=278;
-const APP_BUILD_DATE='2026/07/09 09:54';
+const APP_VERSION=279;
+const APP_BUILD_DATE='2026/07/09 16:20';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2908,8 +2908,9 @@ function renderCal(){
     cell.appendChild(dayDiv);
     if(hol){const hn=document.createElement('div');hn.style.cssText='font-size:8px;line-height:1.2;color:#c00;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';hn.textContent=hol;cell.appendChild(hn);}
     if(isTue){const chip=document.createElement('div');chip.textContent=sOpen?'臨時営業':'定休';chip.style.cssText='font-size:9px;text-align:center;border-radius:5px;margin:1px 0;padding:1px 0;cursor:pointer;'+(sOpen?'background:#e6f4ea;color:#1a7a3a;border:1px solid #9cc8ad':'background:#e8e8e8;color:#888;border:1px solid #ddd');chip.onclick=function(ev){ev.stopPropagation();toggleSpecialOpen(dateStr);};cell.appendChild(chip);}
-    // 特記（イベント・取材・予定）：日付右上にアイコン＋セル内に読みやすいチップ
-    const dEvents=eventsForDate(dateStr);
+    // 特記（イベント・取材・予定）：カレンダーは「日付に手で記載した特記(dayevents)」のみ表示。
+    // 予約に紐づくイベント/取材(r.event・s.event)はカードと一覧の日付見出しに出るのでカレンダーには出さない。
+    const dEvents=getDayEvents(dateStr).filter(function(e){return e&&e.type;});
     if(dEvents.length){
       const corner=document.createElement('div');
       corner.style.cssText='position:absolute;top:2px;right:3px;font-size:10px;line-height:1;letter-spacing:-1px';
