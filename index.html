@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=281;
-const APP_BUILD_DATE='2026/07/11 10:44';
+const APP_VERSION=282;
+const APP_BUILD_DATE='2026/07/11 10:59';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -693,7 +693,7 @@ function toggleQOpen(){_qOpen=!_qOpen;renderQuestionAlerts();}
 function toggleQDoneOpen(){_qDoneOpen=!_qDoneOpen;renderQuestionAlerts();}
 function toggleQPast(){_qPast=!_qPast;renderQuestionAlerts();}
 // 質問・要確認パターン（？ / 〜ですか？ / ですか。 / でしょうか。 / ますか。 / したいです。 / と思っています。）
-var Q_PATTERNS=/(?:です|ます)か(?=[。\.\s、，？?]|$)|でしょうか|たいです|[のん]です[がけ]|と思って(?:い)?ます/;
+var Q_PATTERNS=/[？?]|(?:です|ます)か(?=[。\.\s、，？?]|$)|でしょうか|たいです|[のん]です[がけ]|と思って(?:い)?ます/;
 // 質問ではないが要確認の言い回し（追加料金・別途・変更・要相談など）。スタッフが見落とさないよう要確認に集約する。
 var ALERT_PATTERNS=/追加料金|追加のため|追加分|別途.{0,3}(料金|費用|支払|請求)|要(?:確認|相談|対応)|至急|変更|連絡あり|仮予約|無料|キャンセル待ち|返金/;
 // 簡易ハッシュ（備考が同一かの判定用。内容が変われば値が変わる＝チェックが自動リセット）
