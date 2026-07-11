@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=280;
-const APP_BUILD_DATE='2026/07/09 16:28';
+const APP_VERSION=281;
+const APP_BUILD_DATE='2026/07/11 10:44';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2599,7 +2599,10 @@ function importCSV(){
         var nights=(checkin&&checkout)?Math.max(1,Math.round((new Date(checkout)-new Date(checkin))/86400000)):1;
         var petM=f.join(' ').match(/ペット連れ\s*[:：]\s*(\S+)/); var petCount=0;
         if(petM){ var pn=parseInt(petM[1],10); if(!isNaN(pn)) petCount=pn; }
-        var bed=bedIdx>=0?String(f[bedIdx]).trim():'';
+        // ベッド台数だけを抽出（ペットとベッドが同一セルの時に、ペット人数の数字を誤って拾わないように）
+        var bedCell=bedIdx>=0?String(f[bedIdx]):'';
+        var bedM2=bedCell.match(/ベッド[^0-9０-９]*([0-9０-９]+)\s*台/);
+        var bed=bedM2?('ベッド'+bedM2[1]+'台'):bedCell.trim();
         // facId＝カテゴリー(グループ名)。棟は未割当（1棟しかなければ自動割当）。料金はグループ共通なので代表棟で算出
         var grpFacsImp=STAY_FACS.filter(function(x){return x.group===facId;});
         var repFac=grpFacsImp[0];
