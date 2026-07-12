@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=284;
-const APP_BUILD_DATE='2026/07/12 13:30';
+const APP_VERSION=285;
+const APP_BUILD_DATE='2026/07/12 13:33';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1433,6 +1433,7 @@ function renderList(){
         '<span style="font-size:15.5px;color:#222;font-weight:700">'+
           (s.nights>=2?fmtMD(s.checkin)+'-'+fmtMD(s.checkout)+'　':'')+s.nights+'泊　'+s.ninzu+'名'+
           (childN>0?'+子'+childN:'')+(petN>0?'+ペット'+petN:'')+(nm?'　'+nm:'')+
+          ((s.checkout&&s.checkout===today)?'<span style="margin-left:8px;font-size:12px;font-weight:700;color:#b5651d;background:#fbe4d0;border:1px solid #e0b483;border-radius:8px;padding:1px 8px;white-space:nowrap;vertical-align:1px">本日チェックアウト</span>':'')+
         '</span>'+
         '<span style="font-size:13px;color:#999'+(passPaid?';text-decoration:line-through':'')+'">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
         (passPaid?'<span style="font-size:11px;font-weight:700;color:#1a7a3a;background:#e6f4ea;border:1px solid #9cc8ad;border-radius:10px;padding:1px 8px;margin-left:6px;white-space:nowrap">✓ 年間パス・支払い済み</span>':'')+
