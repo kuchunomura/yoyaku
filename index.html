@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=285;
-const APP_BUILD_DATE='2026/07/12 13:33';
+const APP_VERSION=286;
+const APP_BUILD_DATE='2026/07/12 13:35';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3047,7 +3047,8 @@ function _pStayInner(s){
   var petTxt=(s.petCount||0)>0?('　ペット'+s.petCount):'';
   var bedTxt=BED_GROUPS.includes(_pStayCat(s))?('　'+bedLabel(s.bed)):'';
   var money=s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円';
-  return '<div class="prtop"><div class="pr1">'+s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+bedTxt+petTxt+'</div>'+
+  var coTodayP=(s.checkout&&s.checkout===todayStr())?'<span style="margin-left:4px;font-weight:700;color:#b5651d;border:1px solid #e0b483;border-radius:6px;padding:0 4px;white-space:nowrap">本日チェックアウト</span>':'';
+  return '<div class="prtop"><div class="pr1">'+s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+bedTxt+petTxt+coTodayP+'</div>'+
     '<div class="pr2">'+money+'</div></div>'+
     ((s.rental||[]).length?'<div class="pr3">レンタル：'+s.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
     (s.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(s.memo))+'</div>':'')+
