@@ -240,7 +240,7 @@ details[open] summary{opacity:0.75}
         <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:14px;text-align:center;font-size:13.5px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<br><span style="font-size:11px;color:#9a8050">（またはタップしてファイルを選択）</span></div>
         <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
         <div style="font-size:12px;color:#888;margin:6px 0">または↓に貼り付け（スプレッドシートからコピペ可）</div>
-        <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px"></textarea>
+        <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px" oninput="setCsvFileName('')"></textarea>
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
           <span style="font-size:20px;font-weight:800;color:#6b4f20;flex-shrink:0">③</span>
           <button class="btn-primary" style="background:#6b4f20;margin:0;flex:1" onclick="importCSV()">選択した施設を取り込む</button>
@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=289;
-const APP_BUILD_DATE='2026/07/13 15:08';
+const APP_VERSION=290;
+const APP_BUILD_DATE='2026/07/13 20:55';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -619,6 +619,7 @@ let fields=loadFields(),reservations=loadReservations(),stays=loadStays(),stock=
 healRentalQty();
 let facFilter='all',addFacId='walk',addCourse=55,editId=null,editType='day';
 let lastCsvFacVal=''; // 取込先施設の選択記憶（タブ名に表示・タブ切替で復元）
+let lastCsvFileName=''; // 直前に読み込んだCSVファイル名（取込時に施設ごとへ保存＝同期される）
 let rentalSt={},stayRentalSt={};
 let dateFilter=null;
 let listFromToday=true; // 一覧は既定で今日以降のみ表示
@@ -2226,7 +2227,7 @@ async function syncToSheet(silent){
     const res=await fetch(url,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({type:'sync_all',stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),csvimpmon:(ld('yv_csvimp_mon')||{}),sharednote:(ld('yv_sharednote')||''),dayevents:(ld('yv_dayevents')||{})})
+      body:JSON.stringify({type:'sync_all',stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),csvimpmon:(ld('yv_csvimp_mon')||{}),csvimpfile:(ld('yv_csvimp_file')||{}),sharednote:(ld('yv_sharednote')||''),dayevents:(ld('yv_dayevents')||{})})
     });
     const json=await res.json();
     if(json.status==='ok'){
@@ -2261,7 +2262,7 @@ async function loadFromSheet(silent){
       // 日付ごとの特記（全端末で同期）
       if(json.dayevents&&typeof json.dayevents==='object')sv('yv_dayevents',json.dayevents);
       // 最終CSV取込日時：施設ごとに新しい方を残してマージ（他デバイスの取込時刻を消さない）
-      if(json.csvimp&&typeof json.csvimp==='object'){ var _ci=ld('yv_csvimp')||{}; var _cm=ld('yv_csvimp_mon')||{}; var _rm=(json.csvimpmon&&typeof json.csvimpmon==='object')?json.csvimpmon:{}; for(var _ck in json.csvimp){ var _cv=Number(json.csvimp[_ck])||0; if(_cv>(Number(_ci[_ck])||0)){ _ci[_ck]=_cv; if(_rm[_ck]!==undefined)_cm[_ck]=_rm[_ck]; } } sv('yv_csvimp',_ci); sv('yv_csvimp_mon',_cm); if(typeof renderCsvImpLog==='function')renderCsvImpLog(); }
+      if(json.csvimp&&typeof json.csvimp==='object'){ var _ci=ld('yv_csvimp')||{}; var _cm=ld('yv_csvimp_mon')||{}; var _if=ld('yv_csvimp_file')||{}; var _rm=(json.csvimpmon&&typeof json.csvimpmon==='object')?json.csvimpmon:{}; var _rf=(json.csvimpfile&&typeof json.csvimpfile==='object')?json.csvimpfile:{}; for(var _ck in json.csvimp){ var _cv=Number(json.csvimp[_ck])||0; if(_cv>(Number(_ci[_ck])||0)){ _ci[_ck]=_cv; if(_rm[_ck]!==undefined)_cm[_ck]=_rm[_ck]; if(_rf[_ck]!==undefined)_if[_ck]=_rf[_ck]; } } sv('yv_csvimp',_ci); sv('yv_csvimp_mon',_cm); sv('yv_csvimp_file',_if); if(typeof renderCsvImpLog==='function')renderCsvImpLog(); }
       sv(RKEY,reservations);sv(STKEY,stays);
       var _rep=repairNinzuFromAmount(); // 読込データの人数誤読を自動修復
       var _rq=healRentalQty();          // 客チェック方式メモの備品数量バグ（金額=数量）を自動修復
@@ -2385,14 +2386,15 @@ function renderCsvImpLog(){
   var el=document.getElementById('csv-implog'); if(!el) return;
   var imp=ld('yv_csvimp')||{};
   var mon=ld('yv_csvimp_mon')||{};
+  var fnm=ld('yv_csvimp_file')||{};
   // 'YYYY-MM,YYYY-MM' → '7月分' / '7〜8月分'
   function monLabel(csv){ if(!csv) return ''; var arr=String(csv).split(',').filter(Boolean).sort(); if(!arr.length) return ''; var ja=function(m){var p=m.split('-');return (+p[1])+'月';}; return (arr.length===1?ja(arr[0]):ja(arr[0])+'〜'+ja(arr[arr.length-1]))+'分'; }
   var rows=[];
-  FACILITIES.forEach(function(f){var v='day:'+f.id;var lb=(f.id==='tree'?'ツリーハウス昼':f.label);rows.push([lb,imp[v],monLabel(mon[v])]);});
-  var seen={}; STAY_FACS.forEach(function(f){if(seen[f.group])return;seen[f.group]=true;var v='staygroup:'+f.group;rows.push([f.group+'（宿泊）',imp[v],monLabel(mon[v])]);});
+  FACILITIES.forEach(function(f){var v='day:'+f.id;var lb=(f.id==='tree'?'ツリーハウス昼':f.label);rows.push([lb,imp[v],monLabel(mon[v]),fnm[v]]);});
+  var seen={}; STAY_FACS.forEach(function(f){if(seen[f.group])return;seen[f.group]=true;var v='staygroup:'+f.group;rows.push([f.group+'（宿泊）',imp[v],monLabel(mon[v]),fnm[v]]);});
   el.innerHTML='<b>最終CSV取込日時</b>'
-    +'<div style="display:grid;grid-template-columns:max-content max-content;gap:3px 6px;margin-top:4px;line-height:1.5;">'
-    +rows.map(function(r){return '<div>'+r[0]+'</div><div>：'+(r[1]?'<span style="color:#1a7a3a">'+fmtDateTime(r[1])+'</span>'+(r[2]?' <span style="color:#6b4f20;font-weight:700">'+r[2]+'</span>':''):'<span style="color:#bbb">未取込</span>')+'</div>';}).join('')
+    +'<div style="display:grid;grid-template-columns:max-content 1fr;gap:3px 6px;margin-top:4px;line-height:1.5;">'
+    +rows.map(function(r){return '<div>'+r[0]+'</div><div>：'+(r[1]?'<span style="color:#1a7a3a">'+fmtDateTime(r[1])+'</span>'+(r[2]?' <span style="color:#6b4f20;font-weight:700">'+r[2]+'</span>':'')+(r[3]?' <span style="color:#2471a3;font-weight:600">📄'+htmlEscape(r[3])+'</span>':''):'<span style="color:#bbb">未取込</span>')+'</div>';}).join('')
     +'</div>';
 }
 // 日帰り↔宿泊で同じ施設の対応（ツリーハウスは昼/夜の両方がある）
@@ -2658,6 +2660,7 @@ function importCSV(){
     // カテゴリ別の最終取込日時を記録
     var _imp=ld('yv_csvimp')||{}; _imp[sel]=Date.now(); sv('yv_csvimp',_imp);
     var _mon=ld('yv_csvimp_mon')||{}; _mon[sel]=Object.keys(_impMonths).sort().join(','); sv('yv_csvimp_mon',_mon); // 何月分かを記録
+    var _impF=ld('yv_csvimp_file')||{}; _impF[sel]=lastCsvFileName||''; sv('yv_csvimp_file',_impF); // 取込ファイル名（同期される）
     renderCsvImpLog();
     sv(RKEY,reservations); sv(STKEY,stays); autoPush();
     res.style.color='#1a7a3a';
@@ -2716,9 +2719,10 @@ function delAllData(){
 // CSVドラッグ＆ドロップ取込
 // 直前に読み込んだCSVファイル名を②の右に表示（拡張子は省略）
 function setCsvFileName(name){
-  var el=document.getElementById('csv-file-name'); if(!el) return;
   name=(name||'').replace(/\.(csv|tsv|txt)$/i,'').trim();
-  el.textContent=name?('📄 '+name+'　'):'';
+  lastCsvFileName=name;
+  var el=document.getElementById('csv-file-name');
+  if(el) el.textContent=name?('📄 '+name+'　'):'';
 }
 function setupCsvDrop(){
   var dz=document.getElementById('csv-drop'); if(!dz) return;

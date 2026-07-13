@@ -88,10 +88,13 @@ function doPost(e){
       if(data.csvimp && typeof data.csvimp === 'object'){
         var _cur={}; try{ _cur=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimp')||'{}'); }catch(_e){}
         var _curM={}; try{ _curM=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimpmon')||'{}'); }catch(_eM){}
+        var _curF={}; try{ _curF=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimpfile')||'{}'); }catch(_eF){}
         var _inM=(data.csvimpmon && typeof data.csvimpmon === 'object')?data.csvimpmon:{};
-        for(var _k in data.csvimp){ var _v=Number(data.csvimp[_k])||0; if(_v>(Number(_cur[_k])||0)){ _cur[_k]=_v; if(_inM[_k]!==undefined)_curM[_k]=_inM[_k]; } }
+        var _inF=(data.csvimpfile && typeof data.csvimpfile === 'object')?data.csvimpfile:{};
+        for(var _k in data.csvimp){ var _v=Number(data.csvimp[_k])||0; if(_v>(Number(_cur[_k])||0)){ _cur[_k]=_v; if(_inM[_k]!==undefined)_curM[_k]=_inM[_k]; if(_inF[_k]!==undefined)_curF[_k]=_inF[_k]; } }
         PropertiesService.getDocumentProperties().setProperty('csvimp', JSON.stringify(_cur));
         PropertiesService.getDocumentProperties().setProperty('csvimpmon', JSON.stringify(_curM));
+        PropertiesService.getDocumentProperties().setProperty('csvimpfile', JSON.stringify(_curF));
       }
       return jsonOut({status:'ok', saved:{reservations:(data.reservations||[]).length, stays:(data.stays||[]).length}});
     }
@@ -107,9 +110,10 @@ function doGet(e){
     var qk={}; try{ qk=JSON.parse(PropertiesService.getDocumentProperties().getProperty('qack')||'{}'); }catch(e3){}
     var ci={}; try{ ci=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimp')||'{}'); }catch(e4){}
     var cim={}; try{ cim=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimpmon')||'{}'); }catch(e6){}
+    var cif={}; try{ cif=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimpfile')||'{}'); }catch(e8){}
     var sn=PropertiesService.getDocumentProperties().getProperty('sharednote')||'';
     var de={}; try{ de=JSON.parse(PropertiesService.getDocumentProperties().getProperty('dayevents')||'{}'); }catch(e7){}
-    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, sharednote:sn, dayevents:de});
+    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, sharednote:sn, dayevents:de});
   }catch(err){
     return jsonOut({status:'error', message:String(err)});
   }
