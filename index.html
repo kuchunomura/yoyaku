@@ -236,7 +236,7 @@ details[open] summary{opacity:0.75}
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13.5px;cursor:pointer;font-weight:normal">
           <input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む
         </label>
-        <label style="margin-top:10px;font-size:14px;line-height:1.5"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span style="color:#c0392b;font-weight:600;font-size:12.5px">⚠ 施設は認識できません。間違えないように</span></label>
+        <label style="margin-top:10px;font-size:14px;line-height:1.5"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span id="csv-file-name" style="color:#1a7a3a;font-weight:700;font-size:12.5px"></span><span style="color:#c0392b;font-weight:600;font-size:12.5px">⚠ 施設は認識できません。間違えないように</span></label>
         <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:14px;text-align:center;font-size:13.5px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<br><span style="font-size:11px;color:#9a8050">（またはタップしてファイルを選択）</span></div>
         <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
         <div style="font-size:12px;color:#888;margin:6px 0">または↓に貼り付け（スプレッドシートからコピペ可）</div>
@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=288;
-const APP_BUILD_DATE='2026/07/13 15:00';
+const APP_VERSION=289;
+const APP_BUILD_DATE='2026/07/13 15:08';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2374,6 +2374,7 @@ function updateCsvFacTitle(){
   var opt=(s&&s.selectedIndex>=0)?s.options[s.selectedIndex]:null;
   var name=opt?opt.textContent:'';
   name=name.replace(/（[^）]*）\s*$/,'').trim();
+  if(name==='ツリーハウス')name='ツリーハウス夜'; // 宿泊のツリーハウスは「夜」を明示（日帰りはツリーハウス昼）
   document.title=name?('予約メモ-'+name):'予約メモ';
 }
 // 取込先selectの値→表示名
@@ -2713,8 +2714,16 @@ function delAllData(){
 }
 
 // CSVドラッグ＆ドロップ取込
+// 直前に読み込んだCSVファイル名を②の右に表示（拡張子は省略）
+function setCsvFileName(name){
+  var el=document.getElementById('csv-file-name'); if(!el) return;
+  name=(name||'').replace(/\.(csv|tsv|txt)$/i,'').trim();
+  el.textContent=name?('📄 '+name+'　'):'';
+}
 function setupCsvDrop(){
   var dz=document.getElementById('csv-drop'); if(!dz) return;
+  var fi=document.getElementById('csv-file');
+  if(fi) fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]) setCsvFileName(fi.files[0].name); });
   ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fdeccb'; dz.style.borderColor='#c9962f'; }); });
   ['dragleave','dragend'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fffdf8'; dz.style.borderColor='#d9b676'; }); });
   dz.addEventListener('drop',function(e){
@@ -2725,6 +2734,7 @@ function setupCsvDrop(){
     var fr=new FileReader();
     fr.onload=function(ev){
       document.getElementById('csv-text').value=decodeBytes(ev.target.result);
+      setCsvFileName(files[0].name);
       var res=document.getElementById('csv-result');
       if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 「'+files[0].name+'」を読み込みました。施設を選んで「取り込む」を押してください。'; }
     };
