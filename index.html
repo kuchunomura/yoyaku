@@ -571,8 +571,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=301;
-const APP_BUILD_DATE='2026/07/16 22:43';
+const APP_VERSION=302;
+const APP_BUILD_DATE='2026/07/17 08:11';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2856,7 +2856,7 @@ function importCSV(){
     res.style.color='#1a7a3a';
     res.innerHTML='✓ 取込完了：追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'')
       +(mismatch?('<div style="color:#c0392b;margin-top:6px;font-weight:600">⚠ '+mismatch+' 件は取込先の種別と一致しないため取り込みませんでした。<br>このCSVは'+(type==='day'?'<b>宿泊</b>予約のようです（ベッド情報・連泊あり）。上の選択を<b>「〇〇（宿泊）」</b>に変えて取り込み直してください。':'<b>日帰り</b>予約のようです（利用時間あり）。上の選択を<b>「☀ 日帰り」</b>の施設に変えてください。')+'</div>'):'')
-      +((type==='day'&&_dtDbg.length)?('<div style="margin-top:10px;padding:8px;background:#fffbea;border:1px solid #e0cf90;border-radius:6px;font-size:11px;line-height:1.6"><b>🔎 時刻の元データ（開発者に見せる用）</b><br>各行 = 名前 / CSVの生の日時セル / 取り込んだ時刻。<br>「日付を含む全セル」も出しています＝別の列に本当の予約時間があるか確認用。<div style="margin-top:6px;font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;background:#fff;border:1px solid #eee;padding:6px;border-radius:4px">'+_dtDbg.slice(0,12).map(function(d){return esc(d.nm)+'\n  採用[列'+d.picked+']: '+esc(d.raw)+'  →取込 '+esc(d.out)+'\n  日付含む全セル: '+esc(d.all);}).join('\n\n')+'</div><button onclick="var d=this.previousSibling;var t=d.innerText||d.textContent;if(navigator.clipboard){navigator.clipboard.writeText(t);showToast(&quot;コピーしました&quot;);}" style="margin-top:6px;font-size:11px;padding:4px 10px">この内容をコピー</button></div>'):'');
+      +((type==='day'&&_dtDbg.length)?('<div style="margin-top:8px;padding:6px 8px;background:#fffbea;border:1px solid #e0cf90;border-radius:6px;font-size:11px;line-height:1.6">🔎 時刻の元データは、設定タブ →「🔎 時刻の元データを表示・コピー」で確認できます（同期後は他端末でも見られます）。</div>'):'');
     showToast('✓ CSV取込：追加'+added+'・更新'+updated+(mismatch?'（種別不一致'+mismatch+'件除外）':''));
     document.getElementById('csv-text').value=''; document.getElementById('csv-file').value='';
     renderList();
