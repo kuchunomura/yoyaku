@@ -566,8 +566,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=299;
-const APP_BUILD_DATE='2026/07/16 22:14';
+const APP_VERSION=300;
+const APP_BUILD_DATE='2026/07/16 22:37';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2718,6 +2718,7 @@ function importCSV(){
       showToast('⚠ 取込先の種別が違います（'+csvJa+'のCSV）','#c00');
       return;
     }
+    var _dtDbg=[]; // 診断：日帰りの「日時セルの生値」を控える（時刻ズレ原因の特定用。個人情報は含めない＝名前と日時のみ）
     rows.forEach(function(f){
       var wpId=String(f[0]||'').trim();
       if(!/^\d+$/.test(wpId)) return; // ヘッダー/空行/不正行スキップ
@@ -2749,6 +2750,9 @@ function importCSV(){
         // 日帰りは開始時刻をUTC→日本時間(+9h)へ変換して取り込む（CSVはUTC出力のため）
         if(H.date>=0){ var pd=parseWpDateTimeJST(f[H.date]); if(pd.date){ dt=pd; dIdx=H.date; } }
         if(dIdx<0){ for(var k=0;k<f.length;k++){ var p=parseWpDateTimeJST(f[k]); if(p.date){ dt=p; dIdx=k; break; } } }
+        // 診断：この行の「日付を含むセル」を全部（列番号＋生値）控える。予約時間の列と送信日時の列を見分けるため（個人情報は拾わない）
+        var _cells=[]; for(var _di=0;_di<f.length;_di++){ if(parseWpDateTime(f[_di]).date) _cells.push('['+_di+']'+String(f[_di]).replace(/\s+/g,' ').trim()); }
+        _dtDbg.push({nm:name, picked:dIdx, raw:(dIdx>=0?String(f[dIdx]).replace(/\s+/g,' ').trim():''), out:(dt.date+' '+dt.time).trim(), all:_cells.join('  ')});
         var cIdx=H.course>=0?H.course:csvFindIdx(f,/利用|分|day|終日|minutes/i);
         var ninIdx=H.ninzu>=0?H.ninzu:csvFindIdx(f,/人数|名（|名\(|people|persons/i);
         var courseVal=parseCourse(cIdx>=0?f[cIdx]:'');
@@ -2830,7 +2834,8 @@ function importCSV(){
     sv(RKEY,reservations); sv(STKEY,stays); autoPush();
     res.style.color='#1a7a3a';
     res.innerHTML='✓ 取込完了：追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'')
-      +(mismatch?('<div style="color:#c0392b;margin-top:6px;font-weight:600">⚠ '+mismatch+' 件は取込先の種別と一致しないため取り込みませんでした。<br>このCSVは'+(type==='day'?'<b>宿泊</b>予約のようです（ベッド情報・連泊あり）。上の選択を<b>「〇〇（宿泊）」</b>に変えて取り込み直してください。':'<b>日帰り</b>予約のようです（利用時間あり）。上の選択を<b>「☀ 日帰り」</b>の施設に変えてください。')+'</div>'):'');
+      +(mismatch?('<div style="color:#c0392b;margin-top:6px;font-weight:600">⚠ '+mismatch+' 件は取込先の種別と一致しないため取り込みませんでした。<br>このCSVは'+(type==='day'?'<b>宿泊</b>予約のようです（ベッド情報・連泊あり）。上の選択を<b>「〇〇（宿泊）」</b>に変えて取り込み直してください。':'<b>日帰り</b>予約のようです（利用時間あり）。上の選択を<b>「☀ 日帰り」</b>の施設に変えてください。')+'</div>'):'')
+      +((type==='day'&&_dtDbg.length)?('<div style="margin-top:10px;padding:8px;background:#fffbea;border:1px solid #e0cf90;border-radius:6px;font-size:11px;line-height:1.6"><b>🔎 時刻の元データ（開発者に見せる用）</b><br>各行 = 名前 / CSVの生の日時セル / 取り込んだ時刻。<br>「日付を含む全セル」も出しています＝別の列に本当の予約時間があるか確認用。<div style="margin-top:6px;font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;background:#fff;border:1px solid #eee;padding:6px;border-radius:4px">'+_dtDbg.slice(0,12).map(function(d){return esc(d.nm)+'\n  採用[列'+d.picked+']: '+esc(d.raw)+'  →取込 '+esc(d.out)+'\n  日付含む全セル: '+esc(d.all);}).join('\n\n')+'</div><button onclick="var d=this.previousSibling;var t=d.innerText||d.textContent;if(navigator.clipboard){navigator.clipboard.writeText(t);showToast(&quot;コピーしました&quot;);}" style="margin-top:6px;font-size:11px;padding:4px 10px">この内容をコピー</button></div>'):'');
     showToast('✓ CSV取込：追加'+added+'・更新'+updated+(mismatch?'（種別不一致'+mismatch+'件除外）':''));
     document.getElementById('csv-text').value=''; document.getElementById('csv-file').value='';
     renderList();
