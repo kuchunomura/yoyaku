@@ -1,12 +1,43 @@
 // ============================================================
 // 予約管理アプリ（yoyaku）用 GAS Webアプリ
-// 使い方: 同期用スプレッドシートを作成 → 拡張機能→Apps Script に貼り付け
-//        → デプロイ→新しいデプロイ→ウェブアプリ（実行:自分／アクセス:全員）
-//        → 表示された /exec URL をアプリの設定「GAS WebアプリURL」に貼る
+//
+// 【独立プロジェクトとして script.google.com に置くこと】
+// スプレッドシートの「拡張機能→Apps Script」からは作らない。
+// 理由: バインドすると、そのスプレッドシートを消したときスクリプトごと消える。
+//       2026/07/16、ドライブのストレージ削除でシートが消え、GASも道連れで消えた。
+//       独立プロジェクトなら下の SS_ID を差し替えるだけで復旧できる。
+//
+// 使い方:
+//   1. 同期用スプレッドシートを作成し、そのURLの /d/ と /edit の間のIDを下の SS_ID に貼る
+//   2. script.google.com → 新しいプロジェクト → このコードを貼り付け
+//   3. デプロイ → 新しいデプロイ → ウェブアプリ（実行:自分／アクセス:全員）
+//   4. 表示された /exec URL を2か所に貼る:
+//        yoyakuアプリ → 設定「GAS WebアプリURL」
+//        POSレジ     → 設定「📅 予約連携（yoyaku）」
+//   5. GASエディタで checkSpreadsheetAccess() を1回実行し、権限の承認を済ませる
+//
 // doPost: アプリから {type:'sync_all', reservations, stays} を受けてシートへ保存
 // doGet : アプリへ {reservations, stays} を返す（端末間同期の読込用）
 // シートは「人が読める列＋_json（完全復元用）」の両方を書き込む（印刷にも使える）
 // ============================================================
+
+// 同期先スプレッドシートのID（URLの /d/ と /edit の間）
+var SS_ID = '1gwV7YQHA0p6pWUXjw9qAhB5Js0NK3p-QtuR063QqM54'; // yoyaku同期（2026/07/16 再作成）
+
+function getTargetSS(){
+  if(!SS_ID) throw new Error('SS_ID が未設定です。GASコード先頭の SS_ID にスプレッドシートのIDを貼ってください');
+  return SpreadsheetApp.openById(SS_ID);
+}
+
+// 【GASエディタから手で実行する用】スプレッドシートを本当に開けるか確認する。
+// アプリ側の疎通確認では openById の権限までは分からないので、作り直したら必ず1回実行する。
+function checkSpreadsheetAccess(){
+  var ss = getTargetSS();
+  var names = ss.getSheets().map(function(s){ return s.getName(); });
+  var msg = '✅ 開けました\n\nID: ' + SS_ID + '\n名前: ' + ss.getName() + '\nシート' + names.length + '枚: ' + names.join(', ');
+  Logger.log(msg);
+  return msg;
+}
 
 var DAY_SHEET  = '予約_日帰り';
 var STAY_SHEET = '予約_宿泊';
@@ -70,31 +101,31 @@ function doPost(e){
     if(data.type === 'sync_all'){
       writeAll(data.reservations || [], data.stays || []);
       if(data.otaack && typeof data.otaack === 'object'){
-        PropertiesService.getDocumentProperties().setProperty('otaack', JSON.stringify(data.otaack));
+        PropertiesService.getScriptProperties().setProperty('otaack', JSON.stringify(data.otaack));
       }
       if(data.qack && typeof data.qack === 'object'){
-        PropertiesService.getDocumentProperties().setProperty('qack', JSON.stringify(data.qack));
+        PropertiesService.getScriptProperties().setProperty('qack', JSON.stringify(data.qack));
       }
       // 共有メモ（全端末で同期。URL控え・引き継ぎ事項など）
       if(typeof data.sharednote === 'string'){
-        PropertiesService.getDocumentProperties().setProperty('sharednote', data.sharednote);
+        PropertiesService.getScriptProperties().setProperty('sharednote', data.sharednote);
       }
       // 日付ごとの特記（イベント・取材・予定。全端末で同期）
       if(data.dayevents && typeof data.dayevents === 'object'){
-        PropertiesService.getDocumentProperties().setProperty('dayevents', JSON.stringify(data.dayevents));
+        PropertiesService.getScriptProperties().setProperty('dayevents', JSON.stringify(data.dayevents));
       }
       // 最終CSV取込日時：施設ごとに新しい方を残してマージ（他デバイスの取込時刻を消さない）
       // 併せて「何月分か（csvimpmon）」も、取込時刻が新しくなった施設だけ更新して同期する
       if(data.csvimp && typeof data.csvimp === 'object'){
-        var _cur={}; try{ _cur=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimp')||'{}'); }catch(_e){}
-        var _curM={}; try{ _curM=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimpmon')||'{}'); }catch(_eM){}
-        var _curF={}; try{ _curF=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimpfile')||'{}'); }catch(_eF){}
+        var _cur={}; try{ _cur=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimp')||'{}'); }catch(_e){}
+        var _curM={}; try{ _curM=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimpmon')||'{}'); }catch(_eM){}
+        var _curF={}; try{ _curF=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimpfile')||'{}'); }catch(_eF){}
         var _inM=(data.csvimpmon && typeof data.csvimpmon === 'object')?data.csvimpmon:{};
         var _inF=(data.csvimpfile && typeof data.csvimpfile === 'object')?data.csvimpfile:{};
         for(var _k in data.csvimp){ var _v=Number(data.csvimp[_k])||0; if(_v>(Number(_cur[_k])||0)){ _cur[_k]=_v; if(_inM[_k]!==undefined)_curM[_k]=_inM[_k]; if(_inF[_k]!==undefined)_curF[_k]=_inF[_k]; } }
-        PropertiesService.getDocumentProperties().setProperty('csvimp', JSON.stringify(_cur));
-        PropertiesService.getDocumentProperties().setProperty('csvimpmon', JSON.stringify(_curM));
-        PropertiesService.getDocumentProperties().setProperty('csvimpfile', JSON.stringify(_curF));
+        PropertiesService.getScriptProperties().setProperty('csvimp', JSON.stringify(_cur));
+        PropertiesService.getScriptProperties().setProperty('csvimpmon', JSON.stringify(_curM));
+        PropertiesService.getScriptProperties().setProperty('csvimpfile', JSON.stringify(_curF));
       }
       return jsonOut({status:'ok', saved:{reservations:(data.reservations||[]).length, stays:(data.stays||[]).length}});
     }
@@ -106,13 +137,13 @@ function doPost(e){
 
 function doGet(e){
   try{
-    var ota={}; try{ ota=JSON.parse(PropertiesService.getDocumentProperties().getProperty('otaack')||'{}'); }catch(e2){}
-    var qk={}; try{ qk=JSON.parse(PropertiesService.getDocumentProperties().getProperty('qack')||'{}'); }catch(e3){}
-    var ci={}; try{ ci=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimp')||'{}'); }catch(e4){}
-    var cim={}; try{ cim=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimpmon')||'{}'); }catch(e6){}
-    var cif={}; try{ cif=JSON.parse(PropertiesService.getDocumentProperties().getProperty('csvimpfile')||'{}'); }catch(e8){}
-    var sn=PropertiesService.getDocumentProperties().getProperty('sharednote')||'';
-    var de={}; try{ de=JSON.parse(PropertiesService.getDocumentProperties().getProperty('dayevents')||'{}'); }catch(e7){}
+    var ota={}; try{ ota=JSON.parse(PropertiesService.getScriptProperties().getProperty('otaack')||'{}'); }catch(e2){}
+    var qk={}; try{ qk=JSON.parse(PropertiesService.getScriptProperties().getProperty('qack')||'{}'); }catch(e3){}
+    var ci={}; try{ ci=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimp')||'{}'); }catch(e4){}
+    var cim={}; try{ cim=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimpmon')||'{}'); }catch(e6){}
+    var cif={}; try{ cif=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimpfile')||'{}'); }catch(e8){}
+    var sn=PropertiesService.getScriptProperties().getProperty('sharednote')||'';
+    var de={}; try{ de=JSON.parse(PropertiesService.getScriptProperties().getProperty('dayevents')||'{}'); }catch(e7){}
     return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, sharednote:sn, dayevents:de});
   }catch(err){
     return jsonOut({status:'error', message:String(err)});
@@ -124,7 +155,7 @@ function jsonOut(obj){
 }
 
 function getSheet(name){
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getTargetSS();
   var sh = ss.getSheetByName(name);
   if(!sh) sh = ss.insertSheet(name);
   return sh;
@@ -189,18 +220,17 @@ function writeRows(sh, cols, rows, groupKeys){
   applyCancelVisibility(sh); // キャンセル非表示の設定を反映（同期で書き直しても維持）
 }
 
-// ===== スプレッドシートのメニュー：キャンセル予約の表示/非表示 =====
-function onOpen(){
-  SpreadsheetApp.getUi().createMenu('予約管理')
-    .addItem('キャンセルを非表示にする','menuHideCancelled')
-    .addItem('キャンセルを表示する','menuShowCancelled')
-    .addToUi();
-}
-function menuHideCancelled(){ setHideCancelledPref(true); applyCancelVisibilityAll(); SpreadsheetApp.getActive().toast('キャンセル予約を非表示にしました'); }
-function menuShowCancelled(){ setHideCancelledPref(false); applyCancelVisibilityAll(); SpreadsheetApp.getActive().toast('キャンセル予約を表示しました'); }
-function setHideCancelledPref(v){ PropertiesService.getDocumentProperties().setProperty('hideCancelled', v?'1':''); }
-function getHideCancelledPref(){ return PropertiesService.getDocumentProperties().getProperty('hideCancelled')==='1'; }
-function applyCancelVisibilityAll(){ [DAY_SHEET,STAY_SHEET].forEach(function(n){ var sh=SpreadsheetApp.getActive().getSheetByName(n); if(sh) applyCancelVisibility(sh); }); }
+// ===== キャンセル予約の表示/非表示 =====
+// 独立プロジェクトなので onOpen（スプレッドシートのメニュー）は使えない。
+// 切り替えたいときは【GASエディタで関数を選んで▶実行】する:
+//   hideCancelledRows() … キャンセルを非表示にする
+//   showCancelledRows() … キャンセルを表示する
+// 設定は保存され、以後アプリから同期するたびに自動で反映される（writeSheetから呼ばれる）。
+function hideCancelledRows(){ setHideCancelledPref(true);  applyCancelVisibilityAll(); return 'キャンセル予約を非表示にしました'; }
+function showCancelledRows(){ setHideCancelledPref(false); applyCancelVisibilityAll(); return 'キャンセル予約を表示しました'; }
+function setHideCancelledPref(v){ PropertiesService.getScriptProperties().setProperty('hideCancelled', v?'1':''); }
+function getHideCancelledPref(){ return PropertiesService.getScriptProperties().getProperty('hideCancelled')==='1'; }
+function applyCancelVisibilityAll(){ [DAY_SHEET,STAY_SHEET].forEach(function(n){ var sh=getTargetSS().getSheetByName(n); if(sh) applyCancelVisibility(sh); }); }
 function applyCancelVisibility(sh){
   var last=sh.getLastRow(); if(last<2) return;
   var lastCol=sh.getLastColumn();
@@ -219,7 +249,7 @@ function applyCancelVisibility(sh){
 }
 
 function readSheet(name){
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getTargetSS();
   var sh = ss.getSheetByName(name);
   if(!sh) return [];
   var last = sh.getLastRow();
