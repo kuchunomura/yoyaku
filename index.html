@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=293;
-const APP_BUILD_DATE='2026/07/16 15:58';
+const APP_VERSION=294;
+const APP_BUILD_DATE='2026/07/16 16:10';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2258,6 +2258,17 @@ function saveGasUrl(){
 async function syncToSheet(silent){
   const url=ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value.trim():'');
   if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
+  // ★カラの端末からシートを空にしない安全装置（2026/07/16の事故対策の対）
+  // 同期はローカルの全件でシートを作り直すため、データが無い端末で押すと
+  // 他の端末が入れた予約をシートごと消してしまう。読込側(loadFromSheet)と同じ穴。
+  // silent（autoPushからの自動送信）のときは黙って中止する。ダイアログで固まらせないため。
+  if((reservations.length+stays.length)===0){
+    if(silent) return;
+    if(!confirm('この端末には予約が1件もありません。\n\nこのまま同期すると、スプレッドシートの予約を全部消してしまいます。\n（他の端末が入れたデータも消えます）\n\n本当に実行しますか？\n\n※ 予約を戻したいだけなら「キャンセル」を押して「📥 シートから読込」を使ってください。')){
+      showToast('中止しました。読み込むなら「📥 シートから読込」を押してください','#c07000',6000);
+      return;
+    }
+  }
   const st=document.getElementById('sync-status');
   if(st)st.textContent='同期中...';
   try{
