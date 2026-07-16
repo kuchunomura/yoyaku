@@ -566,8 +566,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=297;
-const APP_BUILD_DATE='2026/07/16 21:57';
+const APP_VERSION=298;
+const APP_BUILD_DATE='2026/07/16 22:07';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2590,13 +2590,19 @@ function parseWpDateTime(s){
   var t=s.match(/(\d{1,2}):(\d{2})/);
   return {date:dt, time:t?(('0'+t[1]).slice(-2)+':'+t[2]):''};
 }
-// WordPress予約CSVの日時はUTC（世界標準時）で出力されるため、日本時間(+9h)へ変換して返す。
-// 日帰りの開始時刻用。宿泊の日付抽出（checkin/checkout）には使わない＝時刻繰り上がりで日付がズレるのを避ける。
+// 日帰りの開始時刻を「正しい日本時間」で取り込む。
+// WordPress予約CSVの日時がUTC（9h前）で出力される時があるため、あり得ない時刻を検知して補正する。
+// 日帰り施設は最早9時開園＝日本時間なら必ず9:00以降。9:00より前は「UTC出力」とみなし+9hで日本時間へ直す。
+// 9:00以降はすでに日本時間なのでそのまま（＝WordPress側を東京に直してもCSVがJSTになるだけで二重補正しない）。
+// 宿泊の日付抽出（checkin/checkout）には使わない＝時刻繰り上がりで日付がズレるのを避ける。
 function parseWpDateTimeJST(s){
   var r=parseWpDateTime(s);
   if(!r.date||!r.time) return r; // 時刻が無ければ日付だけ（変換不要）
-  var p=r.date.split('-'), tp=r.time.split(':');
-  var d=new Date(Date.UTC(+p[0],+p[1]-1,+p[2],+tp[0],+tp[1])+9*3600000);
+  var tp=r.time.split(':'), hh=+tp[0];
+  if(hh>=9) return r; // 既に日本時間（営業時間内）＝補正不要
+  // 9時より前＝UTCとみなし+9h。9時前+9=9〜17時で同日に収まり日付は変わらない。
+  var p=r.date.split('-');
+  var d=new Date(Date.UTC(+p[0],+p[1]-1,+p[2],hh,+tp[1])+9*3600000);
   return {
     date: d.getUTCFullYear()+'-'+('0'+(d.getUTCMonth()+1)).slice(-2)+'-'+('0'+d.getUTCDate()).slice(-2),
     time: ('0'+d.getUTCHours()).slice(-2)+':'+('0'+d.getUTCMinutes()).slice(-2)
