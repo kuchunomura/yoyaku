@@ -232,7 +232,7 @@ details[open] summary{opacity:0.75}
         <div id="csv-implog" style="font-size:12.5px;color:#555;background:#fff;border:1px solid #e8d8b0;border-radius:6px;padding:8px;margin-bottom:8px;line-height:1.7"></div>
         </div>
         <label style="font-size:14px"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">①</span> 取込先の施設（このCSVの商品）　<span style="font-size:12.5px;color:#9a8050">▼タップで選択</span></label>
-        <select id="csv-fac" style="font-size:14px;-webkit-appearance:menulist;appearance:menulist;border:1px solid #888;border-radius:6px;padding:8px;background:#fff"></select>
+        <select id="csv-fac" onchange="renderCsvImpLog()" style="font-size:14px;-webkit-appearance:menulist;appearance:menulist;border:1px solid #888;border-radius:6px;padding:8px;background:#fff"></select>
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13.5px;cursor:pointer;font-weight:normal">
           <input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む
         </label>
@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=290;
-const APP_BUILD_DATE='2026/07/13 20:55';
+const APP_VERSION=291;
+const APP_BUILD_DATE='2026/07/16 10:38';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -931,10 +931,14 @@ function calcTime(){
   const _dd=normDate((document.getElementById('day-date')||{}).value||'');
   const ovH=(addFacId==='tree'&&checkOverlap(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#c00">重複</span>':((addFacId==='tree'&&checkAdjacent(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#1565c0">連続</span>':'');
   document.getElementById('time-display').innerHTML=st+' 〜 '+getEnd(st,addCourse,addFacId)+noteH+ovH;
+  // 宿泊者割引：OTAでない宿泊に紐づく空中ウォーク(115分/1DAY)は1人500円引き。村内割引より優先
+  const sgd=stayGuestDisc(addFacId,addCourse,getDayStayLinkIds());
   // 村内：BBQは無料・空中ウォーク・ツリーハウスは半額。レンタルは村内でも有料
-  const price=mura?(fac.fixedCount?0:Math.floor(basePrice/2)):basePrice;
+  const price=dayUnitPrice(fac,addCourse,mura,sgd);
   const rt=calcRT(rentalSt);
-  if(mura){
+  if(sgd){
+    document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 → 宿泊者割引 '+price.toLocaleString()+'円/1'+fac.priceUnit+(mura?'（村内より宿泊者割引を優先）':'');
+  }else if(mura){
     document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 → 村内割引';
   }else{
     document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 / 1'+fac.priceUnit+(fac.note?'　（'+fac.note+'）':'');
@@ -942,7 +946,7 @@ function calcTime(){
   if(fac.fixedCount){
     document.getElementById('price-total-text').textContent=mura?('BBQ無料'+(rt>0?' ＋ 備品 '+rt.toLocaleString()+'円':'')+'　合計　'+rt.toLocaleString()+'円'):(rt>0?'レンタル代 '+price.toLocaleString()+'円 ＋ 備品 '+rt.toLocaleString()+'円　合計 '+(price+rt).toLocaleString()+'円':'合計　'+price.toLocaleString()+'円');
   }else if(ninzu>0){
-    document.getElementById('price-total-text').textContent=(mura?'半額':'')+(rt>0?(mura?' ＋ 備品 '+rt.toLocaleString()+'円':' 備品 '+rt.toLocaleString()+'円含む'):'')+'　合計　'+(price*ninzu+rt).toLocaleString()+'円（'+ninzu+fac.priceUnit+'）';
+    document.getElementById('price-total-text').textContent=(sgd?'宿泊者割引':(mura?'半額':''))+(rt>0?((sgd||mura)?' ＋ 備品 '+rt.toLocaleString()+'円':' 備品 '+rt.toLocaleString()+'円含む'):'')+'　合計　'+(price*ninzu+rt).toLocaleString()+'円（'+ninzu+fac.priceUnit+'）';
   }else document.getElementById('price-total-text').textContent='';
 }
 
@@ -1089,6 +1093,30 @@ function _likelyLink(a,b){
   if(a.source&&b.source&&a.source===b.source&&_isOta(a.source))return true;
   return false;
 }
+
+// ===== 宿泊者割引 =====
+// 宿泊予約に紐づいた空中ウォークは 1人500円引き（POSレジの STAY_GUEST_DISC と同じ）。
+// 対象は115分と1DAYのみ（55分は割引なし＝POSに i_walk55 の割引が無いのに合わせる）。
+// OTA（楽天・じゃらん等）経由の宿泊は宿泊料をサイト側で精算済みのため対象外。
+const STAY_GUEST_DISC=500;
+const STAY_GUEST_DISC_COURSES=[115,0]; // 115分 / 1DAY
+// 紐づけ先にOTAでない宿泊があれば割引額(500)、無ければ0を返す
+function stayGuestDisc(facId,course,linkedStayIds){
+  if(facId!=='walk') return 0;
+  if(STAY_GUEST_DISC_COURSES.indexOf(Number(course))<0) return 0;
+  var ids=linkedStayIds||[];
+  for(var i=0;i<ids.length;i++){
+    var s=stays.find(function(x){return x.id===ids[i];});
+    if(s&&!isCancelled(s)&&!_isOta(s.source)) return STAY_GUEST_DISC;
+  }
+  return 0;
+}
+// 空中ウォーク等の1人単価。宿泊者割引 > 村内割引 の優先順（POSの getDiscountedPrice と同じ順番）
+function dayUnitPrice(fac,course,mura,sgd){
+  var base=fac.prices[course];
+  if(sgd) return base-sgd;
+  return mura?(fac.fixedCount?0:Math.floor(base/2)):base;
+}
 // 予約者名が一致する日帰り↔宿泊を前後±1日で自動紐づけ（追加のみ。解除は編集で可能）
 // ※名前が違う場合は自動紐づけしない（候補には出るので手動で紐づけ可能）
 function autoLinkAll(){
@@ -1128,7 +1156,8 @@ function updDayStayLink(){
     const srcL=s.source?'【'+getSrcLabel(s.source)+'】':'【直接予約】';
     const id='dsl_'+s.id;
     const row=document.createElement('div');row.className='link-check-item';
-    row.innerHTML='<input type="checkbox" id="'+id+'" value="'+s.id+'"'+(lk?' checked':'')+'><label for="'+id+'"'+(lk?' style="font-weight:700;color:#1c5c39"':'')+'>'+(lk?'◎ ':'')+fmtDate(s.checkin)+' '+sLinkLabel(s)+(s.name?' '+s.name:'')+' '+srcL+'</label>';
+    // 紐づけを変えると宿泊者割引の有無が変わるので価格を再計算する
+    row.innerHTML='<input type="checkbox" id="'+id+'" value="'+s.id+'"'+(lk?' checked':'')+' onchange="calcTime()"><label for="'+id+'"'+(lk?' style="font-weight:700;color:#1c5c39"':'')+'>'+(lk?'◎ ':'')+fmtDate(s.checkin)+' '+sLinkLabel(s)+(s.name?' '+s.name:'')+' '+srcL+'</label>';
     c.appendChild(row);
   });
 }
@@ -1226,7 +1255,7 @@ function updDayLink(){
   // チェックインの前後±1日のみ（日付なしは出さない）
   const base=new Date(cin);
   const dates=[-1,0,1].map(d=>{const dt=new Date(base);dt.setDate(dt.getDate()+d);return dt.toISOString().slice(0,10);});
-  let list=reservations.filter(r=>r.date&&dates.includes(r.date));
+  let list=reservations.filter(r=>r.date&&dates.includes(r.date)&&!isCancelled(r)); // キャンセル済みは候補に出さない
   if(!list.length){c.innerHTML='<div style="font-size:13px;color:#aaa;padding:6px 0">前後の日帰り予約なし</div>';return;}
   const cur={name:(document.getElementById('stay-name')||{}).value,source:(document.getElementById('stay-source')||{}).value};
   list=list.slice().sort((a,b)=>(_likelyLink(cur,b)?1:0)-(_likelyLink(cur,a)?1:0));
@@ -1464,7 +1493,9 @@ function renderList(){
     const co=fac.courses.find(x=>x.min===r.course);
     const basePrice=fac.prices[r.course];
     const mura=r.mura||false;
-    const price=mura?(fac.fixedCount?0:Math.floor(basePrice/2)):basePrice;
+    // 宿泊者割引：OTAでない宿泊に紐づく空中ウォーク(115分/1DAY)は1人500円引き
+    const sgd=stayGuestDisc(r.facility,r.course,r.linkedStayIds);
+    const price=dayUnitPrice(fac,r.course,mura,sgd);
     const ninzu=parseInt(r.ninzu)||0;
     const rental=r.rental||[];
     const rt=rental.reduce((s,i)=>s+i.price*i.qty,0);
@@ -1474,7 +1505,8 @@ function renderList(){
     const showDayInfo=!dayInfoShown[dayInfoKey];dayInfoShown[dayInfoKey]=true;
     // 金額表示（宿泊カードと同様に右側へ：単価×人数 ＋備品 計◯円）。レンタルは村内でも有料
     let amountText;
-    if(mura){ var muraBase=fac.fixedCount?0:price*ninzu; amountText='村内割引'+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(muraBase+rt).toLocaleString()+'円'; }
+    if(sgd){ amountText='宿泊者割引 '+price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
+    else if(mura){ var muraBase=fac.fixedCount?0:price*ninzu; amountText='村内割引'+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(muraBase+rt).toLocaleString()+'円'; }
     else if(fac.fixedCount){ amountText=price.toLocaleString()+'円／'+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price+rt).toLocaleString()+'円'; }
     else { amountText=price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
     const div=document.createElement('div');div.className='card'+(r.done?' done':'')+(isCancelled(r)?' cancelled':'');
@@ -1495,6 +1527,7 @@ function renderList(){
         '<span class="badge '+fac.badgeCls+'">'+fac.label+'</span>'+
         eventChipHtml(r.event)+
         (mura?'<span style="font-size:11px;font-weight:600;background:#fff8e8;color:#e67700;border:1px solid #EF9F27;border-radius:20px;padding:2px 8px">村内</span>':'')+
+        (sgd?'<span style="font-size:11px;font-weight:600;background:#f3e8ee;color:#7a1030;border:1px solid #c58aa4;border-radius:20px;padding:2px 8px">宿泊者割引</span>':'')+
         (isOv?'<span class="badge-overlap">重複</span>':'')+
         (r.changed?'<span class="badge-changed">変更済み</span>':'')+
         (r.done?'<span class="badge badge-done">会計済み</span>':'')+
@@ -1760,10 +1793,10 @@ function saveReservation(){
   const linkedStayIds=getDayStayLinkIds();
   const linkedDayIds=getDayDayLinkIds();
   const rid='r_'+Date.now();
-  // 村内割引の料金計算
+  // 村内割引・宿泊者割引の料金計算
   const fac2=getFac(addFacId);
   const basePrice=fac2.prices[addCourse];
-  const discountedPrice=mura?(fac2.fixedCount?0:Math.floor(basePrice/2)):basePrice;
+  const discountedPrice=dayUnitPrice(fac2,addCourse,mura,stayGuestDisc(addFacId,addCourse,linkedStayIds));
   // メモ
   const memoBase=mura?'村内':'';
   reservations.push({id:rid,facility:addFacId,course:addCourse,date:dt,startTime:st,
@@ -2390,11 +2423,27 @@ function renderCsvImpLog(){
   // 'YYYY-MM,YYYY-MM' → '7月分' / '7〜8月分'
   function monLabel(csv){ if(!csv) return ''; var arr=String(csv).split(',').filter(Boolean).sort(); if(!arr.length) return ''; var ja=function(m){var p=m.split('-');return (+p[1])+'月';}; return (arr.length===1?ja(arr[0]):ja(arr[0])+'〜'+ja(arr[arr.length-1]))+'分'; }
   var rows=[];
-  FACILITIES.forEach(function(f){var v='day:'+f.id;var lb=(f.id==='tree'?'ツリーハウス昼':f.label);rows.push([lb,imp[v],monLabel(mon[v]),fnm[v]]);});
-  var seen={}; STAY_FACS.forEach(function(f){if(seen[f.group])return;seen[f.group]=true;var v='staygroup:'+f.group;rows.push([f.group+'（宿泊）',imp[v],monLabel(mon[v]),fnm[v]]);});
+  FACILITIES.forEach(function(f){var v='day:'+f.id;var lb=(f.id==='tree'?'ツリーハウス昼':f.label);rows.push([lb,imp[v],monLabel(mon[v]),fnm[v],v]);});
+  var seen={}; STAY_FACS.forEach(function(f){if(seen[f.group])return;seen[f.group]=true;var v='staygroup:'+f.group;rows.push([f.group+'（宿泊）',imp[v],monLabel(mon[v]),fnm[v],v]);});
+  // 今ドラッグ中（未取込）のファイル名を、選択中の施設の行に「→ 📄新しいファイル」として並べて出す。
+  // 取り込む前に、施設が合っているか・前回と同じファイルを二重に入れようとしていないかを目視できる。
+  var selKey=(document.getElementById('csv-fac')||{}).value||'';
   el.innerHTML='<b>最終CSV取込日時</b>'
     +'<div style="display:grid;grid-template-columns:max-content 1fr;gap:3px 6px;margin-top:4px;line-height:1.5;">'
-    +rows.map(function(r){return '<div>'+r[0]+'</div><div>：'+(r[1]?'<span style="color:#1a7a3a">'+fmtDateTime(r[1])+'</span>'+(r[2]?' <span style="color:#6b4f20;font-weight:700">'+r[2]+'</span>':'')+(r[3]?' <span style="color:#2471a3;font-weight:600">📄'+htmlEscape(r[3])+'</span>':''):'<span style="color:#bbb">未取込</span>')+'</div>';}).join('')
+    +rows.map(function(r){
+      var prev=r[1]
+        ? '<span style="color:#1a7a3a">'+fmtDateTime(r[1])+'</span>'
+          +(r[2]?' <span style="color:#6b4f20;font-weight:700">'+r[2]+'</span>':'')
+          +(r[3]?' <span style="color:#2471a3;font-weight:600">📄'+htmlEscape(r[3])+'</span>':'')
+        : '<span style="color:#bbb">未取込</span>';
+      var next='';
+      if(r[4]===selKey && lastCsvFileName){
+        var dup=r[3] && r[3]===lastCsvFileName;
+        next=' <span style="color:'+(dup?'#c0392b':'#e67700')+';font-weight:700">→ 📄'+htmlEscape(lastCsvFileName)
+          +(dup?'（⚠ 前回と同じファイル）':'（新規）')+'</span>';
+      }
+      return '<div>'+r[0]+'</div><div>：'+prev+next+'</div>';
+    }).join('')
     +'</div>';
 }
 // 日帰り↔宿泊で同じ施設の対応（ツリーハウスは昼/夜の両方がある）
@@ -2661,7 +2710,7 @@ function importCSV(){
     var _imp=ld('yv_csvimp')||{}; _imp[sel]=Date.now(); sv('yv_csvimp',_imp);
     var _mon=ld('yv_csvimp_mon')||{}; _mon[sel]=Object.keys(_impMonths).sort().join(','); sv('yv_csvimp_mon',_mon); // 何月分かを記録
     var _impF=ld('yv_csvimp_file')||{}; _impF[sel]=lastCsvFileName||''; sv('yv_csvimp_file',_impF); // 取込ファイル名（同期される）
-    renderCsvImpLog();
+    setCsvFileName(''); // 取込済みなので「→ 📄」の待機表示を消す（ファイル名はログ側に📄として残る）。中でrenderCsvImpLog()も呼ばれる
     sv(RKEY,reservations); sv(STKEY,stays); autoPush();
     res.style.color='#1a7a3a';
     res.innerHTML='✓ 取込完了：追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'')
@@ -2723,6 +2772,7 @@ function setCsvFileName(name){
   lastCsvFileName=name;
   var el=document.getElementById('csv-file-name');
   if(el) el.textContent=name?('📄 '+name+'　'):'';
+  renderCsvImpLog(); // 上の取込ログに「前回 → 今回」を並べて出すため
 }
 function setupCsvDrop(){
   var dz=document.getElementById('csv-drop'); if(!dz) return;
