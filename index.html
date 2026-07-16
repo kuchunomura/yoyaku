@@ -566,8 +566,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=298;
-const APP_BUILD_DATE='2026/07/16 22:07';
+const APP_VERSION=299;
+const APP_BUILD_DATE='2026/07/16 22:14';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2345,12 +2345,13 @@ async function loadFromSheet(silent){
       sv(RKEY,reservations);sv(STKEY,stays);
       var _rep=repairNinzuFromAmount(); // 読込データの人数誤読を自動修復
       var _rq=healRentalQty();          // 客チェック方式メモの備品数量バグ（金額=数量）を自動修復
+      var _rt=repairDayTimeUTC();        // 過去にUTCで取り込んだ日帰り時刻を日本時間へ自動補正
       var _rd=0; if(!ld('yv_redetect3')){ _rd=redetectRentalAll(); sv('yv_redetect3',1); } // 既存予約を一度だけメモから読み取り直す（検出改良のたびフラグ番号を上げる）
-      if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 読込完了'+(_rep?'（人数'+_rep+'件を自動修正）':'')+(_rq?'（備品数量'+_rq+'件を自動修正）':'')+(_rd?'（備品'+_rd+'件を再読取）':'');
+      if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 読込完了'+(_rep?'（人数'+_rep+'件を自動修正）':'')+(_rq?'（備品数量'+_rq+'件を自動修正）':'')+(_rt?'（時刻'+_rt+'件を自動修正）':'')+(_rd?'（備品'+_rd+'件を再読取）':'');
       markSync('同期');
-      if(!silent)showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）'+(_rep?'／人数'+_rep+'件を自動修正':'')+(_rq?'／備品数量'+_rq+'件を自動修正':'')+(_rd?'／備品'+_rd+'件を再読取':''),'#1a7a3a');
+      if(!silent)showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）'+(_rep?'／人数'+_rep+'件を自動修正':'')+(_rq?'／備品数量'+_rq+'件を自動修正':'')+(_rt?'／時刻'+_rt+'件を自動修正':'')+(_rd?'／備品'+_rd+'件を再読取':''),'#1a7a3a');
       renderList();
-      if(_rep||_rq||_rd)autoPush(); // 修正結果をシートへ書き戻して全端末で共有
+      if(_rep||_rq||_rt||_rd)autoPush(); // 修正結果をシートへ書き戻して全端末で共有
     }else{ if(st)st.textContent='⚠ エラー: '+json.message; if(!silent)showToast('⚠ 読込失敗','#c00'); }
   }catch(e){ if(st)st.textContent='⚠ 通信エラー: '+e.message; if(!silent)showToast('⚠ 通信エラー','#c00'); }
 }
@@ -2376,6 +2377,23 @@ function repairNinzuFromAmount(){
     var net=(parseInt(r.discountedPrice,10)||0)-rt; if(net<=0)return;
     var dn=net/bp;
     if(Math.abs(dn-Math.round(dn))<0.001){ dn=Math.round(dn); if(dn>=1&&dn<=99&&String(r.ninzu)!==String(dn)){ r.ninzu=String(dn); changed++; } }
+  });
+  if(changed){ sv(RKEY,reservations); }
+  return changed;
+}
+
+// 過去にUTCのまま取り込んだ日帰り開始時刻を日本時間へ補正（v298の取込ロジックを既存データにも適用）。
+// 日帰り施設は最早9時開園＝9:00より前の時刻はあり得ない＝UTC出力とみなし+9h。CSV取込分(wpId有)のみ・宿泊/手入力は対象外。
+// 直すと9時以降になり二度と対象にならない＝毎回走らせても二重補正しない（冪等）。
+function repairDayTimeUTC(){
+  var changed=0;
+  (reservations||[]).forEach(function(r){
+    if(!r || !r.wpId) return;                 // CSV取込分のみ（手入力は触らない）
+    var t=String(r.startTime||''); var m=t.match(/^(\d{1,2}):(\d{2})$/); if(!m) return;
+    var hh=+m[1]; if(hh>=9) return;           // 既に日本時間（営業時間内）
+    var nh=(hh+9)%24;                          // 9時前+9=9〜17時。日付は変わらない
+    var fixed=('0'+nh).slice(-2)+':'+m[2];
+    if(fixed!==t){ r.startTime=fixed; changed++; }
   });
   if(changed){ sv(RKEY,reservations); }
   return changed;
