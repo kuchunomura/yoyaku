@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=294;
-const APP_BUILD_DATE='2026/07/16 16:10';
+const APP_VERSION=295;
+const APP_BUILD_DATE='2026/07/16 16:17';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2242,11 +2242,22 @@ function toggleOptInput(){document.getElementById('new-select-options').style.di
 // エクスポート・インポート・引き継ぎ
 // ---- Googleスプレッドシート同期 ----
 const GAS_KEY='yv_gas';
-function loadGasUrl(){const v=ld(GAS_KEY);if(v)document.getElementById('gas-url').value=v;const su=ld('yv_sheet_url');const el=document.getElementById('sheet-url');if(su&&el)el.value=su;const sn=document.getElementById('shared-note');if(sn)sn.value=ld('yv_sharednote')||'';}
+// 同期先スプレッドシートの閲覧用URL（GAS URLとは別物。表そのものを開くリンク）。
+// GAS URLと違い誰でも開けるわけではない（Googleの権限が要る）ので既定値として持たせる。
+// 2026/07/16 ドライブのストレージ削除で旧シートが消えたため作り直したもの。
+const DEFAULT_SHEET_URL='https://docs.google.com/spreadsheets/d/1gwV7YQHA0p6pWUXjw9qAhB5Js0NK3p-QtuR063QqM54/edit';
+// 端末に残っている「消えた旧シート」のURLを新しいものへ1回だけ差し替える。
+// 手入力の設定なので毎回上書きはしない（フラグで一度きり）。
+(function(){
+  if(ld('yv_sheeturl_fix_20260716')) return;
+  sv('yv_sheet_url', DEFAULT_SHEET_URL);
+  sv('yv_sheeturl_fix_20260716', 1);
+})();
+function loadGasUrl(){const v=ld(GAS_KEY);if(v)document.getElementById('gas-url').value=v;const su=ld('yv_sheet_url')||DEFAULT_SHEET_URL;const el=document.getElementById('sheet-url');if(su&&el)el.value=su;const sn=document.getElementById('shared-note');if(sn)sn.value=ld('yv_sharednote')||'';}
 function saveSheetUrl(){var u=(document.getElementById('sheet-url').value||'').trim();sv('yv_sheet_url',u);showToast('✓ スプレッドシートURLを保存しました');}
 function saveSharedNote(){var el=document.getElementById('shared-note');if(!el)return;var v=el.value||'';sv('yv_sharednote',v);autoPush();showToast('✓ 共有メモを保存して同期しました','#1a7a3a');}
 function copySharedNote(){var el=document.getElementById('shared-note');if(!el)return;var v=el.value||'';if(navigator.clipboard){navigator.clipboard.writeText(v).then(function(){showToast('✓ 共有メモをコピーしました');});}else{el.focus();el.select();try{document.execCommand('copy');showToast('✓ 共有メモをコピーしました');}catch(e){showToast('⚠ コピーできませんでした','#c00');}}}
-function openSheet(){var u=(ld('yv_sheet_url')||(document.getElementById('sheet-url')||{}).value||'').trim();if(!u){showToast('⚠ スプレッドシートURLを保存してください','#c00');return;}window.open(u,'_blank');}
+function openSheet(){var u=(ld('yv_sheet_url')||(document.getElementById('sheet-url')||{}).value||DEFAULT_SHEET_URL||'').trim();if(!u){showToast('⚠ スプレッドシートURLを保存してください','#c00');return;}window.open(u,'_blank');}
 function saveGasUrl(){
   const url=document.getElementById('gas-url').value.trim();
   if(!url){showToast('⚠ URLを入力してください','#c00');return;}
