@@ -558,8 +558,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=291;
-const APP_BUILD_DATE='2026/07/16 10:38';
+const APP_VERSION=292;
+const APP_BUILD_DATE='2026/07/16 10:44';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -931,13 +931,13 @@ function calcTime(){
   const _dd=normDate((document.getElementById('day-date')||{}).value||'');
   const ovH=(addFacId==='tree'&&checkOverlap(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#c00">重複</span>':((addFacId==='tree'&&checkAdjacent(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#1565c0">連続</span>':'');
   document.getElementById('time-display').innerHTML=st+' 〜 '+getEnd(st,addCourse,addFacId)+noteH+ovH;
-  // 宿泊者割引：OTAでない宿泊に紐づく空中ウォーク(115分/1DAY)は1人500円引き。村内割引より優先
-  const sgd=stayGuestDisc(addFacId,addCourse,getDayStayLinkIds());
+  // 宿泊者割引：OTAでない宿泊に紐づく空中ウォーク(115分/1DAY)は1人500円引き。村内割引が優先
+  const sgd=stayGuestDisc(addFacId,addCourse,getDayStayLinkIds(),mura);
   // 村内：BBQは無料・空中ウォーク・ツリーハウスは半額。レンタルは村内でも有料
   const price=dayUnitPrice(fac,addCourse,mura,sgd);
   const rt=calcRT(rentalSt);
   if(sgd){
-    document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 → 宿泊者割引 '+price.toLocaleString()+'円/1'+fac.priceUnit+(mura?'（村内より宿泊者割引を優先）':'');
+    document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 → 宿泊者割引 '+price.toLocaleString()+'円/1'+fac.priceUnit;
   }else if(mura){
     document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 → 村内割引';
   }else{
@@ -1100,8 +1100,10 @@ function _likelyLink(a,b){
 // OTA（楽天・じゃらん等）経由の宿泊は宿泊料をサイト側で精算済みのため対象外。
 const STAY_GUEST_DISC=500;
 const STAY_GUEST_DISC_COURSES=[115,0]; // 115分 / 1DAY
-// 紐づけ先にOTAでない宿泊があれば割引額(500)、無ければ0を返す
-function stayGuestDisc(facId,course,linkedStayIds){
+// 紐づけ先にOTAでない宿泊があれば割引額(500)、無ければ0を返す。
+// 村内割引とは併用しない（半額の方が安いので村内が優先。POSレジも同じ順番にしてある）
+function stayGuestDisc(facId,course,linkedStayIds,mura){
+  if(mura) return 0; // 村内割引が優先
   if(facId!=='walk') return 0;
   if(STAY_GUEST_DISC_COURSES.indexOf(Number(course))<0) return 0;
   var ids=linkedStayIds||[];
@@ -1111,11 +1113,13 @@ function stayGuestDisc(facId,course,linkedStayIds){
   }
   return 0;
 }
-// 空中ウォーク等の1人単価。宿泊者割引 > 村内割引 の優先順（POSの getDiscountedPrice と同じ順番）
+// 空中ウォーク等の1人単価。村内割引 > 宿泊者割引 の優先順
+// （sgd は stayGuestDisc が村内時に0を返すので、ここに来る時点で併用は起きない）
 function dayUnitPrice(fac,course,mura,sgd){
   var base=fac.prices[course];
+  if(mura) return fac.fixedCount?0:Math.floor(base/2);
   if(sgd) return base-sgd;
-  return mura?(fac.fixedCount?0:Math.floor(base/2)):base;
+  return base;
 }
 // 予約者名が一致する日帰り↔宿泊を前後±1日で自動紐づけ（追加のみ。解除は編集で可能）
 // ※名前が違う場合は自動紐づけしない（候補には出るので手動で紐づけ可能）
@@ -1493,8 +1497,8 @@ function renderList(){
     const co=fac.courses.find(x=>x.min===r.course);
     const basePrice=fac.prices[r.course];
     const mura=r.mura||false;
-    // 宿泊者割引：OTAでない宿泊に紐づく空中ウォーク(115分/1DAY)は1人500円引き
-    const sgd=stayGuestDisc(r.facility,r.course,r.linkedStayIds);
+    // 宿泊者割引：OTAでない宿泊に紐づく空中ウォーク(115分/1DAY)は1人500円引き（村内が優先）
+    const sgd=stayGuestDisc(r.facility,r.course,r.linkedStayIds,mura);
     const price=dayUnitPrice(fac,r.course,mura,sgd);
     const ninzu=parseInt(r.ninzu)||0;
     const rental=r.rental||[];
@@ -1796,7 +1800,7 @@ function saveReservation(){
   // 村内割引・宿泊者割引の料金計算
   const fac2=getFac(addFacId);
   const basePrice=fac2.prices[addCourse];
-  const discountedPrice=dayUnitPrice(fac2,addCourse,mura,stayGuestDisc(addFacId,addCourse,linkedStayIds));
+  const discountedPrice=dayUnitPrice(fac2,addCourse,mura,stayGuestDisc(addFacId,addCourse,linkedStayIds,mura));
   // メモ
   const memoBase=mura?'村内':'';
   reservations.push({id:rid,facility:addFacId,course:addCourse,date:dt,startTime:st,
