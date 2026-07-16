@@ -471,6 +471,14 @@ details[open] summary{opacity:0.75}
       <button class="btn-primary" onclick="saveStock()">在庫を保存</button>
     </div>
     <div class="separator"></div>
+    <div class="section-title">📥 バックアップ（ファイルに保存・復元）</div>
+    <div style="font-size:12px;color:#556;margin:2px 0 8px;line-height:1.6">全予約データを1つのファイルに書き出します。端末が壊れても復元できるので、ときどき保存しておくと安心です。<b>復元は今のデータを上書きします。</b></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn-primary" onclick="exportDataFile()" style="background:#1a7a3a;flex:1">📥 ファイルに保存</button>
+      <button class="btn-primary" onclick="document.getElementById('backup-file-input').click()" style="background:#777;flex:1">📤 ファイルから復元</button>
+    </div>
+    <input type="file" id="backup-file-input" accept=".json,.txt" style="display:none" onchange="importDataFile(event)">
+    <div class="separator"></div>
     <div class="section-title" style="color:#b00">⚠ 危険な操作</div>
     <div style="background:#fff5f5;border:1px solid #e0a0a0;border-radius:8px;padding:12px;margin-top:4px">
       <div style="font-size:12px;color:#a33;margin-bottom:8px;line-height:1.6">日帰り・宿泊の<b>全予約データを削除</b>します。元に戻せません。スプレッドシート同期がONなら、シート側も次回同期で空になります。</div>
@@ -558,8 +566,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=295;
-const APP_BUILD_DATE='2026/07/16 16:17';
+const APP_VERSION=296;
+const APP_BUILD_DATE='2026/07/16 20:56';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2422,6 +2430,39 @@ function importData(){
     document.getElementById('import-text').value='';showToast('インポート完了しました');
     renderList();renderSettings();renderStock();
   }catch{showToast('⚠ データの形式が正しくありません','#c00');}
+}
+
+// 全データ（yv_ で始まるlocalStorageキー）を1つのJSONファイルにダウンロード。
+// 予約・宿泊・在庫・項目・サイト名・OTA既読・CSV取込履歴・共有メモ・日別イベント等すべて含む。
+function exportDataFile(){
+  var data={_app:'yoyaku',_exported:new Date().toISOString()};
+  for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k&&k.indexOf('yv_')===0) data[k]=localStorage.getItem(k); }
+  var now=new Date();
+  var ts=now.getFullYear()+('0'+(now.getMonth()+1)).slice(-2)+('0'+now.getDate()).slice(-2)+'_'+('0'+now.getHours()).slice(-2)+('0'+now.getMinutes()).slice(-2);
+  var blob=new Blob(['﻿'+JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='yoyaku_backup_'+ts+'.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  showToast('✓ バックアップを保存しました');
+}
+
+// バックアップファイルから復元。今のデータを上書きするので確認を出す。
+function importDataFile(ev){
+  var f=ev.target.files&&ev.target.files[0]; if(!f){return;}
+  var fr=new FileReader();
+  fr.onload=function(e){
+    try{
+      var txt=String(e.target.result||'').replace(/^﻿/,'');
+      var data=JSON.parse(txt);
+      var keys=Object.keys(data).filter(function(k){return k.indexOf('yv_')===0;});
+      if(!keys.length){ showToast('⚠ 予約データが見つからないファイルです','#c00'); ev.target.value=''; return; }
+      if(!confirm('このファイルの内容で今の予約データを上書きします。よろしいですか？\n（'+keys.length+'項目・書き出し日時: '+(data._exported||'不明')+'）')){ ev.target.value=''; return; }
+      keys.forEach(function(k){ localStorage.setItem(k, data[k]); });
+      showToast('✓ 復元しました。再読み込みします…');
+      setTimeout(function(){ location.reload(); }, 1000);
+    }catch(err){ showToast('⚠ ファイルの形式が正しくありません','#c00'); }
+    ev.target.value='';
+  };
+  fr.readAsText(f);
 }
 
 // ==================== WordPress予約CSV取込 ====================
