@@ -471,6 +471,11 @@ details[open] summary{opacity:0.75}
       <button class="btn-primary" onclick="saveStock()">在庫を保存</button>
     </div>
     <div class="separator"></div>
+    <div class="section-title">🔎 時刻の元データ（開発用・時刻ズレ調査）</div>
+    <div style="font-size:12px;color:#556;margin:2px 0 6px;line-height:1.6">取り込んだ日帰り予約の「CSVの生の日時」を表示します。別端末で取り込んだ分も同期後にここで見られます。ボタンを押すと内容をコピーするので、開発者に貼ってください。</div>
+    <button class="btn-primary" onclick="showTimeDbg()" style="background:#8a6d1f;flex:1">🔎 時刻の元データを表示・コピー</button>
+    <textarea id="timedbg-out" readonly style="display:none;width:100%;margin-top:6px;min-height:160px;font-family:monospace;font-size:11px;white-space:pre;overflow:auto"></textarea>
+    <div class="separator"></div>
     <div class="section-title">📥 バックアップ（ファイルに保存・復元）</div>
     <div style="font-size:12px;color:#556;margin:2px 0 8px;line-height:1.6">全予約データを1つのファイルに書き出します。端末が壊れても復元できるので、ときどき保存しておくと安心です。<b>復元は今のデータを上書きします。</b></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -566,8 +571,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=300;
-const APP_BUILD_DATE='2026/07/16 22:37';
+const APP_VERSION=301;
+const APP_BUILD_DATE='2026/07/16 22:43';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2483,6 +2488,20 @@ function importDataFile(ev){
   fr.readAsText(f);
 }
 
+// 時刻ズレ調査用：日帰り予約に保存した「CSVの生の日時」を一覧表示＆コピー。
+// 予約データは同期されるので、別端末で取り込んだ分もこの端末で（同期後に）確認できる。
+function showTimeDbg(){
+  var rows=(reservations||[]).filter(function(r){return r && r.wpId && (r._rawdt||r._rawcells);});
+  var el=document.getElementById('timedbg-out'); if(!el) return;
+  if(!rows.length){ el.style.display='block'; el.value='診断データがまだありません。\nyoyaku ver.300以降で日帰りCSVを取り込み直すと、各予約に「CSVの生の日時」が付きます。\n取り込んだ端末で同期→この端末で同期すると、ここに出ます。'; showToast('診断データなし（v300で取込し直すと付きます）','#c00'); return; }
+  rows.sort(function(a,b){return String(a.date||'').localeCompare(b.date||'')||String(a.startTime||'').localeCompare(b.startTime||'');});
+  var txt='【yoyaku 時刻の元データ '+rows.length+'件】\n'+rows.slice(0,60).map(function(r){
+    return (r.date||'')+' '+(r.name||'')+' ['+(r.facility||'')+' '+(r.course||'')+']\n  採用[列'+(r._rawcells?'':'?')+']生値: '+(r._rawdt||'(なし)')+'  →取込 '+(r.startTime||'')+'\n  日付含む全セル: '+(r._rawcells||'(なし)');
+  }).join('\n\n');
+  el.value=txt; el.style.display='block'; el.select();
+  try{ if(navigator.clipboard) navigator.clipboard.writeText(txt); else document.execCommand('copy'); showToast('✓ コピーしました（下にも表示）','#1a7a3a'); }catch(e){ showToast('下に表示しました。長押しでコピー','#1a7a3a'); }
+}
+
 // ==================== WordPress予約CSV取込 ====================
 function renderCsvFacOptions(){
   var sel=document.getElementById('csv-fac'); if(!sel) return;
@@ -2778,6 +2797,8 @@ function importCSV(){
           date:dt.date, startTime:dt.time, name:name, ninzu:String(ninzu), source:source,
           linkedStayIds:[], linkedDayIds:[], mura:false, discountedPrice:amount, addr:addr,
           memo:buildMemo(status,[rentalMemo,leftoverText(f,consumed)].filter(Boolean).join(' / ')), rental:[], customValues:{}, done:false, changed:false, createdAt:Date.now() };
+        // 診断用：CSVの生の日時セル＋日付を含む全セルを予約に保存（同期されるので他端末でも確認できる。日付情報のみ＝個人情報なし）
+        rec._rawdt=(dIdx>=0?String(f[dIdx]).replace(/\s+/g,' ').trim():''); rec._rawcells=_cells.join('  ');
       } else {
         var dates=[];
         for(var k2=0;k2<f.length;k2++){ var p2=parseWpDateTime(f[k2]); if(p2.date){ dates.push(p2.date); consumed[k2]=true; } }
