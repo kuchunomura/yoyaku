@@ -571,8 +571,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=302;
-const APP_BUILD_DATE='2026/07/17 08:11';
+const APP_VERSION=303;
+const APP_BUILD_DATE='2026/07/17 09:54';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2279,9 +2279,22 @@ function saveGasUrl(){
   if((reservations.length+stays.length)===0) loadFromSheet();
 }
 
+// GAS URLの形が正しいか（script.google.com/macros/s/…/exec）。スプレッドシートURL貼り間違い等を弾く
+function gasUrlOk(u){ return /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec/.test(String(u||'').trim()); }
+// GASの応答を安全にJSON化。HTML（ログイン画面/エラー/デプロイ設定ミス）なら原因つきで投げる
+async function gasReadJson(res){
+  var raw=await res.text();
+  try{ return JSON.parse(raw); }
+  catch(e){
+    var head=String(raw||'').replace(/\s+/g,' ').slice(0,60);
+    if(/^\s*</.test(raw)) throw new Error('GASがJSONでなくHTMLを返しました。①URLが本当にGASの /exec か ②デプロイが「アクセス:全員」か を確認（先頭: '+head+'）');
+    throw new Error('応答を解析できません（先頭: '+head+'）');
+  }
+}
 async function syncToSheet(silent){
-  const url=ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value.trim():'');
+  const url=(ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value:'')||'').trim();
   if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
+  if(!gasUrlOk(url)){ var _st0=document.getElementById('sync-status'); if(_st0)_st0.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
   // ★カラの端末からシートを空にしない安全装置（2026/07/16の事故対策の対）
   // 同期はローカルの全件でシートを作り直すため、データが無い端末で押すと
   // 他の端末が入れた予約をシートごと消してしまう。読込側(loadFromSheet)と同じ穴。
@@ -2298,10 +2311,11 @@ async function syncToSheet(silent){
   try{
     const res=await fetch(url,{
       method:'POST',
+      redirect:'follow',
       headers:{'Content-Type':'text/plain'},
       body:JSON.stringify({type:'sync_all',stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),csvimpmon:(ld('yv_csvimp_mon')||{}),csvimpfile:(ld('yv_csvimp_file')||{}),sharednote:(ld('yv_sharednote')||''),dayevents:(ld('yv_dayevents')||{})})
     });
-    const json=await res.json();
+    const json=await gasReadJson(res);
     if(json.status==='ok'){
       if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 同期完了';
       markSync('保存');
@@ -2312,18 +2326,19 @@ async function syncToSheet(silent){
     }
   }catch(e){
     if(st)st.textContent='⚠ 通信エラー: '+e.message;
-    if(!silent)showToast('⚠ 通信エラー','#c00');
+    if(!silent)showToast('⚠ 通信エラー: '+e.message,'#c00',9000);
   }
 }
 // シートから読込（端末間同期）。silent=trueで通知控えめ
 async function loadFromSheet(silent){
-  const url=ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value.trim():'');
+  const url=(ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value:'')||'').trim();
   if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
   const st=document.getElementById('sync-status');
+  if(!gasUrlOk(url)){ if(st)st.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
   if(st)st.textContent='読み込み中...';
   try{
     const res=await fetch(url,{method:'GET',redirect:'follow'});
-    const json=await res.json();
+    const json=await gasReadJson(res);
     if(json.status==='ok'){
       // ★空のシートでローカルを消さない安全装置（2026/07/16の事故対策）
       // このアプリは60秒ごと・起動時・タブ復帰時に自動でloadFromSheetを呼び、
@@ -2350,7 +2365,7 @@ async function loadFromSheet(silent){
       sv(RKEY,reservations);sv(STKEY,stays);
       var _rep=repairNinzuFromAmount(); // 読込データの人数誤読を自動修復
       var _rq=healRentalQty();          // 客チェック方式メモの備品数量バグ（金額=数量）を自動修復
-      var _rt=repairDayTimeUTC();        // 過去にUTCで取り込んだ日帰り時刻を日本時間へ自動補正
+      var _rt=0;                          // +9自動補正は廃止（CSVの時刻をそのまま使う。過去に補正した分は再取込で正しくなる）
       var _rd=0; if(!ld('yv_redetect3')){ _rd=redetectRentalAll(); sv('yv_redetect3',1); } // 既存予約を一度だけメモから読み取り直す（検出改良のたびフラグ番号を上げる）
       if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 読込完了'+(_rep?'（人数'+_rep+'件を自動修正）':'')+(_rq?'（備品数量'+_rq+'件を自動修正）':'')+(_rt?'（時刻'+_rt+'件を自動修正）':'')+(_rd?'（備品'+_rd+'件を再読取）':'');
       markSync('同期');
@@ -2358,7 +2373,7 @@ async function loadFromSheet(silent){
       renderList();
       if(_rep||_rq||_rt||_rd)autoPush(); // 修正結果をシートへ書き戻して全端末で共有
     }else{ if(st)st.textContent='⚠ エラー: '+json.message; if(!silent)showToast('⚠ 読込失敗','#c00'); }
-  }catch(e){ if(st)st.textContent='⚠ 通信エラー: '+e.message; if(!silent)showToast('⚠ 通信エラー','#c00'); }
+  }catch(e){ if(st)st.textContent='⚠ 通信エラー: '+e.message; if(!silent)showToast('⚠ 通信エラー: '+e.message,'#c00',9000); }
 }
 // 変更を自動でシートへ保存（GAS URL未設定なら何もしない）
 function autoPush(){ if(ld(GAS_KEY)) syncToSheet(true); }
@@ -2766,9 +2781,9 @@ function importCSV(){
       var rec;
       if(type==='day'){
         var dt={date:'',time:''}, dIdx=-1;
-        // 日帰りは開始時刻をUTC→日本時間(+9h)へ変換して取り込む（CSVはUTC出力のため）
-        if(H.date>=0){ var pd=parseWpDateTimeJST(f[H.date]); if(pd.date){ dt=pd; dIdx=H.date; } }
-        if(dIdx<0){ for(var k=0;k<f.length;k++){ var p=parseWpDateTimeJST(f[k]); if(p.date){ dt=p; dIdx=k; break; } } }
+        // 開始時刻はCSVの値をそのまま使う（WordPress側の時刻が正しくなったため+9補正は廃止）
+        if(H.date>=0){ var pd=parseWpDateTime(f[H.date]); if(pd.date){ dt=pd; dIdx=H.date; } }
+        if(dIdx<0){ for(var k=0;k<f.length;k++){ var p=parseWpDateTime(f[k]); if(p.date){ dt=p; dIdx=k; break; } } }
         // 診断：この行の「日付を含むセル」を全部（列番号＋生値）控える。予約時間の列と送信日時の列を見分けるため（個人情報は拾わない）
         var _cells=[]; for(var _di=0;_di<f.length;_di++){ if(parseWpDateTime(f[_di]).date) _cells.push('['+_di+']'+String(f[_di]).replace(/\s+/g,' ').trim()); }
         _dtDbg.push({nm:name, picked:dIdx, raw:(dIdx>=0?String(f[dIdx]).replace(/\s+/g,' ').trim():''), out:(dt.date+' '+dt.time).trim(), all:_cells.join('  ')});
