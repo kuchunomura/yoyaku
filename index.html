@@ -234,7 +234,7 @@ details[open] summary{opacity:0.75}
         <div id="csv-implog" style="font-size:12.5px;color:#555;background:#fff;border:1px solid #e8d8b0;border-radius:6px;padding:8px;margin-bottom:8px;line-height:1.7"></div>
         </div>
         <label style="font-size:14px"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">①</span> 取込先の施設（このCSVの商品）　<span style="font-size:12.5px;color:#9a8050">▼タップで選択</span></label>
-        <select id="csv-fac" onchange="renderCsvImpLog()" style="font-size:14px;-webkit-appearance:menulist;appearance:menulist;border:1px solid #888;border-radius:6px;padding:8px;background:#fff"></select>
+        <select id="csv-fac" onchange="renderCsvImpLog();renderCsvFileName()" style="font-size:14px;-webkit-appearance:menulist;appearance:menulist;border:1px solid #888;border-radius:6px;padding:8px;background:#fff"></select>
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13.5px;cursor:pointer;font-weight:normal">
           <input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む
         </label>
@@ -573,8 +573,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=304;
-const APP_BUILD_DATE='2026/07/18 12:34';
+const APP_VERSION=305;
+const APP_BUILD_DATE='2026/07/18 12:42';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2926,12 +2926,25 @@ function delAllData(){
 
 // CSVドラッグ＆ドロップ取込
 // 直前に読み込んだCSVファイル名を②の右に表示（拡張子は省略）
+function csvSelKey(){return (document.getElementById('csv-fac')||{}).value||'';}
+// ②ファイル欄に「前回取込 📄34 ＞ 今回 📄35」を並べて出す。取込前に順番を目視確認できる。
+function renderCsvFileName(){
+  var el=document.getElementById('csv-file-name'); if(!el) return;
+  if(!lastCsvFileName){ el.innerHTML=''; return; }
+  var cur='📄'+htmlEscape(lastCsvFileName);
+  var sel=csvSelKey();
+  if(!sel){ el.innerHTML='今回 '+cur+'<span style="color:#c0392b;font-weight:600">（①で施設を選ぶと前回と比較）</span>'; return; }
+  var prev=(ld('yv_csvimp_file')||{})[sel]||'';
+  if(!prev){ el.innerHTML='今回 '+cur+'<span style="color:#888;font-weight:400">（この施設は初回）</span>'; return; }
+  var dup=(prev===lastCsvFileName);
+  el.innerHTML='前回 📄'+htmlEscape(prev)+' ＞ 今回 '+cur
+    +'<span style="color:'+(dup?'#c0392b':'#1a7a3a')+';font-weight:700">'+(dup?'（⚠前回と同じ）':'（新規・順番を確認）')+'</span>';
+}
 function setCsvFileName(name){
   name=(name||'').replace(/\.(csv|tsv|txt)$/i,'').trim();
   lastCsvFileName=name;
-  var el=document.getElementById('csv-file-name');
-  if(el) el.textContent=name?('📄 '+name+'　'):'';
-  renderCsvImpLog(); // 上の取込ログに「前回 → 今回」を並べて出すため
+  renderCsvFileName();
+  renderCsvImpLog(); // 上の取込ログにも「前回 → 今回」を並べて出す
 }
 function setupCsvDrop(){
   var dz=document.getElementById('csv-drop'); if(!dz) return;
