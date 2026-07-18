@@ -136,6 +136,8 @@ details[open] summary{opacity:0.75}
 .prow.pempty{color:#aaa;border-color:#e0e0e0}
 .pr1{font-weight:700;font-size:13px}
 .pr2,.pr3{font-size:11px;color:#333;margin-top:1px}
+.plink{font-size:11px;color:#224466;margin-top:1px;font-weight:600}
+.pcompact .plink{font-size:8.5px;line-height:1.15;margin-top:0;font-weight:600}
 .pwf{margin-top:4px;font-size:11px;display:flex;gap:10px;flex-wrap:wrap;color:#888}
 .pbox{display:inline-block;width:11px;height:11px;border:1px solid #bbb;text-align:center;line-height:10px;margin-right:3px;font-size:10px;vertical-align:-1px}
 .pu-wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:3px 0 7px}
@@ -571,8 +573,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=303;
-const APP_BUILD_DATE='2026/07/17 09:54';
+const APP_VERSION=304;
+const APP_BUILD_DATE='2026/07/18 12:34';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3241,6 +3243,27 @@ function _pStayCat(s){return s.facGroup||((getSFac(s.facility)||{}).group)||'宿
 function _pCatIO(cat){var f=STAY_FACS.find(function(x){return x.group===cat;});return f?{ci:f.ci,co:f.co}:{ci:'',co:''};}
 function _pWfStay(s){var wf=(s&&s.wf)||{};return _pbox(wf.prep)+'部屋準備'+_pbox(wf.pay)+'会計'+_pbox(wf.guide)+'案内'+_pbox(wf.out)+'OUT'+_pbox(s&&s.cancelled)+'キャンセル';}
 function _pWfDay(r){return _pbox(r&&r.done)+'会計'+_pbox(r&&r.cancelled)+'キャンセル';}
+// 印刷用の紐づけ行（📌）。カード表示と同じ内容を印刷にも出す。
+function _pLinksStay(s){
+  return ((s&&s.linkedDayIds)||[]).map(function(lid){
+    var lr=reservations.find(function(r){return r.id===lid;});
+    if(!lr||isCancelled(lr))return'';
+    return '<div class="plink">📌 '+(lr.date?fmtDate(lr.date):'')+' '+dLinkLabel(lr)+(lr.name?' '+lr.name:'')+(lr.startTime?' '+lr.startTime:'')+'</div>';
+  }).join('');
+}
+function _pLinksDay(r){
+  var h=((r&&r.linkedStayIds)||[]).map(function(sid){
+    var ls=stays.find(function(x){return x.id===sid;});
+    if(!ls||isCancelled(ls))return'';
+    return '<div class="plink">📌 '+fmtDate(ls.checkin)+' '+sLinkLabel(ls)+(ls.name?' '+ls.name:'')+'</div>';
+  }).join('');
+  h+=((r&&r.linkedDayIds)||[]).map(function(did){
+    var ld=reservations.find(function(x){return x.id===did;});
+    if(!ld||isCancelled(ld))return'';
+    return '<div class="plink">📌 '+(ld.date?fmtDate(ld.date):'')+' '+dLinkLabel(ld)+(ld.name?' '+ld.name:'')+(ld.startTime?' '+ld.startTime:'')+'</div>';
+  }).join('');
+  return h;
+}
 function _pStayRow(s){
   var fac=getSFac(s.facility);
   var rt=(s.rental||[]).reduce(function(a,i){return a+i.price*i.qty;},0);
@@ -3270,6 +3293,7 @@ function _pDayRow(r){
     '<div class="pr2">計'+total.toLocaleString()+'円'+(rt>0?'（レンタル'+rt.toLocaleString()+'含む）':'')+'</div></div>'+
     ((r.rental||[]).length?'<div class="pr3">レンタル：'+r.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
     (r.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(r.memo))+'</div>':'')+
+    _pLinksDay(r)+
     '<div class="pwf">'+_pWfDay(r)+'</div>'+
   '</div>';
 }
@@ -3286,7 +3310,8 @@ function _pStayInner(s){
     '<div class="pr2">'+money+'</div></div>'+
     ((s.rental||[]).length?'<div class="pr3">レンタル：'+s.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
     (s.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(s.memo))+'</div>':'')+
-    (s.addr?'<div class="pr3">'+htmlEscape(s.addr)+'</div>':'');
+    (s.addr?'<div class="pr3">'+htmlEscape(s.addr)+'</div>':'')+
+    _pLinksStay(s);
 }
 // 宿泊：カテゴリーごとに「棟数ぶんの枠」（各棟1枠）を出す。棟に一致する予約を入れ、無ければ空枠。
 function _pStayBlock(date){
