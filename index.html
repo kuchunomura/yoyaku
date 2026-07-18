@@ -573,8 +573,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=308;
-const APP_BUILD_DATE='2026/07/18 13:25';
+const APP_VERSION=309;
+const APP_BUILD_DATE='2026/07/18 22:45';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -811,7 +811,7 @@ function switchTab(t,keepDateFilter){
   const tabGrp=(t==='day'||t==='stay')?'add':t;
   document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===tabGrp));
   if(t==='list'){if(!keepDateFilter){dateFilter=null;listFromToday=true;_clearSearchInput();_clearRangeInputs();}renderList();}
-  if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();renderCsvFacOptions();renderCsvImpLog();setTimeout(refreshDateDisps,0);}
+  if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();renderCsvFacOptions();renderCsvImpLog();renderCsvFileName();setTimeout(refreshDateDisps,0);}
   if(t==='stay'){initStay();setTimeout(refreshDateDisps,0);}
   if(t==='cal')initCal();
   if(t==='settings'){renderSettings();renderStock();loadSNUI();loadGasUrl();}
@@ -2937,11 +2937,12 @@ function lastImportedCsvName(){
   return bestK?(fnm[bestK]||''):'';
 }
 // ②ファイル欄に「直前 📄34　→　今回 📄35」を並べて出す。番号が1つ進んでいれば順番通り＝抜け漏れなしを目視できる。
+// ドロップ前でも「直前に取り込んだファイル名」を常時表示しておく（違うファイルを取り込む前に気づけるように）。
 function renderCsvFileName(){
   var el=document.getElementById('csv-file-name'); if(!el) return;
-  if(!lastCsvFileName){ el.innerHTML=''; return; }
-  var cur='📄'+htmlEscape(lastCsvFileName);
   var prev=lastImportedCsvName(); // 1個前に取り込んだCSV名（同期される）
+  if(!lastCsvFileName){ el.innerHTML = prev ? '直前 📄'+htmlEscape(prev) : ''; return; }
+  var cur='📄'+htmlEscape(lastCsvFileName);
   if(!prev){ el.innerHTML='今回 '+cur; return; }
   el.innerHTML='直前 📄'+htmlEscape(prev)+'　→　今回 '+cur
     +(prev===lastCsvFileName?'<span style="color:#c0392b;font-weight:700">　⚠ 同じファイル</span>':'');
