@@ -237,11 +237,13 @@ details[open] summary{opacity:0.75}
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13.5px;cursor:pointer;font-weight:normal">
           <input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む
         </label>
-        <label style="margin-top:10px;font-size:14px;line-height:1.5"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span id="csv-file-name" style="color:#1a7a3a;font-weight:700;font-size:12.5px"></span><span style="color:#c0392b;font-weight:600;font-size:12.5px">CSVに施設は未記載なので認識できません。間違えないように</span></label>
+        <label style="margin-top:10px;font-size:14px;line-height:1.5"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span id="csv-file-name" style="color:#1a7a3a;font-weight:700;font-size:12.5px"></span><br><span style="color:#c0392b;font-weight:600;font-size:12.5px">CSVに施設は未記載なので認識できません。間違えないように</span></label>
         <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:14px;text-align:center;font-size:13.5px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<br><span style="font-size:11px;color:#9a8050">（またはタップしてファイルを選択）</span></div>
         <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
-        <div style="font-size:12px;color:#888;margin:6px 0">または↓に貼り付け（スプレッドシートからコピペ可）</div>
-        <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px" oninput="setCsvFileName('')"></textarea>
+        <button type="button" id="csv-paste-tog" onclick="var b=document.getElementById('csv-paste-body');var o=(b.style.display==='none');b.style.display=o?'block':'none';this.textContent=o?'▲ 貼り付け欄を隠す':'▼ または貼り付けで取り込む（スプレッドシートからコピペ）';" style="display:block;width:100%;text-align:left;cursor:pointer;font-size:12px;color:#888;background:none;border:none;padding:4px 0;margin:2px 0;font-family:inherit">▼ または貼り付けで取り込む（スプレッドシートからコピペ）</button>
+        <div id="csv-paste-body" style="display:none">
+          <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px" oninput="setCsvFileName('')"></textarea>
+        </div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
           <span style="font-size:20px;font-weight:800;color:#6b4f20;flex-shrink:0">③</span>
           <button class="btn-primary" style="background:#6b4f20;margin:0;flex:1" onclick="importCSV()">選択した施設を取り込む</button>
@@ -573,8 +575,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=310;
-const APP_BUILD_DATE='2026/07/18 23:05';
+const APP_VERSION=311;
+const APP_BUILD_DATE='2026/07/19 11:24';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
