@@ -573,8 +573,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=309;
-const APP_BUILD_DATE='2026/07/18 22:45';
+const APP_VERSION=310;
+const APP_BUILD_DATE='2026/07/18 23:05';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -635,6 +635,7 @@ healRentalQty();
 let facFilter='all',addFacId='walk',addCourse=55,editId=null,editType='day';
 let lastCsvFacVal=''; // 取込先施設の選択記憶（タブ名に表示・タブ切替で復元）
 let lastCsvFileName=''; // 直前に読み込んだCSVファイル名（取込時に施設ごとへ保存＝同期される）
+let _lastImportUndo=null; // 直前の取込を取り消すためのスナップショット（施設を間違えた時の戻し用・この端末のセッション内のみ）
 let rentalSt={},stayRentalSt={};
 let dateFilter=null;
 let listFromToday=true; // 一覧は既定で今日以降のみ表示
@@ -2755,6 +2756,10 @@ function importCSV(){
       showToast('⚠ 取込先の種別が違います（'+csvJa+'のCSV）','#c00');
       return;
     }
+    // ── 取消(アンドゥ)用スナップショット：取込直前の予約一覧と取込記録を丸ごと控える（施設を間違えた時に戻せる） ──
+    var _undoArr=JSON.parse(JSON.stringify(type==='day'?reservations:stays));
+    var _undoImp=ld('yv_csvimp')||{}, _undoImpFile=ld('yv_csvimp_file')||{}, _undoImpMon=ld('yv_csvimp_mon')||{};
+    var _undoFileName=lastCsvFileName;
     var _dtDbg=[]; // 診断：日帰りの「日時セルの生値」を控える（時刻ズレ原因の特定用。個人情報は含めない＝名前と日時のみ）
     rows.forEach(function(f){
       var wpId=String(f[0]||'').trim();
@@ -2871,9 +2876,13 @@ function importCSV(){
     var _impF=ld('yv_csvimp_file')||{}; _impF[sel]=lastCsvFileName||''; sv('yv_csvimp_file',_impF); // 取込ファイル名（施設ごと・同期される・被り確認用）
     setCsvFileName(''); // 取込済みなので「→ 📄」の待機表示を消す（ファイル名はログ側に📄として残る）。中でrenderCsvImpLog()も呼ばれる
     sv(RKEY,reservations); sv(STKEY,stays); autoPush();
+    // 取消(アンドゥ)用に控える。次の取込 or リロードまで有効
+    _lastImportUndo={ type:type, arr:_undoArr, imp:_undoImp, impFile:_undoImpFile, impMon:_undoImpMon, label:csvOptLabel(sel), added:added, updated:updated, file:_undoFileName };
     res.style.color='#1a7a3a';
-    res.innerHTML='✓ 取込完了：追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'')
-      +(mismatch?('<div style="color:#c0392b;margin-top:6px;font-weight:600">⚠ '+mismatch+' 件は取込先の種別と一致しないため取り込みませんでした。<br>このCSVは'+(type==='day'?'<b>宿泊</b>予約のようです（ベッド情報・連泊あり）。上の選択を<b>「〇〇（宿泊）」</b>に変えて取り込み直してください。':'<b>日帰り</b>予約のようです（利用時間あり）。上の選択を<b>「☀ 日帰り」</b>の施設に変えてください。')+'</div>'):'')
+    res.innerHTML=
+      '<div style="font-size:14px;font-weight:800;color:#1a4a30;background:#eafaf0;border:1px solid #a8d8bd;border-radius:8px;padding:8px 10px;margin-bottom:6px">✓ 【'+csvOptLabel(sel)+'】に取り込みました'+(_undoFileName?'（📄'+htmlEscape(_undoFileName)+'）':'')+'<br><span style="font-weight:700;font-size:13px">追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'')+'</span></div>'
+      +(mismatch?('<div style="color:#c0392b;margin-top:2px;font-weight:600">⚠ '+mismatch+' 件は取込先の種別と一致しないため取り込みませんでした。<br>このCSVは'+(type==='day'?'<b>宿泊</b>予約のようです（ベッド情報・連泊あり）。上の選択を<b>「〇〇（宿泊）」</b>に変えて取り込み直してください。':'<b>日帰り</b>予約のようです（利用時間あり）。上の選択を<b>「☀ 日帰り」</b>の施設に変えてください。')+'</div>'):'')
+      +'<div style="margin-top:8px;padding:7px 9px;background:#fff7f2;border:1px solid #e0c0b0;border-radius:8px;font-size:12px;color:#7a1030;line-height:1.6">施設を間違えていませんか？ 上の施設名を確認してください。違う施設に入れてしまった場合はこのボタンで取込前に戻せます。<br><button onclick="undoLastImport()" style="margin-top:6px;font-size:13px;font-weight:700;padding:8px 14px;border:1px solid #d0a0b0;border-radius:8px;background:#fff;color:#7a1030;cursor:pointer;font-family:inherit">↩ 直前の取込を取り消す</button></div>'
       +((type==='day'&&_dtDbg.length)?('<div style="margin-top:8px;padding:6px 8px;background:#fffbea;border:1px solid #e0cf90;border-radius:6px;font-size:11px;line-height:1.6">🔎 時刻の元データは、設定タブ →「🔎 時刻の元データを表示・コピー」で確認できます（同期後は他端末でも見られます）。</div>'):'');
     showToast('✓ CSV取込：追加'+added+'・更新'+updated+(mismatch?'（種別不一致'+mismatch+'件除外）':''));
     document.getElementById('csv-text').value=''; document.getElementById('csv-file').value='';
@@ -2885,6 +2894,21 @@ function importCSV(){
     fr.onerror=function(){ res.style.color='#c00'; res.textContent='⚠ ファイル読み込みエラー'; };
     fr.readAsArrayBuffer(fileInput.files[0]);
   } else { proceed(document.getElementById('csv-text').value); }
+}
+
+// 直前の取込を取り消して取込前の状態に戻す（施設を間違えた時の戻し用）。この端末のセッション内のみ有効。
+function undoLastImport(){
+  if(!_lastImportUndo){ showToast('取り消せる取込がありません','#c00'); return; }
+  var u=_lastImportUndo;
+  showConfirm('直前の取込【'+u.label+'】（追加'+u.added+'・更新'+u.updated+'件'+(u.file?' / 📄'+u.file:'')+'）を取り消して、\n取込前の状態に戻しますか？', function(){
+    if(u.type==='day') reservations=u.arr; else stays=u.arr;
+    sv(RKEY,reservations); sv(STKEY,stays);
+    sv('yv_csvimp',u.imp); sv('yv_csvimp_file',u.impFile); sv('yv_csvimp_mon',u.impMon);
+    _lastImportUndo=null;
+    autoPush(); renderList(); renderCsvImpLog(); renderCsvFileName();
+    var res=document.getElementById('csv-result'); if(res){ res.style.color='#c07000'; res.textContent='↩ 直前の取込を取り消しました（取込前の状態に戻しました）'; }
+    showToast('↩ 取込を取り消しました','#c07000');
+  });
 }
 
 // 選択中の施設のCSV取込分（wpId付き）だけを削除
