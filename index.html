@@ -158,10 +158,14 @@ details[open] summary{opacity:0.75}
 .pcompact .pu-frame.pu-vacant{min-height:62px}
 .pcompact .pu-head{font-size:9.5px;font-weight:600;color:#666;margin-bottom:0;padding-bottom:0;line-height:1.2;text-align:center}
 .pcompact .pu-empty{padding:0}
-.pcompact .pdate{font-size:12px;font-weight:600;margin:1px 0;padding-bottom:1px;border-bottom:1px solid #ddd;text-align:center;color:#999}
-.pcompact .pcat{margin-top:1px;padding:0 6px;font-size:9px;text-align:center;color:#888;background:#f3f3f3}
+.pcompact .pdate{font-size:12px;font-weight:600;margin:1px 0;padding-bottom:1px;border-bottom:1px solid #ddd;text-align:left;color:#999}
+.pcompact .pcat{margin-top:1px;padding:0 6px;font-size:9px;text-align:left;color:#888;background:#f3f3f3}
 .pcompact .pio{font-size:8.5px}
-.pcatblock{break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid;margin-bottom:1px}
+/* 宿泊：カテゴリー名を一番左に縦書き（IN/OUTは従来どおり横書きで右側の帯に残す） */
+.pcatblock{break-inside:avoid;-webkit-column-break-inside:avoid;page-break-inside:avoid;margin-bottom:1px;display:flex;align-items:stretch;gap:3px}
+.pcatv{flex:0 0 auto;-webkit-writing-mode:vertical-rl;writing-mode:vertical-rl;text-orientation:upright;-webkit-text-orientation:upright;font-size:11px;font-weight:700;background:#eee;border-radius:3px;padding:3px 1px;letter-spacing:1px;display:flex;align-items:center;justify-content:center;white-space:nowrap}
+.pcatbody{flex:1 1 auto;min-width:0}
+.pcompact .pcatv{font-size:9px;color:#666;background:#f3f3f3;padding:2px 0;letter-spacing:0}
 .pcompact .pu-wrap{grid-template-columns:repeat(3,1fr);gap:3px;margin:0 0 2px}
 .pcompact .pr1{font-size:11.5px;font-weight:600;line-height:1.2}
 .pcompact .pr2,.pcompact .pr3{font-size:8.5px;line-height:1.15;margin-top:0}
@@ -580,8 +584,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=313;
-const APP_BUILD_DATE='2026/07/20 08:34';
+const APP_VERSION=314;
+const APP_BUILD_DATE='2026/07/20 08:42';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3409,7 +3413,9 @@ function _pStayBlock(date){
     var assigned={},leftovers=[];
     rows.forEach(function(s){var u=units.find(function(x){return x.id===s.facility;});if(u&&!assigned[u.id])assigned[u.id]=s;else leftovers.push(s);});
     units.forEach(function(u){if(!assigned[u.id]&&leftovers.length)assigned[u.id]=leftovers.shift();});
-    var c='<div class="pcatblock"><div class="pcat">'+cat+'<span class="pio">IN '+io.ci+' ／ OUT '+io.co+'　（'+units.length+'棟）</span></div>';
+    // 施設名は一番左に縦書き（.pcatv）。IN/OUTは従来どおり横書きで右側の帯に残す
+    var c='<div class="pcatblock"><div class="pcatv">'+cat+'</div><div class="pcatbody">'+
+      '<div class="pcat"><span class="pio">IN '+io.ci+' ／ OUT '+io.co+'　（'+units.length+'棟）</span></div>';
     c+='<div class="pu-wrap">';
     units.forEach(function(u){
       var s=assigned[u.id]||null;
@@ -3421,7 +3427,7 @@ function _pStayBlock(date){
     leftovers.forEach(function(s){
       c+='<div class="pu-frame pu-over"><div class="pu-head">追加（棟未定）</div>'+_pStayInner(s)+'<div class="pwf">'+_pWfStay(s)+'</div></div>';
     });
-    c+='</div></div>';
+    c+='</div></div></div>';   // pu-wrap / pcatbody / pcatblock
     cats+=c;
   });
   return h+'<div class="pcats">'+cats+'</div>';
