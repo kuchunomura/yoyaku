@@ -166,6 +166,9 @@ details[open] summary{opacity:0.75}
 .pcatv{flex:0 0 auto;-webkit-writing-mode:vertical-rl;writing-mode:vertical-rl;text-orientation:upright;-webkit-text-orientation:upright;font-size:11px;font-weight:700;background:#eee;border-radius:3px;padding:3px 1px;letter-spacing:1px;display:flex;align-items:center;justify-content:center;white-space:nowrap}
 .pcatbody{flex:1 1 auto;min-width:0}
 .pcompact .pcatv{font-size:9px;color:#666;background:#f3f3f3;padding:2px 0;letter-spacing:0}
+/* 施設ごとの区切り線（先頭には付けない） */
+.pcatblock + .pcatblock{border-top:1px solid #bbb;padding-top:4px;margin-top:4px}
+.pcompact .pcatblock + .pcatblock{padding-top:2px;margin-top:2px}
 .pcompact .pu-wrap{grid-template-columns:repeat(3,1fr);gap:3px;margin:0 0 2px}
 .pcompact .pr1{font-size:11.5px;font-weight:600;line-height:1.2}
 .pcompact .pr2,.pcompact .pr3{font-size:8.5px;line-height:1.15;margin-top:0}
@@ -584,8 +587,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=314;
-const APP_BUILD_DATE='2026/07/20 08:42';
+const APP_VERSION=315;
+const APP_BUILD_DATE='2026/07/20 08:55';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3438,9 +3441,12 @@ function _pDayBlock(date){
     var fac=getFac(fid);
     var rows=reservations.filter(function(r){return !isCancelled(r)&&r.date===date&&r.facility===fid;})
       .sort(function(a,b){return String(a.startTime||'').localeCompare(String(b.startTime||''));});
-    h+='<div class="pcat">'+fac.label+'<span class="pio">最終受付 '+(fac.lastAccept||'')+' ／ 終了 '+(fac.close||'')+'</span></div>';
+    // 施設名は一番左に縦書き（宿泊と同じ形）。最終受付/終了は従来どおり横書きの帯に残す
+    h+='<div class="pcatblock"><div class="pcatv">'+fac.label+'</div><div class="pcatbody">'+
+       '<div class="pcat"><span class="pio">最終受付 '+(fac.lastAccept||'')+' ／ 終了 '+(fac.close||'')+'</span></div>';
     if(!rows.length)h+='<div class="prow pempty"><div class="pr1">（予約なし）</div><div class="pwf">'+_pWfDay(null)+'</div></div>';
     else rows.forEach(function(r){h+=_pDayRow(r);});
+    h+='</div></div>';
   });
   return h;
 }
