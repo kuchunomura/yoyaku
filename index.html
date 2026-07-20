@@ -166,6 +166,9 @@ details[open] summary{opacity:0.75}
 .pcatv{flex:0 0 auto;-webkit-writing-mode:vertical-rl;writing-mode:vertical-rl;text-orientation:upright;-webkit-text-orientation:upright;font-size:11px;font-weight:700;background:#eee;border-radius:3px;padding:3px 1px;letter-spacing:1px;display:flex;align-items:center;justify-content:center;white-space:nowrap}
 .pcatbody{flex:1 1 auto;min-width:0}
 .pcompact .pcatv{font-size:9px;color:#666;background:#f3f3f3;padding:2px 0;letter-spacing:0}
+/* 連続（掃除の空き時間なし）マーク */
+.prz{display:inline-block;font-size:10px;font-weight:700;color:#1565c0;background:#dbe8fb;border:1px solid #1565c0;border-radius:10px;padding:0 5px;margin-left:5px;white-space:nowrap;vertical-align:1px}
+.pcompact .prz{font-size:8px;padding:0 4px;margin-left:3px}
 /* 施設ごとの区切り線（先頭には付けない） */
 .pcatblock + .pcatblock{border-top:1px solid #bbb;padding-top:4px;margin-top:4px}
 .pcompact .pcatblock + .pcatblock{padding-top:2px;margin-top:2px}
@@ -587,8 +590,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=315;
-const APP_BUILD_DATE='2026/07/20 08:55';
+const APP_VERSION=316;
+const APP_BUILD_DATE='2026/07/20 09:24';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1618,29 +1621,8 @@ function renderList(){
     dayCounts[d][label]=(dayCounts[d][label]||0)+1;
   });
   // ---- 連続：同日ツリーハウスの 昼↔昼(前後15分以内) / 昼↔夜(宿泊) をクラスタ化し、隣接配置＋カード間にコネクタ ----
-  const _isTreeStayE=e=>e.kind===0&&(e.item.facGroup||((getSFac(e.item.facility)||{}).group))==='ツリーハウス';
-  const _isTreeDayE=e=>e.kind===1&&e.item.facility==='tree';
-  const _stayCiMin=s=>{var f=getSFac(s.facility)||STAY_FACS.find(x=>x.group===(s.facGroup||''))||{};var m=String(f.ci||'').match(/(\d{1,2}):(\d{2})/);return m?(+m[1]*60+ +m[2]):null;};
-  // 連続＝掃除の空き時間が無い（別客が続く）状態。昼↔昼は前後15分以内、昼↔夜は昼終了→宿泊IN開始が45分以内
-  const _renzoku=(a,b)=>{
-    if(!a.date||a.date!==b.date)return false;
-    if(isCancelled(a.item)||isCancelled(b.item))return false;
-    const ad=_isTreeDayE(a),bd=_isTreeDayE(b),as=_isTreeStayE(a),bs=_isTreeStayE(b);
-    if((ad&&bs)||(as&&bd)){ // 昼↔夜：昼の終了と宿泊IN開始の差が45分以内なら連続（＝掃除時間なし）
-      const day=ad?a:b, stay=ad?b:a;
-      const dEnd=toMin(getEnd(day.item.startTime,day.item.course,'tree'));
-      const ci=_stayCiMin(stay.item); if(ci==null)return false;
-      const gap=ci-dEnd;
-      return gap>=0&&gap<=45;
-    }
-    if(ad&&bd){ // 昼↔昼（前後15分以内・重複は除く）
-      const s1=toMin(a.item.startTime),e1=toMin(getEnd(a.item.startTime,a.item.course,'tree'));
-      const s2=toMin(b.item.startTime),e2=toMin(getEnd(b.item.startTime,b.item.course,'tree'));
-      if(s1<e2&&e1>s2)return false;
-      return Math.min(Math.abs(s1-e2),Math.abs(s2-e1))<=15;
-    }
-    return false;
-  };
+  // 連続＝掃除の空き時間が無い（別客が続く）状態。判定は印刷と共通（isRenzokuPair）
+  const _renzoku=(a,b)=>isRenzokuPair(a,b);
   // union-find でクラスタ化
   const cl=entries.map((_,i)=>i);
   const find=x=>{while(cl[x]!==x){cl[x]=cl[cl[x]];x=cl[x];}return x;};
@@ -3380,7 +3362,7 @@ function _pDayRow(r){
   var rt=(r.rental||[]).reduce(function(a,i){return a+i.price*i.qty;},0);
   var total=(fac.fixedCount?price:price*ninzu)+rt;
   return '<div class="prow">'+
-    '<div class="prtop"><div class="pr1">'+r.startTime+'〜'+end+(co?'　'+co.minLabel:'')+'　'+ninzu+fac.priceUnit+(r.name?'　'+r.name:'')+(mura?'　（村内）':'')+'</div>'+
+    '<div class="prtop"><div class="pr1">'+r.startTime+'〜'+end+(co?'　'+co.minLabel:'')+'　'+ninzu+fac.priceUnit+(r.name?'　'+r.name:'')+(mura?'　（村内）':'')+(_printRz[r.id]?'<span class="prz">連続</span>':'')+'</div>'+
     '<div class="pr2">計'+total.toLocaleString()+'円'+(rt>0?'（レンタル'+rt.toLocaleString()+'含む）':'')+'</div></div>'+
     ((r.rental||[]).length?'<div class="pr3">レンタル：'+r.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
     (r.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(r.memo))+'</div>':'')+
@@ -3397,15 +3379,56 @@ function _pStayInner(s){
   var bedTxt=BED_GROUPS.includes(_pStayCat(s))?('　'+bedLabel(s.bed)):'';
   var money=s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円';
   var coTodayP=(s.checkout&&s.checkout===todayStr())?'<span style="margin-left:4px;font-weight:700;color:#b5651d;font-size:0.72em;white-space:nowrap">▲本日OUT</span>':'';
-  return '<div class="prtop"><div class="pr1">'+s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+bedTxt+petTxt+coTodayP+'</div>'+
+  return '<div class="prtop"><div class="pr1">'+s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+bedTxt+petTxt+coTodayP+(_printRz[s.id]?'<span class="prz">連続</span>':'')+'</div>'+
     '<div class="pr2">'+money+'</div></div>'+
     ((s.rental||[]).length?'<div class="pr3">レンタル：'+s.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
     (s.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(s.memo))+'</div>':'')+
     (s.addr?'<div class="pr3">'+htmlEscape(s.addr)+'</div>':'')+
     _pLinksStay(s);
 }
+// ---- 連続（掃除の空き時間が無い＝別客が続く）判定。一覧・印刷で共通に使う ----
+function _rzIsTreeStay(e){ return e.kind===0&&(e.item.facGroup||((getSFac(e.item.facility)||{}).group))==='ツリーハウス'; }
+function _rzIsTreeDay(e){ return e.kind===1&&e.item.facility==='tree'; }
+function _rzStayCiMin(s){ var f=getSFac(s.facility)||STAY_FACS.find(function(x){return x.group===(s.facGroup||'');})||{}; var m=String(f.ci||'').match(/(\d{1,2}):(\d{2})/); return m?(+m[1]*60+ +m[2]):null; }
+// 昼↔昼は前後15分以内（重複は除く）、昼↔夜は昼終了→宿泊IN開始が45分以内
+function isRenzokuPair(a,b){
+  if(!a.date||a.date!==b.date)return false;
+  if(isCancelled(a.item)||isCancelled(b.item))return false;
+  var ad=_rzIsTreeDay(a),bd=_rzIsTreeDay(b),as=_rzIsTreeStay(a),bs=_rzIsTreeStay(b);
+  if((ad&&bs)||(as&&bd)){
+    var day=ad?a:b, stay=ad?b:a;
+    var dEnd=toMin(getEnd(day.item.startTime,day.item.course,'tree'));
+    var ci=_rzStayCiMin(stay.item); if(ci==null)return false;
+    var gap=ci-dEnd;
+    return gap>=0&&gap<=45;
+  }
+  if(ad&&bd){
+    var s1=toMin(a.item.startTime),e1=toMin(getEnd(a.item.startTime,a.item.course,'tree'));
+    var s2=toMin(b.item.startTime),e2=toMin(getEnd(b.item.startTime,b.item.course,'tree'));
+    if(s1<e2&&e1>s2)return false;
+    return Math.min(Math.abs(s1-e2),Math.abs(s2-e1))<=15;
+  }
+  return false;
+}
+// その日の「連続」に含まれる予約IDの集合（2件以上つながっているものだけ）
+function renzokuIdsForDate(date){
+  var es=[];
+  stays.forEach(function(s){ if(!isCancelled(s)&&s.checkin===date) es.push({kind:0,date:date,item:s}); });
+  reservations.forEach(function(r){ if(!isCancelled(r)&&r.date===date) es.push({kind:1,date:date,item:r}); });
+  var cl=es.map(function(_,i){return i;});
+  function find(x){ while(cl[x]!==x){ cl[x]=cl[cl[x]]; x=cl[x]; } return x; }
+  for(var i=0;i<es.length;i++)for(var j=i+1;j<es.length;j++){ if(isRenzokuPair(es[i],es[j])) cl[find(i)]=find(j); }
+  var cnt={},own={};
+  es.forEach(function(e,i){ var c=find(i); own[e.item.id]=c; cnt[c]=(cnt[c]||0)+1; });
+  var out={};
+  es.forEach(function(e){ if(cnt[own[e.item.id]]>1) out[e.item.id]=1; });
+  return out;
+}
+var _printRz={};   // 印刷中の日の連続ID集合（_pDayRow/_pStayInner から参照）
+
 // 宿泊：カテゴリーごとに「棟数ぶんの枠」（各棟1枠）を出す。棟に一致する予約を入れ、無ければ空枠。
 function _pStayBlock(date){
+  _printRz=renzokuIdsForDate(date);
   var h='<div class="pdate">'+fmtDate(date)+'　【宿泊】</div>';
   var cats='';
   PRINT_STAY_CATS.forEach(function(cat){
@@ -3436,6 +3459,7 @@ function _pStayBlock(date){
   return h+'<div class="pcats">'+cats+'</div>';
 }
 function _pDayBlock(date){
+  _printRz=renzokuIdsForDate(date);
   var h='<div class="pdate">'+fmtDate(date)+'　【日帰り】</div>';
   ['tree','walk','bbq'].forEach(function(fid){
     var fac=getFac(fid);
