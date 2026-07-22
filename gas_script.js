@@ -195,6 +195,10 @@ function writeAll(reservations, stays){
     return String(a.checkin||'').localeCompare(String(b.checkin||''))
       || (stayGrpOrder(a.facGroup) - stayGrpOrder(b.facGroup));
   });
+  // キャンセル予約は各シートの下部へまとめる（1つの行グループとして±で折り畳めるように）
+  function _isCanc(o){ return !!(o.cancelled || /キャンセル/.test(o.memo||'')); }
+  days = days.filter(function(r){return !_isCanc(r);}).concat(days.filter(_isCanc));
+  st   = st.filter(function(s){return !_isCanc(s);}).concat(st.filter(_isCanc));
   writeRows(getSheet(DAY_SHEET), DAY_COLS, days.map(function(r){
     return [fmtMD(r.date), facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', (r.done?'✅':''), ((r.cancelled||/キャンセル/.test(r.memo||''))?'✅':''), r.id||'', JSON.stringify(r)];
   }), days.map(function(r){ return r.date||''; }));
@@ -228,35 +232,43 @@ function writeRows(sh, cols, rows, groupKeys){
   }
   sh.hideColumns(cols.length); // _json列を隠す
   sh.setFrozenRows(1);
-  applyCancelVisibility(sh); // キャンセル非表示の設定を反映（同期で書き直しても維持）
+  applyCancelGrouping(sh); // キャンセル行を行グループ化（±で折り畳み）。同期で書き直しても維持
 }
 
-// ===== キャンセル予約の表示/非表示 =====
-// 独立プロジェクトなので onOpen（スプレッドシートのメニュー）は使えない。
-// 切り替えたいときは【GASエディタで関数を選んで▶実行】する:
-//   hideCancelledRows() … キャンセルを非表示にする
-//   showCancelledRows() … キャンセルを表示する
-// 設定は保存され、以後アプリから同期するたびに自動で反映される（writeSheetから呼ばれる）。
-function hideCancelledRows(){ setHideCancelledPref(true);  applyCancelVisibilityAll(); return 'キャンセル予約を非表示にしました'; }
-function showCancelledRows(){ setHideCancelledPref(false); applyCancelVisibilityAll(); return 'キャンセル予約を表示しました'; }
-function setHideCancelledPref(v){ PropertiesService.getScriptProperties().setProperty('hideCancelled', v?'1':''); }
-function getHideCancelledPref(){ return PropertiesService.getScriptProperties().getProperty('hideCancelled')==='1'; }
-function applyCancelVisibilityAll(){ [DAY_SHEET,STAY_SHEET].forEach(function(n){ var sh=getTargetSS().getSheetByName(n); if(sh) applyCancelVisibility(sh); }); }
-function applyCancelVisibility(sh){
-  var last=sh.getLastRow(); if(last<2) return;
+// ===== キャンセル予約の折り畳み（行グループ化）=====
+// キャンセル行は writeAll で各シートの下部へまとめてある。ここで1つの行グループにして、
+// シート左の「−／＋」ボタンでワンタッチ折り畳み／展開できるようにする（毎回の同期でも維持）。
+// 既定は「折り畳み（−で閉じた状態）」。常に開いておきたい時は下の関数をGASエディタで▶実行:
+//   showCancelledRows() … 以後の同期で展開した状態にする
+//   hideCancelledRows() … 以後の同期で折り畳んだ状態にする（既定）
+// ※シート上の「−／＋」でその場で開閉もできる（次にアプリが同期するまで維持）。
+function hideCancelledRows(){ setCancelShownPref(false); applyCancelGroupingAll(); return 'キャンセル予約を折り畳みました'; }
+function showCancelledRows(){ setCancelShownPref(true);  applyCancelGroupingAll(); return 'キャンセル予約を展開しました'; }
+function setCancelShownPref(v){ PropertiesService.getScriptProperties().setProperty('cancelShown', v?'1':''); }
+function getCancelShownPref(){ return PropertiesService.getScriptProperties().getProperty('cancelShown')==='1'; }
+function applyCancelGroupingAll(){ [DAY_SHEET,STAY_SHEET].forEach(function(n){ var sh=getTargetSS().getSheetByName(n); if(sh) applyCancelGrouping(sh); }); }
+function applyCancelGrouping(sh){
+  var last=sh.getLastRow(); if(last<2){ try{ sh.getRange(1,1,sh.getMaxRows(),1).shiftRowGroupDepth(-8); }catch(e0){} return; }
   var lastCol=sh.getLastColumn();
   var header=sh.getRange(1,1,1,lastCol).getValues()[0];
   var memoIdx=header.indexOf('メモ');
   var cancelIdx=header.indexOf('キャンセル');
   if(memoIdx<0 && cancelIdx<0) return;
-  var hide=getHideCancelledPref();
+  // 既存の行グループを一旦すべて解除（毎回作り直す）
+  try{ sh.getRange(1,1,sh.getMaxRows(),1).shiftRowGroupDepth(-8); }catch(e1){}
+  // キャンセル行（下部の連続ブロック）の先頭を探す
   var rng=sh.getRange(2,1,last-1,lastCol).getValues();
+  var firstC=-1;
   for(var i=0;i<rng.length;i++){
     var byMemo=memoIdx>=0 && String(rng[i][memoIdx]).indexOf('キャンセル')>=0;
     var byCol=cancelIdx>=0 && String(rng[i][cancelIdx]).trim()!=='';
-    var isC=byMemo||byCol;
-    if(isC && hide) sh.hideRows(2+i); else sh.showRows(2+i);
+    if(byMemo||byCol){ firstC=i; break; }
   }
+  if(firstC<0) return; // キャンセル無し
+  var cCount=(last-1)-firstC;
+  try{ sh.getRange(2+firstC,1,cCount,1).shiftRowGroupDepth(1); }catch(e2){}
+  // 既定は折り畳み。showCancelledRows()を実行した時だけ展開状態にする
+  try{ if(getCancelShownPref()) sh.expandAllRowGroups(); else sh.collapseAllRowGroups(); }catch(e3){}
 }
 
 function readSheet(name){
