@@ -195,12 +195,8 @@ function writeAll(reservations, stays){
     return String(a.checkin||'').localeCompare(String(b.checkin||''))
       || (stayGrpOrder(a.facGroup) - stayGrpOrder(b.facGroup));
   });
-  // キャンセル予約は各シートの下部へまとめる（1つの行グループとして±で折り畳めるように）。下部のキャンセルは日付順に並べる。
-  function _isCanc(o){ return !!(o.cancelled || /キャンセル/.test(o.memo||'')); }
-  var _dCanc = days.filter(_isCanc).sort(function(a,b){ return String(a.date||'').localeCompare(String(b.date||'')); });
-  days = days.filter(function(r){return !_isCanc(r);}).concat(_dCanc);
-  var _sCanc = st.filter(_isCanc).sort(function(a,b){ return String(a.checkin||'').localeCompare(String(b.checkin||'')); });
-  st   = st.filter(function(s){return !_isCanc(s);}).concat(_sCanc);
+  // キャンセルは下部へまとめず、有効予約と同じ日付順のまま（全体を時系列に）。
+  // 折り畳みは applyCancelGrouping が「連続するキャンセル行の塊」ごとに行グループ化して±で畳めるようにする。
   writeRows(getSheet(DAY_SHEET), DAY_COLS, days.map(function(r){
     return [fmtMD(r.date), facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', (r.done?'✅':''), ((r.cancelled||/キャンセル/.test(r.memo||''))?'✅':''), r.id||'', JSON.stringify(r)];
   }), days.map(function(r){ return r.date||''; }));
@@ -250,25 +246,26 @@ function setCancelShownPref(v){ PropertiesService.getScriptProperties().setPrope
 function getCancelShownPref(){ return PropertiesService.getScriptProperties().getProperty('cancelShown')==='1'; }
 function applyCancelGroupingAll(){ [DAY_SHEET,STAY_SHEET].forEach(function(n){ var sh=getTargetSS().getSheetByName(n); if(sh) applyCancelGrouping(sh); }); }
 function applyCancelGrouping(sh){
-  var last=sh.getLastRow(); if(last<2){ try{ sh.getRange(1,1,sh.getMaxRows(),1).shiftRowGroupDepth(-8); }catch(e0){} return; }
+  var last=sh.getLastRow();
+  // 既存の行グループを一旦すべて解除（毎回作り直す）
+  try{ sh.getRange(1,1,sh.getMaxRows(),1).shiftRowGroupDepth(-8); }catch(e0){}
+  if(last<2) return;
   var lastCol=sh.getLastColumn();
   var header=sh.getRange(1,1,1,lastCol).getValues()[0];
   var memoIdx=header.indexOf('メモ');
   var cancelIdx=header.indexOf('キャンセル');
   if(memoIdx<0 && cancelIdx<0) return;
-  // 既存の行グループを一旦すべて解除（毎回作り直す）
-  try{ sh.getRange(1,1,sh.getMaxRows(),1).shiftRowGroupDepth(-8); }catch(e1){}
-  // キャンセル行（下部の連続ブロック）の先頭を探す
   var rng=sh.getRange(2,1,last-1,lastCol).getValues();
-  var firstC=-1;
-  for(var i=0;i<rng.length;i++){
-    var byMemo=memoIdx>=0 && String(rng[i][memoIdx]).indexOf('キャンセル')>=0;
-    var byCol=cancelIdx>=0 && String(rng[i][cancelIdx]).trim()!=='';
-    if(byMemo||byCol){ firstC=i; break; }
+  function _isCancRow(i){ return (memoIdx>=0 && String(rng[i][memoIdx]).indexOf('キャンセル')>=0) || (cancelIdx>=0 && String(rng[i][cancelIdx]).trim()!==''); }
+  // 日付順に散らばったキャンセルを「連続する塊」ごとに行グループ化（その場で±で畳める）
+  var i=0;
+  while(i<rng.length){
+    if(_isCancRow(i)){
+      var j=i; while(j<rng.length && _isCancRow(j)) j++;
+      try{ sh.getRange(2+i,1,j-i,1).shiftRowGroupDepth(1); }catch(e2){}
+      i=j;
+    } else { i++; }
   }
-  if(firstC<0) return; // キャンセル無し
-  var cCount=(last-1)-firstC;
-  try{ sh.getRange(2+firstC,1,cCount,1).shiftRowGroupDepth(1); }catch(e2){}
   // 既定は折り畳み。showCancelledRows()を実行した時だけ展開状態にする
   try{ if(getCancelShownPref()) sh.expandAllRowGroups(); else sh.collapseAllRowGroups(); }catch(e3){}
 }
