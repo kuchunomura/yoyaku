@@ -602,8 +602,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=329;
-const APP_BUILD_DATE='2026/07/22 16:38';
+const APP_VERSION=330;
+const APP_BUILD_DATE='2026/07/22 17:15';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1521,15 +1521,15 @@ function renderList(){
       linkedH+
       (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoChecks(s.memo,s.rental)+'</div>':'')+
       (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+s.addr+'</div>':'')+
-      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">'+
         '<span style="font-size:11px;color:#aaa">'+(showCiCo?'IN '+fac.ci+' ／ OUT '+fac.co:'')+'</span>'+
-        '<button class="btn-sm" id="cardtog-'+s.id+'" data-act="toggleCardBtns" data-id="'+s.id+'" style="flex-shrink:0;color:#666">'+(_cardOpen[s.id]?'▲ 閉じる':'▼ 操作')+'</button>'+
-      '</div>'+
-      '<div id="cardbtns-'+s.id+'" data-disp="block" style="display:'+(_cardOpen[s.id]?'block':'none')+'">'+
-        '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px">'+
+        '<span style="display:flex;gap:6px;flex-shrink:0;align-items:center">'+
           '<button class="btn-sm" data-act="openEditStay" data-id="'+s.id+'">編集</button>'+
           '<button class="btn-sm" data-act="delStay" data-id="'+s.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
-        '</div>'+
+          '<button class="btn-sm" id="cardtog-'+s.id+'" data-act="toggleCardBtns" data-id="'+s.id+'" style="color:#666">'+((_cardOpen[s.id]!==false)?'▲ 閉じる':'▼ 操作')+'</button>'+
+        '</span>'+
+      '</div>'+
+      '<div id="cardbtns-'+s.id+'" data-disp="block" style="display:'+((_cardOpen[s.id]!==false)?'block':'none')+'">'+
         '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+cancelBtn+'</div>'+
       '</div>';
     return div;
@@ -1599,9 +1599,9 @@ function renderList(){
       // 下部：施設の最終受付/終了（各カテゴリ最初のみ）＋操作ボタン（▼で開閉）
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px">'+
         '<span style="font-size:11px;color:#aaa">'+(showDayInfo?'最終受付 '+(fac.lastAccept||'')+' ／ 終了 '+(fac.close||''):'')+'</span>'+
-        '<button class="btn-sm" id="cardtog-'+r.id+'" data-act="toggleCardBtns" data-id="'+r.id+'" style="flex-shrink:0;color:#666">'+(_cardOpen[r.id]?'▲ 閉じる':'▼ 操作')+'</button>'+
+        '<button class="btn-sm" id="cardtog-'+r.id+'" data-act="toggleCardBtns" data-id="'+r.id+'" style="flex-shrink:0;color:#666">'+((_cardOpen[r.id]!==false)?'▲ 閉じる':'▼ 操作')+'</button>'+
       '</div>'+
-      '<div id="cardbtns-'+r.id+'" data-disp="flex" style="display:'+(_cardOpen[r.id]?'flex':'none')+';justify-content:flex-end;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">'+
+      '<div id="cardbtns-'+r.id+'" data-disp="flex" style="display:'+((_cardOpen[r.id]!==false)?'flex':'none')+';justify-content:flex-end;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">'+
         '<button data-act="toggleDayPay" data-id="'+r.id+'" class="wf-btn'+(r.done?' on':'')+(dayArm===r.id?' arm':'')+'" style="flex:0 0 auto;padding:4px 16px">'+(dayArm===r.id?'もう1タップで確定':((r.done?'✅':'')+'会計'))+'</button>'+
         '<button data-act="toggleDayCancel" data-id="'+r.id+'" class="wf-btn'+(dayCancelArm===r.id?' arm':'')+'" style="flex:0 0 auto;padding:4px 12px;'+(r.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(dayCancelArm===r.id?'もう1タップで確定':(r.cancelled?'↩ キャンセルを取り消し':'キャンセル'))+'</button>'+
         '<button class="btn-sm" data-act="openEdit" data-id="'+r.id+'">編集</button>'+
@@ -1667,7 +1667,7 @@ function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;co
 function toggleUnitSel(id){var el=document.getElementById('unitsel-'+id);if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'flex':'none';}
 // カード下部の操作ボタン群（編集〜キャンセル）を▼で開閉
 var _cardOpen={};
-function toggleCardBtns(id){_cardOpen[id]=!_cardOpen[id];var el=document.getElementById('cardbtns-'+id);var tg=document.getElementById('cardtog-'+id);if(el)el.style.display=_cardOpen[id]?(el.getAttribute('data-disp')||'block'):'none';if(tg)tg.textContent=_cardOpen[id]?'▲ 閉じる':'▼ 操作';}
+function toggleCardBtns(id){var isOpen=(_cardOpen[id]!==false);_cardOpen[id]=!isOpen;var open=_cardOpen[id];var el=document.getElementById('cardbtns-'+id);var tg=document.getElementById('cardtog-'+id);if(el)el.style.display=open?(el.getAttribute('data-disp')||'block'):'none';if(tg)tg.textContent=open?'▲ 閉じる':'▼ 操作';}
 // ベッド構成（ドーム・ツリーハウス）。タップで切替
 function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=(bedCode(s.bed)==='ws')?'ww':'ws';sv(STKEY,stays);autoPush();renderList();}
 // メモ等のテキストからOTAを判定（ソウエクスペリ/SOU/じゃらん/楽天）
