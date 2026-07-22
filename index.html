@@ -602,8 +602,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=322;
-const APP_BUILD_DATE='2026/07/22 14:21';
+const APP_VERSION=323;
+const APP_BUILD_DATE='2026/07/22 14:26';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2952,8 +2952,10 @@ function importCSV(){
         if(old.cancelled) rec.cancelled=old.cancelled;
         if(old.rental&&old.rental.length && old.rentalAuto===false){ rec.rental=old.rental; rec.rentalAuto=false; } // 手動設定した備品のみ保持（自動推定は毎回メモから作り直す）
         if(old.customValues) rec.customValues=old.customValues;
-        // 宿泊：手動で割り当てた「棟」を保持（CSVに棟は無いので、再取込のたびに棟未選択へ戻っていた）
-        if(type!=='day' && old.facility){ rec.facility=old.facility; var _ofac=getSFac(old.facility); if(_ofac) rec.unitPrice=getSPrice(_ofac, rec.totalPpl||rec.ninzu); }
+        // 宿泊：手動で割り当てた「棟」を保持（CSVに棟は無いので、再取込のたびに棟未選択へ戻るのを防ぐ）。
+        // ただし施設違いの修正取込（別グループのCSVを取り込んで直す時）は、旧棟は新グループに属さないので引き継がない。
+        // ＝棟をリセット（新グループの既定：単棟なら自動割当／複数棟なら未選択）。これで施設違いが棟ごと正しく直る。
+        if(type!=='day' && old.facility){ var _ofac=getSFac(old.facility); if(_ofac && _ofac.group===facId){ rec.facility=old.facility; rec.unitPrice=getSPrice(_ofac, rec.totalPpl||rec.ninzu); } }
         rec.linkedDayIds=(old.linkedDayIds&&old.linkedDayIds.length)?old.linkedDayIds:(rec.linkedDayIds||[]);
         if(type==='day') rec.linkedStayIds=(old.linkedStayIds&&old.linkedStayIds.length)?old.linkedStayIds:(rec.linkedStayIds||[]);
         arr[exIdx]=rec; updated++;
