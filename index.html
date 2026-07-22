@@ -597,8 +597,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=318;
-const APP_BUILD_DATE='2026/07/22 13:30';
+const APP_VERSION=319;
+const APP_BUILD_DATE='2026/07/22 13:41';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2368,7 +2368,7 @@ async function loadFromSheet(silent){
       // 日付ごとの特記（全端末で同期）
       if(json.dayevents&&typeof json.dayevents==='object')sv('yv_dayevents',json.dayevents);
       // 最終CSV取込日時：施設ごとに新しい方を残してマージ（他デバイスの取込時刻を消さない）
-      if(json.csvimp&&typeof json.csvimp==='object'){ var _ci=ld('yv_csvimp')||{}; var _cm=ld('yv_csvimp_mon')||{}; var _if=ld('yv_csvimp_file')||{}; var _rm=(json.csvimpmon&&typeof json.csvimpmon==='object')?json.csvimpmon:{}; var _rf=(json.csvimpfile&&typeof json.csvimpfile==='object')?json.csvimpfile:{}; for(var _ck in json.csvimp){ var _cv=Number(json.csvimp[_ck])||0; if(_cv>(Number(_ci[_ck])||0)){ _ci[_ck]=_cv; if(_rm[_ck]!==undefined)_cm[_ck]=_rm[_ck]; if(_rf[_ck]!==undefined)_if[_ck]=_rf[_ck]; } } sv('yv_csvimp',_ci); sv('yv_csvimp_mon',_cm); sv('yv_csvimp_file',_if); if(typeof renderCsvImpLog==='function')renderCsvImpLog(); }
+      if(json.csvimp&&typeof json.csvimp==='object'){ var _ci=ld('yv_csvimp')||{}; var _cm=ld('yv_csvimp_mon')||{}; var _if=ld('yv_csvimp_file')||{}; var _rm=(json.csvimpmon&&typeof json.csvimpmon==='object')?json.csvimpmon:{}; var _rf=(json.csvimpfile&&typeof json.csvimpfile==='object')?json.csvimpfile:{}; for(var _ck in json.csvimp){ var _cv=Number(json.csvimp[_ck])||0; if(_cv>(Number(_ci[_ck])||0)){ _ci[_ck]=_cv; if(_rf[_ck]!==undefined)_if[_ck]=_rf[_ck]; } } for(var _mk in _rm){ var _uu={}; String(_cm[_mk]||'').split(',').concat(String(_rm[_mk]||'').split(',')).forEach(function(x){x=(x||'').trim();if(x)_uu[x]=1;}); _cm[_mk]=Object.keys(_uu).sort().join(','); } sv('yv_csvimp',_ci); sv('yv_csvimp_mon',_cm); sv('yv_csvimp_file',_if); if(typeof renderCsvImpLog==='function')renderCsvImpLog(); }
       sv(RKEY,reservations);sv(STKEY,stays);
       var _rep=repairNinzuFromAmount(); // 読込データの人数誤読を自動修復
       var _rq=healRentalQty();          // 客チェック方式メモの備品数量バグ（金額=数量）を自動修復
@@ -2561,27 +2561,37 @@ function renderCsvImpLog(){
   var fnm=ld('yv_csvimp_file')||{};
   // 'YYYY-MM,YYYY-MM' → '7月分' / '7〜8月分'
   function monLabel(csv){ if(!csv) return ''; var arr=String(csv).split(',').filter(Boolean).sort(); if(!arr.length) return ''; var ja=function(m){var p=m.split('-');return (+p[1])+'月';}; return (arr.length===1?ja(arr[0]):ja(arr[0])+'〜'+ja(arr[arr.length-1]))+'分'; }
+  // 月別チップ：今月＋翌2か月（OTA締切は先の月なので直近3か月の取込状況を月別に出す）
+  var _tn=new Date(), months=[];
+  for(var _mi=0;_mi<3;_mi++){ var _dm=new Date(_tn.getFullYear(),_tn.getMonth()+_mi,1); months.push(_dm.getFullYear()+'-'+('0'+(_dm.getMonth()+1)).slice(-2)); }
+  function monChips(csv){
+    var set=String(csv||'').split(',').filter(Boolean);
+    return months.map(function(m){
+      var has=set.indexOf(m)>=0, jm=(+m.split('-')[1])+'月';
+      return '<span style="display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:3px;'
+        +(has?'background:#d7f0dd;color:#1a7a3a;border:1px solid #9ccfab':'background:#f2f2f2;color:#bbb;border:1px solid #e0e0e0')
+        +'">'+jm+(has?' ✓':' 未')+'</span>';
+    }).join('');
+  }
   var rows=[];
-  FACILITIES.forEach(function(f){var v='day:'+f.id;var lb=(f.id==='tree'?'ツリーハウス昼':f.label);rows.push([lb,imp[v],monLabel(mon[v]),fnm[v],v]);});
-  var seen={}; STAY_FACS.forEach(function(f){if(seen[f.group])return;seen[f.group]=true;var v='staygroup:'+f.group;rows.push([f.group+'（宿泊）',imp[v],monLabel(mon[v]),fnm[v],v]);});
+  FACILITIES.forEach(function(f){var v='day:'+f.id;var lb=(f.id==='tree'?'ツリーハウス昼':f.label);rows.push([lb,imp[v],mon[v],fnm[v],v]);});
+  var seen={}; STAY_FACS.forEach(function(f){if(seen[f.group])return;seen[f.group]=true;var v='staygroup:'+f.group;rows.push([f.group+'（宿泊）',imp[v],mon[v],fnm[v],v]);});
   // 今ドラッグ中（未取込）のファイル名を、選択中の施設の行に「→ 📄新しいファイル」として並べて出す。
   // 取り込む前に、施設が合っているか・前回と同じファイルを二重に入れようとしていないかを目視できる。
   var selKey=(document.getElementById('csv-fac')||{}).value||'';
   el.innerHTML='<b>最終CSV取込日時</b>'
-    +'<div style="display:grid;grid-template-columns:max-content 1fr;gap:3px 6px;margin-top:4px;line-height:1.5;">'
+    +'<div style="display:grid;grid-template-columns:max-content 1fr;gap:5px 6px;margin-top:4px;line-height:1.7;">'
     +rows.map(function(r){
-      var prev=r[1]
-        ? '<span style="color:#1a7a3a">'+fmtDateTime(r[1])+'</span>'
-          +(r[2]?' <span style="color:#6b4f20;font-weight:700">'+r[2]+'</span>':'')
-          +(r[3]?' <span style="color:#2471a3;font-weight:600">📄'+htmlEscape(r[3])+'</span>':'')
-        : '<span style="color:#bbb">未取込</span>';
+      var prev=monChips(r[2])
+        +(r[1]?' <span style="color:#1a7a3a;font-size:11px">'+fmtDateTime(r[1])+'</span>':' <span style="color:#bbb;font-size:11px">未取込</span>')
+        +(r[3]?' <span style="color:#2471a3;font-weight:600;font-size:11px">📄'+htmlEscape(r[3])+'</span>':'');
       var next='';
       if(r[4]===selKey && lastCsvFileName){
         var dup=r[3] && r[3]===lastCsvFileName;
-        next=' <span style="color:'+(dup?'#c0392b':'#e67700')+';font-weight:700">→ 📄'+htmlEscape(lastCsvFileName)
+        next='<br><span style="color:'+(dup?'#c0392b':'#e67700')+';font-weight:700">→ 📄'+htmlEscape(lastCsvFileName)
           +(dup?'（⚠ 前回と同じファイル）':'（新規）')+'</span>';
       }
-      return '<div>'+r[0]+'</div><div>：'+prev+next+'</div>';
+      return '<div>'+r[0]+'</div><div>'+prev+next+'</div>';
     }).join('')
     +'</div>';
 }
@@ -2688,6 +2698,7 @@ function parseAmount(fields){
 }
 function csvFindIdx(fields,re){ for(var i=0;i<fields.length;i++){ if(re.test(String(fields[i]))) return i; } return -1; }
 
+var _csvFacBypass=false; // 施設取り違えチェックを確認ダイアログ後の再取込で一度だけスキップするフラグ
 function importCSV(){
   var res=document.getElementById('csv-result');
   var sel=document.getElementById('csv-fac').value;
@@ -2760,6 +2771,31 @@ function importCSV(){
       showToast('⚠ 取込先の種別が違います（'+csvJa+'のCSV）','#c00');
       return;
     }
+    // ── 取り込み前チェック②：施設の取り違え（自動検知） ──
+    // 予約はwpIdで施設をまたいで一致する＝別施設のCSVをこの施設に取り込むと、既存予約がこの施設へ移動してしまう。
+    // このCSVのwpIdが既に別施設に多数登録済みなら、施設違いの可能性が高いので取込前に確認する。
+    if(!_csvFacBypass){
+      var _arrChk=(type==='day')?reservations:stays;
+      var _mFld=(type==='day')?'facility':'facGroup';
+      var _mMatched=0,_mMis=0,_mOther={};
+      rows.forEach(function(f){
+        var wid=String(f[0]||'').trim(); if(!/^\d+$/.test(wid))return;
+        var ex=_arrChk.find(function(x){return String(x.wpId)===wid;}); if(!ex)return;
+        _mMatched++;
+        var ef=ex[_mFld]||''; if(ef&&ef!==facId){ _mMis++; _mOther[ef]=(_mOther[ef]||0)+1; }
+      });
+      // 3件以上かつ一致予約の過半数が別施設 → 施設違いの疑い
+      if(_mMis>=3 && _mMis>=_mMatched*0.5){
+        var _topEf=Object.keys(_mOther).sort(function(a,b){return _mOther[b]-_mOther[a];})[0];
+        var _topKey=(type==='day')?('day:'+_topEf):('staygroup:'+_topEf);
+        var _topL=csvOptLabel(_topKey), _selL=csvOptLabel(sel);
+        res.style.color='#c0392b';
+        res.innerHTML='⚠ このCSVの予約 '+_mMis+'件は、すでに別施設<b>「'+htmlEscape(_topL)+'」</b>に登録済みです。取込先「'+htmlEscape(_selL)+'」は施設違いかもしれません。確認ダイアログで進めてください。';
+        showConfirm('⚠ 施設違いの疑いがあります。\n\nこのCSVの予約 '+_mMis+'件は、すでに別施設「'+_topL+'」に入っています。\nこのまま「'+_selL+'」として取り込むと、それらが「'+_selL+'」へ移動してしまいます。\n\n本当にこの施設で取り込みますか？',function(){ _csvFacBypass=true; importCSV(); });
+        return;
+      }
+    }
+    _csvFacBypass=false;
     // ── 取消(アンドゥ)用：この取込で「追加した予約id」と「更新前の予約内容」だけ控える（後からでも取り消せるよう履歴に保存） ──
     var _batchAdded=[], _batchPrevUpdated=[];
     var _undoFileName=lastCsvFileName;
@@ -2878,7 +2914,7 @@ function importCSV(){
     autoLinkAll(); // 取込後に同名/同OTAを自動紐づけ
     // カテゴリ別の最終取込日時を記録
     var _imp=ld('yv_csvimp')||{}; _imp[sel]=Date.now(); sv('yv_csvimp',_imp);
-    var _mon=ld('yv_csvimp_mon')||{}; _mon[sel]=Object.keys(_impMonths).sort().join(','); sv('yv_csvimp_mon',_mon); // 何月分かを記録
+    var _mon=ld('yv_csvimp_mon')||{}; var _pm=String(_mon[sel]||'').split(',').filter(Boolean); Object.keys(_impMonths).forEach(function(m){ if(_pm.indexOf(m)<0)_pm.push(m); }); _mon[sel]=_pm.sort().join(','); sv('yv_csvimp_mon',_mon); // 取込済みの月を累積(union)で記録＝月別チップに使う
     var _impF=ld('yv_csvimp_file')||{}; _impF[sel]=lastCsvFileName||''; sv('yv_csvimp_file',_impF); // 取込ファイル名（施設ごと・同期される・被り確認用）
     setCsvFileName(''); // 取込済みなので「→ 📄」の待機表示を消す（ファイル名はログ側に📄として残る）。中でrenderCsvImpLog()も呼ばれる
     sv(RKEY,reservations); sv(STKEY,stays); autoPush();
