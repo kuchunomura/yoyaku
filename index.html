@@ -283,8 +283,8 @@ details[open] summary{opacity:0.75}
           <button style="background:#fff;border:1px solid #c0392b;color:#c0392b;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600" onclick="delCsvImported()">🗑 選択中の施設のCSV取込分を削除</button>
         </div>
         <div style="border-top:1px dashed #ccc;margin-top:12px;padding-top:10px">
-          <div style="font-size:11px;color:#888;margin-bottom:6px">今あるデータを点検：メモに施設名（ドーム/テント等）がある予約で、<b>登録施設と食い違うもの</b>を洗い出します（OTAプラン名がメモにある予約のみ・確実にしたい時はその施設のCSVを取込むと突き合わせで検出できます）。</div>
-          <button style="background:#fff;border:1px solid #6b4f20;color:#6b4f20;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600" onclick="checkFacilityMismatch()">🔍 今の予約を施設ズレ点検</button>
+          <div style="font-size:11px;color:#888;margin-bottom:6px">今あるデータを点検：<b>その施設に物理的に入らない予約</b>（定員オーバー＝別施設の入れ間違い）を洗い出します。備考に施設名が無いためこれだけは単体で検出可。※確実に全部見るには、その施設のCSVを取り込んで「取込時チェック」で突き合わせてください。</div>
+          <button style="background:#fff;border:1px solid #6b4f20;color:#6b4f20;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600" onclick="checkFacilityMismatch()">🔍 今の予約を施設ズレ点検（定員オーバー）</button>
           <div id="facchk-result" style="font-size:12.5px;margin-top:8px;line-height:1.7"></div>
         </div>
       </div>
@@ -602,8 +602,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=321;
-const APP_BUILD_DATE='2026/07/22 14:08';
+const APP_VERSION=322;
+const APP_BUILD_DATE='2026/07/22 14:21';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2703,59 +2703,47 @@ function parseAmount(fields){
 }
 function csvFindIdx(fields,re){ for(var i=0;i<fields.length;i++){ if(re.test(String(fields[i]))) return i; } return -1; }
 
-// ── 施設ズレ点検：今ある予約のメモにある施設名と、登録施設が食い違うものを洗い出す ──
-// CSVに施設欄が無いため取込先を手選びする→選び間違えると別施設に入る。メモにOTAプラン名（ドーム/テント等）が
-// 残っている予約は、その施設名と登録施設を突き合わせて疑いを検出できる（メモに施設名が無い＝OTA無し等は判定不可）。
-function _detectFacFromText(txt,type){
-  var found={};
-  if(type==='day'){
-    if(/空中ウォーク|ウォーク|空中散歩/.test(txt)) found['walk']=1;
-    if(/ツリーハウス/.test(txt)) found['tree']=1;
-    if(/BBQ|バーベキュー|ﾊﾞｰﾍﾞｷｭｰ/i.test(txt)) found['bbq']=1;
-  }else{
-    if(/ツリーハウス/.test(txt)) found['ツリーハウス']=1;
-    if(/ドーム/.test(txt)) found['透明ドーム']=1;
-    if(/テント/.test(txt)) found['空中テント']=1;
-    if(/ハンモック/.test(txt)) found['空中ハンモック']=1;
-  }
-  return Object.keys(found);
-}
-function _dayFacLabel(id){ var f=getFac(id); return f?(id==='tree'?'ツリーハウス昼':f.label):id; }
+// ── 施設ズレ点検（CSV/メモ不要の単体点検）──
+// 備考に施設名が入らないため、メモからは判定できない。代わりに「その施設に物理的に入らない予約」だけを検出する：
+// ・登録施設の定員（maxA/maxT）を超える人数（例：定員2名のテントに4名）＝別施設の入れ間違いが確実。
+// ・ペット不可の棟にペット有り。
+// ※これは"大きい予約が小さい施設に入った"等の一部だけ。確実な全数検出は①（各施設のCSV取込で突き合わせ）。
 function checkFacilityMismatch(){
   var el=document.getElementById('facchk-result'); if(!el) return;
   var out=[];
-  reservations.forEach(function(r){
-    if(isCancelled(r)||!r.facility) return;
-    var det=_detectFacFromText((r.memo||'')+' '+(r.source||''),'day');
-    if(det.length===1 && det[0]!==r.facility) out.push({t:'day',id:r.id,nm:r.name||'（無名）',dt:r.date||'',have:_dayFacLabel(r.facility),want:_dayFacLabel(det[0])});
-  });
   stays.forEach(function(s){
     if(isCancelled(s)||!s.facGroup) return;
-    var det=_detectFacFromText((s.memo||'')+' '+(s.source||''),'stay');
-    if(det.length===1 && det[0]!==s.facGroup) out.push({t:'stay',id:s.id,nm:s.name||'（無名）',dt:s.checkin||'',have:s.facGroup,want:det[0]});
+    var reps=STAY_FACS.filter(function(x){return x.group===s.facGroup;});
+    if(!reps.length) return;
+    var maxA=reps[0].maxA, maxT=reps[0].maxT;
+    var ad=parseInt(s.ninzu,10)||0, ch=parseInt(s.child,10)||0, tot=ad+ch;
+    var reasons=[];
+    if(ad>maxA) reasons.push('大人'+ad+'名 > 定員'+maxA+'名');
+    else if(tot>maxT) reasons.push('合計'+tot+'名 > 定員'+maxT+'名');
+    var pc=parseInt(s.petCount,10)||0;
+    if(pc>0 && s.facility){ var f=getSFac(s.facility); if(f && f.pet==='不可') reasons.push('ペット不可の棟にペット'+pc+'匹'); }
+    if(!reasons.length) return;
+    var cand=[], seenG={};
+    STAY_FACS.forEach(function(x){ if(seenG[x.group])return; seenG[x.group]=1; if(x.group!==s.facGroup && x.maxA>=ad && x.maxT>=tot) cand.push(x.group); });
+    out.push({id:s.id,nm:s.name||'（無名）',dt:s.checkin||'',have:s.facGroup,reasons:reasons,cand:cand});
   });
-  if(!out.length){ el.style.color='#1a7a3a'; el.innerHTML='✓ 施設ズレの疑いは見つかりませんでした。<br><span style="color:#888;font-size:11px">※メモに施設名（ドーム/テント等）がある予約だけを点検します。OTAプラン名が無い予約は判定できません。</span>'; return; }
+  var _mj=function(dt){ return (dt&&/^\d{4}-\d{2}/.test(dt))?((+dt.slice(5,7))+'月'):''; };
+  var _note='<div style="color:#555;font-size:11px;margin-top:6px;background:#f7f7f7;border-radius:6px;padding:7px 9px;line-height:1.7">※これは<b>人数が定員を超える等の"物理的に不可能な入れ間違い"だけ</b>を見る点検です（備考に施設名が無いため、小さい予約が大きい施設に入ったケース等は分かりません）。<br><b>施設ズレを確実に全部洗い出すには、各施設のその月のCSVを取り込んで「取込時チェック（このCSVに無いのにこの施設に居る予約）」で突き合わせ</b>てください。</div>';
+  if(!out.length){ el.style.color='#1a7a3a'; el.innerHTML='✓ 定員オーバー等の「その施設に入らない予約」は見つかりませんでした。'+_note; return; }
   out.sort(function(a,b){return String(a.dt).localeCompare(String(b.dt));});
   el.style.color='#c0392b';
-  var _mj=function(dt){ return (dt&&/^\d{4}-\d{2}/.test(dt))?((+dt.slice(5,7))+'月'):''; };
-  el.innerHTML='⚠ 施設ズレの疑い <b>'+out.length+'件</b>（メモの施設名と登録が食い違う）<div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">'
+  el.innerHTML='⚠ その施設に入らない予約 <b>'+out.length+'件</b>（定員オーバー等＝別施設の入れ間違いの可能性）<div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">'
     +out.map(function(o){
-      var open=(o.t==='day')?('openEdit(\''+o.id+'\')'):('openEditStay(\''+o.id+'\')');
       var mj=_mj(o.dt);
-      return '<div style="border:1px solid #e0b4b4;background:#fff6f6;border-radius:6px;padding:7px 9px">'
+      return '<div style="border:1px solid #e0b4b4;background:#fff6f6;border-radius:6px;padding:7px 9px;line-height:1.7">'
         +'<b>'+htmlEscape(o.nm)+'</b> <span style="color:#888">'+htmlEscape(o.dt)+'</span>'
-        +' <button onclick="'+open+'" style="font-size:11px;border:1px solid #bbb;border-radius:5px;background:#fff;padding:2px 8px;cursor:pointer">開いて確認</button><br>'
-        +'今の登録：<b>'+htmlEscape(o.have)+'</b>'+(mj?'（'+mj+'）':'')+' ／ メモ上は <b style="color:#c0392b">'+htmlEscape(o.want)+'</b> の可能性<br>'
-        +'<span style="color:#7a1030">→ 直し方：メモが正しければ <b>「'+htmlEscape(o.want)+'」の'+mj+'のCSV</b>を取り込み直すと、この予約は自動で「'+htmlEscape(o.want)+'」へ移動して直ります（予約番号一致で上書き＝削除不要）。または［開いて確認］で施設'+(o.t==='stay'?'（棟）':'')+'を「'+htmlEscape(o.want)+'」へ手修正。</span>'
+        +' <button onclick="openEditStay(\''+o.id+'\')" style="font-size:11px;border:1px solid #bbb;border-radius:5px;background:#fff;padding:2px 8px;cursor:pointer">開いて確認</button><br>'
+        +'今の登録：<b>'+htmlEscape(o.have)+'</b>（'+htmlEscape(o.reasons.join('・'))+'）'
+        +(o.cand.length?('<br>この人数が入る施設：<b style="color:#7a1030">'+o.cand.map(htmlEscape).join('・')+'</b>'):'')
+        +'<br><span style="color:#7a1030">→ 直し方：正しい施設が分かれば、その施設の'+mj+'のCSVを取り込むと自動で移動して直ります（削除不要）。または［開いて確認］で棟/施設を修正。</span>'
         +'</div>';
     }).join('')
-    +'</div>'
-    +'<div style="color:#555;font-size:11px;margin-top:6px;background:#f7f7f7;border-radius:6px;padding:7px 9px;line-height:1.7">'
-    +'<b>まとめの対処</b><br>'
-    +'・<b>施設違い</b>なら…正しい施設のその月のCSVを取り込む＝自動で移動（<b>削除は不要</b>）。<br>'
-    +'・<b>OTAでキャンセル済み</b>なら…［開いて確認］で削除、またはキャンセルにする。<br>'
-    +'※メモの施設名からの推定です（正しい場合もあります）。メモに施設名が無い予約は判定できません。<b>確実に洗い出すには、各施設のその月のCSVを取り込んで「取込時チェック」で突き合わせ</b>てください。'
-    +'</div>';
+    +'</div>'+_note;
 }
 var _csvFacBypass=false; // 施設取り違えチェックを確認ダイアログ後の再取込で一度だけスキップするフラグ
 function importCSV(){
@@ -3009,10 +2997,7 @@ function importCSV(){
       +(_stray.length?('<div style="margin-top:8px;padding:8px 10px;background:#fff6f6;border:1px solid #e0b4b4;border-radius:8px;font-size:12px;color:#7a1030;line-height:1.6">⚠ このCSVに無いのに<b>「'+csvOptLabel(sel)+'」</b>の'+_strayMonLabel+'分に入っている予約 <b>'+_stray.length+'件</b>。<br>別施設の予約が紛れ込んでいる（施設違い）か、OTA側でキャンセルされた可能性があります。確認してください。<div style="margin-top:5px;display:flex;flex-direction:column;gap:4px">'
         +_stray.sort(function(a,b){return String((type==='day')?a.date:a.checkin).localeCompare(String((type==='day')?b.date:b.checkin));}).map(function(x){var nm=htmlEscape(x.name||'（無名）');var dt=htmlEscape((type==='day')?(x.date||''):(x.checkin||''));var op=(type==='day')?('openEdit(\''+x.id+'\')'):('openEditStay(\''+x.id+'\')');return '<div>・<b>'+nm+'</b> <span style="color:#888">'+dt+'</span> <button onclick="'+op+'" style="font-size:11px;border:1px solid #bbb;border-radius:5px;background:#fff;padding:1px 7px;cursor:pointer">開く</button></div>';}).join('')
         +'</div>'
-        +'<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e0b4b4;line-height:1.7">→ 直し方：<br>'
-        +'・これらが<b>別施設の予約</b>（＝「'+csvOptLabel(sel)+'」に入れ間違い）なら…<b>正しい施設の'+_strayMonLabel+'のCSV</b>を取り込むと、その予約は自動でそちらへ移動して直ります（<b>削除は不要</b>）。正しい施設が分かっていれば［開いて］棟/施設を直接変えてもOK。<br>'
-        +'・これらが<b>OTAでキャンセル済み</b>なら…［開く］で削除、またはキャンセルにしてください。'
-        +'</div>'
+        +'<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e0b4b4;line-height:1.7">→ 直し方：これらは<b>「'+csvOptLabel(sel)+'」の予約ではない可能性大（施設の入れ間違い）</b>。<b>正しい施設の'+_strayMonLabel+'のCSV</b>を取り込むと、その予約は自動でそちらへ移動して直ります（<b>削除は不要</b>）。正しい施設が分かっていれば［開く］で棟/施設を直接変えてもOK。<br><span style="color:#9a6070">※キャンセルは各施設のCSVに含まれ、取り込めば自動で反映されるので、ここに残るのは基本"入れ間違い"です。</span></div>'
         +'<div style="color:#9a6070;font-size:11px;margin-top:5px">※このCSVが「その施設の全予約」である前提の検知です（部分CSVだと正常な予約も出ます）。</div></div>'):'')
       +(mismatch?('<div style="color:#c0392b;margin-top:2px;font-weight:600">⚠ '+mismatch+' 件は取込先の種別と一致しないため取り込みませんでした。<br>このCSVは'+(type==='day'?'<b>宿泊</b>予約のようです（ベッド情報・連泊あり）。上の選択を<b>「〇〇（宿泊）」</b>に変えて取り込み直してください。':'<b>日帰り</b>予約のようです（利用時間あり）。上の選択を<b>「☀ 日帰り」</b>の施設に変えてください。')+'</div>'):'')
       +((_batchAdded.length||_batchPrevUpdated.length)?('<div style="margin-top:8px;padding:7px 9px;background:#fff7f2;border:1px solid #e0c0b0;border-radius:8px;font-size:12px;color:#7a1030;line-height:1.6">施設を間違えていませんか？ 上の施設名を確認してください。違う施設に入れてしまった場合は取り消せます（下の「🕘 取込履歴」からは後日でも取消可）。<br><button onclick="undoImportBatch(\''+_batchId+'\')" style="margin-top:6px;font-size:13px;font-weight:700;padding:8px 14px;border:1px solid #d0a0b0;border-radius:8px;background:#fff;color:#7a1030;cursor:pointer;font-family:inherit">↩ この取込を取り消す</button></div>'):'')
