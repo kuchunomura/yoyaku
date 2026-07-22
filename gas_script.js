@@ -195,10 +195,12 @@ function writeAll(reservations, stays){
     return String(a.checkin||'').localeCompare(String(b.checkin||''))
       || (stayGrpOrder(a.facGroup) - stayGrpOrder(b.facGroup));
   });
-  // キャンセル予約は各シートの下部へまとめる（1つの行グループとして±で折り畳めるように）
+  // キャンセル予約は各シートの下部へまとめる（1つの行グループとして±で折り畳めるように）。下部のキャンセルは日付順に並べる。
   function _isCanc(o){ return !!(o.cancelled || /キャンセル/.test(o.memo||'')); }
-  days = days.filter(function(r){return !_isCanc(r);}).concat(days.filter(_isCanc));
-  st   = st.filter(function(s){return !_isCanc(s);}).concat(st.filter(_isCanc));
+  var _dCanc = days.filter(_isCanc).sort(function(a,b){ return String(a.date||'').localeCompare(String(b.date||'')); });
+  days = days.filter(function(r){return !_isCanc(r);}).concat(_dCanc);
+  var _sCanc = st.filter(_isCanc).sort(function(a,b){ return String(a.checkin||'').localeCompare(String(b.checkin||'')); });
+  st   = st.filter(function(s){return !_isCanc(s);}).concat(_sCanc);
   writeRows(getSheet(DAY_SHEET), DAY_COLS, days.map(function(r){
     return [fmtMD(r.date), facLabel(r.facility), courseLabel(r.course), r.startTime||'', r.name||'', r.ninzu||'', srcLabel(r.source), r.memo||'', (r.done?'✅':''), ((r.cancelled||/キャンセル/.test(r.memo||''))?'✅':''), r.id||'', JSON.stringify(r)];
   }), days.map(function(r){ return r.date||''; }));
