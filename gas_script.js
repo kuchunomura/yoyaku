@@ -120,12 +120,21 @@ function doPost(e){
         var _cur={}; try{ _cur=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimp')||'{}'); }catch(_e){}
         var _curM={}; try{ _curM=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimpmon')||'{}'); }catch(_eM){}
         var _curF={}; try{ _curF=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimpfile')||'{}'); }catch(_eF){}
+        var _curLM={}; try{ _curLM=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimplastmon')||'{}'); }catch(_eL){}
         var _inM=(data.csvimpmon && typeof data.csvimpmon === 'object')?data.csvimpmon:{};
         var _inF=(data.csvimpfile && typeof data.csvimpfile === 'object')?data.csvimpfile:{};
-        for(var _k in data.csvimp){ var _v=Number(data.csvimp[_k])||0; if(_v>(Number(_cur[_k])||0)){ _cur[_k]=_v; if(_inM[_k]!==undefined)_curM[_k]=_inM[_k]; if(_inF[_k]!==undefined)_curF[_k]=_inF[_k]; } }
+        var _inLM=(data.csvimplastmon && typeof data.csvimplastmon === 'object')?data.csvimplastmon:{};
+        for(var _k in data.csvimp){ var _v=Number(data.csvimp[_k])||0; if(_v>(Number(_cur[_k])||0)){ _cur[_k]=_v; if(_inM[_k]!==undefined)_curM[_k]=_inM[_k]; if(_inF[_k]!==undefined)_curF[_k]=_inF[_k]; if(_inLM[_k]!==undefined)_curLM[_k]=_inLM[_k]; } }
         PropertiesService.getScriptProperties().setProperty('csvimp', JSON.stringify(_cur));
         PropertiesService.getScriptProperties().setProperty('csvimpmon', JSON.stringify(_curM));
         PropertiesService.getScriptProperties().setProperty('csvimpfile', JSON.stringify(_curF));
+        PropertiesService.getScriptProperties().setProperty('csvimplastmon', JSON.stringify(_curLM));
+      }
+      // 月ごとの取込時刻（csvimpmts）：施設ごと・月ごとに新しいtsを残してマージ
+      if(data.csvimpmts && typeof data.csvimpmts === 'object'){
+        var _curMTS={}; try{ _curMTS=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimpmts')||'{}'); }catch(_eT){}
+        for(var _fk in data.csvimpmts){ var _mm=data.csvimpmts[_fk]; if(!_mm||typeof _mm!=='object')continue; if(!_curMTS[_fk])_curMTS[_fk]={}; for(var _mk in _mm){ var _mv=Number(_mm[_mk])||0; if(_mv>(Number(_curMTS[_fk][_mk])||0))_curMTS[_fk][_mk]=_mv; } }
+        PropertiesService.getScriptProperties().setProperty('csvimpmts', JSON.stringify(_curMTS));
       }
       return jsonOut({status:'ok', saved:{reservations:(data.reservations||[]).length, stays:(data.stays||[]).length}});
     }
@@ -142,9 +151,11 @@ function doGet(e){
     var ci={}; try{ ci=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimp')||'{}'); }catch(e4){}
     var cim={}; try{ cim=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimpmon')||'{}'); }catch(e6){}
     var cif={}; try{ cif=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimpfile')||'{}'); }catch(e8){}
+    var cilm={}; try{ cilm=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimplastmon')||'{}'); }catch(e9){}
+    var cimts={}; try{ cimts=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimpmts')||'{}'); }catch(e10){}
     var sn=PropertiesService.getScriptProperties().getProperty('sharednote')||'';
     var de={}; try{ de=JSON.parse(PropertiesService.getScriptProperties().getProperty('dayevents')||'{}'); }catch(e7){}
-    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, sharednote:sn, dayevents:de});
+    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, csvimplastmon:cilm, csvimpmts:cimts, sharednote:sn, dayevents:de});
   }catch(err){
     return jsonOut({status:'error', message:String(err)});
   }
