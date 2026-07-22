@@ -597,8 +597,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=317;
-const APP_BUILD_DATE='2026/07/20 09:30';
+const APP_VERSION=318;
+const APP_BUILD_DATE='2026/07/22 13:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2361,6 +2361,8 @@ async function loadFromSheet(silent){
       if(Array.isArray(json.stays))stays=json.stays;
       if(json.otaack&&typeof json.otaack==='object')sv('yv_otaack',json.otaack);
       if(json.qack&&typeof json.qack==='object')sv('yv_qack',json.qack);
+      // 直近ローカルで押したチェックを、同期の往復ラグでシートの古い値に上書きされないよう復元
+      applyAckLocal('yv_otaack'); applyAckLocal('yv_qack');
       // 共有メモ（全端末で同期）。入力中の端末は上書きしない
       if(typeof json.sharednote==='string'){ sv('yv_sharednote',json.sharednote); var _sn=document.getElementById('shared-note'); if(_sn&&document.activeElement!==_sn)_sn.value=json.sharednote; }
       // 日付ごとの特記（全端末で同期）
@@ -3591,19 +3593,37 @@ document.addEventListener('click',function(e){
   else if(act==='togglePetSel')togglePetSel(id);
   else if(act==='toggleWf')toggleWf(id,btn.dataset.wf);
 });
+// ── OTA/質問チェックの往復ラグ対策 ──
+// ✅を押した直後、自動loadFromSheet（60秒毎・タブ復帰時）が「まだシートに反映されていない
+// 古いack」でローカルを上書きし、対応済みが未対応に戻る（＝もう一度押さないと定着しない）。
+// 直近のローカル操作を一定時間だけ優先して、同期で消えないよう復元する。
+var ACK_LOCAL_TTL=25000; // 25秒（GAS往復のラグより十分長く）
+function recordAckLocal(storeKey,k,checked){
+  var m=ld(storeKey+'_local')||{}; m[k]={v:checked?1:0,t:Date.now()}; sv(storeKey+'_local',m);
+}
+function applyAckLocal(storeKey){
+  var m=ld(storeKey+'_local')||{}, now=Date.now(), ack=ld(storeKey)||{}, ackCh=false, mCh=false;
+  for(var k in m){
+    if(now-m[k].t>ACK_LOCAL_TTL){ delete m[k]; mCh=true; continue; }
+    if(m[k].v){ if(ack[k]!==true){ ack[k]=true; ackCh=true; } }
+    else { if(ack[k]!==undefined){ delete ack[k]; ackCh=true; } }
+  }
+  if(ackCh) sv(storeKey,ack);
+  if(mCh) sv(storeKey+'_local',m);
+}
 // OTA要締切のチェック（解除/再表示）
 document.addEventListener('change',function(e){
   var cb=e.target&&e.target.closest&&e.target.closest('[data-otaack]'); if(!cb)return;
   var ack=ld('yv_otaack')||{}; var k=cb.getAttribute('data-otaack');
   if(cb.checked)ack[k]=true; else delete ack[k];
-  sv('yv_otaack',ack); renderOtaAlerts(); autoPush();
+  sv('yv_otaack',ack); recordAckLocal('yv_otaack',k,cb.checked); renderOtaAlerts(); autoPush();
 });
 // 質問・要確認のチェック（対応済み）。yv_qackに保存＝予約データを上書きしても同じ内容なら引き継ぐ
 document.addEventListener('change',function(e){
   var cb=e.target&&e.target.closest&&e.target.closest('[data-qack]'); if(!cb)return;
   var qack=ld('yv_qack')||{}; var k=cb.getAttribute('data-qack');
   if(cb.checked)qack[k]=true; else delete qack[k];
-  sv('yv_qack',qack); renderQuestionAlerts(); autoPush();
+  sv('yv_qack',qack); recordAckLocal('yv_qack',k,cb.checked); renderQuestionAlerts(); autoPush();
 });
 // 編集モーダル：上端から下スワイプで閉じる（一覧に戻る）
 (function(){
