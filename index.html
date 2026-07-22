@@ -283,8 +283,8 @@ details[open] summary{opacity:0.75}
           <button style="background:#fff;border:1px solid #c0392b;color:#c0392b;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600" onclick="delCsvImported()">🗑 選択中の施設のCSV取込分を削除</button>
         </div>
         <div style="border-top:1px dashed #ccc;margin-top:12px;padding-top:10px">
-          <div style="font-size:11px;color:#888;margin-bottom:6px">今あるデータを点検：<b>その施設に物理的に入らない予約</b>（定員オーバー＝別施設の入れ間違い）を洗い出します。備考に施設名が無いためこれだけは単体で検出可。※確実に全部見るには、その施設のCSVを取り込んで「取込時チェック」で突き合わせてください。</div>
-          <button style="background:#fff;border:1px solid #6b4f20;color:#6b4f20;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600" onclick="checkFacilityMismatch()">🔍 今の予約を施設ズレ点検（定員オーバー）</button>
+          <div style="font-size:11px;color:#888;margin-bottom:6px">施設の入れ間違いは、<b>各施設のその月のCSVを取り込む</b>と「取込時チェック」で自動的にあぶり出せます（下のボタンで手順を表示）。</div>
+          <button style="background:#fff;border:1px solid #6b4f20;color:#6b4f20;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600" onclick="checkFacilityMismatch()">❓ 施設ズレの見つけ方・直し方</button>
           <div id="facchk-result" style="font-size:12.5px;margin-top:8px;line-height:1.7"></div>
         </div>
       </div>
@@ -595,15 +595,15 @@ const STAY_FACS=[
   {id:'st_t1', label:'テント①オレンジ',  group:'空中テント',     maxA:2,maxT:3,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:9000,2:7000,3:7000}},
   {id:'st_t2', label:'テント②ホワイト',  group:'空中テント',     maxA:2,maxT:3,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:9000,2:7000,3:7000}},
   {id:'st_t3', label:'テント③ベージュ',  group:'空中テント',     maxA:2,maxT:3,pet:'不可',        ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:9000,2:7000,3:7000}},
-  {id:'st_h1', label:'ハンモック①',      group:'空中ハンモック', maxA:3,maxT:5,pet:'ケージ可',    ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:6000,2:5000,3:4000,4:4000,5:4000}},
-  {id:'st_h2', label:'ハンモック②',      group:'空中ハンモック', maxA:3,maxT:5,pet:'ケージ可',    ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:6000,2:5000,3:4000,4:4000,5:4000}},
+  {id:'st_h1', label:'ハンモック①',      group:'空中ハンモック', maxA:5,maxT:6,pet:'ケージ可',    ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:6000,2:5000,3:4000,4:4000,5:4000}},
+  {id:'st_h2', label:'ハンモック②',      group:'空中ハンモック', maxA:5,maxT:6,pet:'ケージ可',    ci:'14:00〜16:00',co:'翌10:00', bat:'small',prices:{1:6000,2:5000,3:4000,4:4000,5:4000}},
 ];
 
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=323;
-const APP_BUILD_DATE='2026/07/22 14:26';
+const APP_VERSION=324;
+const APP_BUILD_DATE='2026/07/22 14:38';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2703,47 +2703,18 @@ function parseAmount(fields){
 }
 function csvFindIdx(fields,re){ for(var i=0;i<fields.length;i++){ if(re.test(String(fields[i]))) return i; } return -1; }
 
-// ── 施設ズレ点検（CSV/メモ不要の単体点検）──
-// 備考に施設名が入らないため、メモからは判定できない。代わりに「その施設に物理的に入らない予約」だけを検出する：
-// ・登録施設の定員（maxA/maxT）を超える人数（例：定員2名のテントに4名）＝別施設の入れ間違いが確実。
-// ・ペット不可の棟にペット有り。
-// ※これは"大きい予約が小さい施設に入った"等の一部だけ。確実な全数検出は①（各施設のCSV取込で突き合わせ）。
+// ── 施設ズレの見つけ方・直し方（ヘルプ表示）──
+// CSVに施設欄が無く「本当の施設」を保存していないため、CSV無しの自動判定はできない。
+// 人数の定員も子供追加などで前後する（＝定員だけの点検はあてにならない）。確実な検出は①（各施設のCSV取込で突き合わせ）。
 function checkFacilityMismatch(){
   var el=document.getElementById('facchk-result'); if(!el) return;
-  var out=[];
-  stays.forEach(function(s){
-    if(isCancelled(s)||!s.facGroup) return;
-    var reps=STAY_FACS.filter(function(x){return x.group===s.facGroup;});
-    if(!reps.length) return;
-    var maxA=reps[0].maxA, maxT=reps[0].maxT;
-    var ad=parseInt(s.ninzu,10)||0, ch=parseInt(s.child,10)||0, tot=ad+ch;
-    var reasons=[];
-    if(ad>maxA) reasons.push('大人'+ad+'名 > 定員'+maxA+'名');
-    else if(tot>maxT) reasons.push('合計'+tot+'名 > 定員'+maxT+'名');
-    var pc=parseInt(s.petCount,10)||0;
-    if(pc>0 && s.facility){ var f=getSFac(s.facility); if(f && f.pet==='不可') reasons.push('ペット不可の棟にペット'+pc+'匹'); }
-    if(!reasons.length) return;
-    var cand=[], seenG={};
-    STAY_FACS.forEach(function(x){ if(seenG[x.group])return; seenG[x.group]=1; if(x.group!==s.facGroup && x.maxA>=ad && x.maxT>=tot) cand.push(x.group); });
-    out.push({id:s.id,nm:s.name||'（無名）',dt:s.checkin||'',have:s.facGroup,reasons:reasons,cand:cand});
-  });
-  var _mj=function(dt){ return (dt&&/^\d{4}-\d{2}/.test(dt))?((+dt.slice(5,7))+'月'):''; };
-  var _note='<div style="color:#555;font-size:11px;margin-top:6px;background:#f7f7f7;border-radius:6px;padding:7px 9px;line-height:1.7">※これは<b>人数が定員を超える等の"物理的に不可能な入れ間違い"だけ</b>を見る点検です（備考に施設名が無いため、小さい予約が大きい施設に入ったケース等は分かりません）。<br><b>施設ズレを確実に全部洗い出すには、各施設のその月のCSVを取り込んで「取込時チェック（このCSVに無いのにこの施設に居る予約）」で突き合わせ</b>てください。</div>';
-  if(!out.length){ el.style.color='#1a7a3a'; el.innerHTML='✓ 定員オーバー等の「その施設に入らない予約」は見つかりませんでした。'+_note; return; }
-  out.sort(function(a,b){return String(a.dt).localeCompare(String(b.dt));});
-  el.style.color='#c0392b';
-  el.innerHTML='⚠ その施設に入らない予約 <b>'+out.length+'件</b>（定員オーバー等＝別施設の入れ間違いの可能性）<div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">'
-    +out.map(function(o){
-      var mj=_mj(o.dt);
-      return '<div style="border:1px solid #e0b4b4;background:#fff6f6;border-radius:6px;padding:7px 9px;line-height:1.7">'
-        +'<b>'+htmlEscape(o.nm)+'</b> <span style="color:#888">'+htmlEscape(o.dt)+'</span>'
-        +' <button onclick="openEditStay(\''+o.id+'\')" style="font-size:11px;border:1px solid #bbb;border-radius:5px;background:#fff;padding:2px 8px;cursor:pointer">開いて確認</button><br>'
-        +'今の登録：<b>'+htmlEscape(o.have)+'</b>（'+htmlEscape(o.reasons.join('・'))+'）'
-        +(o.cand.length?('<br>この人数が入る施設：<b style="color:#7a1030">'+o.cand.map(htmlEscape).join('・')+'</b>'):'')
-        +'<br><span style="color:#7a1030">→ 直し方：正しい施設が分かれば、その施設の'+mj+'のCSVを取り込むと自動で移動して直ります（削除不要）。または［開いて確認］で棟/施設を修正。</span>'
-        +'</div>';
-    }).join('')
-    +'</div>'+_note;
+  el.style.color='#333';
+  el.innerHTML='<div style="background:#f7f7f7;border:1px solid #ddd;border-radius:8px;padding:9px 11px;line-height:1.9">'
+    +'<b>施設ズレ（別施設への入れ間違い）を確実に見つける方法</b><br>'
+    +'各施設の<b>その月のCSVを取り込む</b>だけです。取り込むと <b>「このCSVに無いのにこの施設に入っている予約」</b> が自動で一覧表示されます（＝入れ間違いの候補）。<br>'
+    +'見つかった予約は、<b>正しい施設のその月のCSVを取り込めば自動で移動して直ります</b>（削除不要。棟＝ミラー/オレンジ等も、施設が変われば自動でリセットされます）。<br>'
+    +'<span style="color:#888;font-size:11px">※アプリは「本当の施設」を保存していません（CSVに施設欄が無く、取込時に人が選ぶだけ）。だからCSV無しでは自動判定できません。人数の定員も子供の追加などで前後するため、定員だけの点検はあてになりません。</span>'
+    +'</div>';
 }
 var _csvFacBypass=false; // 施設取り違えチェックを確認ダイアログ後の再取込で一度だけスキップするフラグ
 function importCSV(){
