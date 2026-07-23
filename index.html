@@ -611,8 +611,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=339;
-const APP_BUILD_DATE='2026/07/23 12:57';
+const APP_VERSION=340;
+const APP_BUILD_DATE='2026/07/23 14:43';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1136,6 +1136,8 @@ function onDaySourceChange(){
 
 // 紐づけ候補の「可能性が高い」判定：同じ名前 or 同じOTA（楽天/じゃらん/SOU等）
 function _isOta(k){return ['rakuten','jalan','sou','other1','other2','other3'].indexOf(k)>=0;}
+// OTA（前払い）予約か。レジと同じ扱い＝宿泊/日帰り本体は0円（支払い済み）、レンタル/備品だけ当日集金
+function otaPaid(o){var src=(o&&o.source)||detectOtaFromText((o&&o.memo)||'');return !!(src&&_isOta(src));}
 function _normName(n){return String(n||'').replace(/[\s　]/g,'').trim();}
 // 予約者名が一致（完全一致 or 一方が他方を含む）
 function _nameMatch(a,b){
@@ -1493,6 +1495,14 @@ function renderList(){
     const base=s.unitPrice*totalPpl*s.nights;
     const grand=base+(s.petFee||0)+rt;
     const passPaid=isAnnualPassPaid(s,true);
+    const otaP=!passPaid&&otaPaid(s);
+    const _paidBadge='<span style="font-size:11px;font-weight:700;color:#1a7a3a;background:#e6f4ea;border:1px solid #9cc8ad;border-radius:10px;padding:1px 8px;margin-left:6px;white-space:nowrap">✓ 支払い済み</span>';
+    const _stayBase=s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'');
+    var stayAmtHtml;
+    if(passPaid){ stayAmtHtml='<span style="font-size:13px;color:#999;text-decoration:line-through">'+_stayBase+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'
+        +'<span style="font-size:11px;font-weight:700;color:#1a7a3a;background:#e6f4ea;border:1px solid #9cc8ad;border-radius:10px;padding:1px 8px;margin-left:6px;white-space:nowrap">✓ 年間パス・支払い済み</span>'; }
+    else if(otaP){ stayAmtHtml='<span style="font-size:13px;color:#999"><span style="text-decoration:line-through">'+_stayBase+'</span>'+(rt>0?' ＋レンタル'+rt.toLocaleString():'')+'　計'+rt.toLocaleString()+'円'+(rt>0?'<span style="color:#b5651d">（レンタルは当日）</span>':'')+'</span>'+_paidBadge; }
+    else{ stayAmtHtml='<span style="font-size:13px;color:#999">'+_stayBase+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'; }
     const srcL=(s.source||detectOtaFromText(s.memo))?getSrcLabel(s.source||detectOtaFromText(s.memo)):'';
     const linkedH=(s.linkedDayIds||[]).map(lid=>{
       const lr=reservations.find(r=>r.id===lid);if(!lr||isCancelled(lr))return'';
@@ -1529,8 +1539,7 @@ function renderList(){
           (childN>0?'+子'+childN:'')+(petN>0?'+ペット'+petN:'')+(nm?'　'+nm:'')+
           ((s.wf&&s.wf.out)?'<span style="margin-left:8px;font-size:12px;font-weight:700;color:#1c5c39;background:#e6f4ea;border:1px solid #7bbf96;border-radius:8px;padding:1px 8px;white-space:nowrap;vertical-align:1px">✅ 本日チェックアウト済み</span>':((s.checkout&&s.checkout===today)?'<span style="margin-left:8px;font-size:12px;font-weight:700;color:#b5651d;background:#fbe4d0;border:1px solid #e0b483;border-radius:8px;padding:1px 8px;white-space:nowrap;vertical-align:1px">本日チェックアウト</span>':''))+
         '</span>'+
-        '<span style="font-size:13px;color:#999'+(passPaid?';text-decoration:line-through':'')+'">'+s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'+
-        (passPaid?'<span style="font-size:11px;font-weight:700;color:#1a7a3a;background:#e6f4ea;border:1px solid #9cc8ad;border-radius:10px;padding:1px 8px;margin-left:6px;white-space:nowrap">✓ 年間パス・支払い済み</span>':'')+
+        stayAmtHtml+
       '</div>'+
       ((s.rental||[]).length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+s.rental.length+'点（'+rt.toLocaleString()+'円）</summary><div style="margin-top:2px">'+s.rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
       linkedH+
@@ -1575,6 +1584,14 @@ function renderList(){
     const div=document.createElement('div');div.className='card'+(r.done?' done':'')+(isCancelled(r)?' cancelled':'');
     div.style.background='#eef4fb';
     const passPaid=isAnnualPassPaid(r,false);
+    const dayOtaP=!passPaid&&otaPaid(r);
+    const _dayBase=fac.fixedCount?(basePrice.toLocaleString()+'円／'+fac.priceUnit):(basePrice.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit);
+    var dayAmtHtml;
+    if(passPaid){ dayAmtHtml='<span style="font-size:13px;color:#999;text-decoration:line-through">'+amountText+'</span>'
+        +'<span style="font-size:11px;font-weight:700;color:#1a7a3a;background:#e6f4ea;border:1px solid #9cc8ad;border-radius:10px;padding:1px 8px;margin-left:6px;white-space:nowrap">✓ 年間パス・支払い済み</span>'; }
+    else if(dayOtaP){ dayAmtHtml='<span style="font-size:13px;color:#999"><span style="text-decoration:line-through">'+_dayBase+'</span>'+(rt>0?' ＋備品'+rt.toLocaleString():'')+'　計'+rt.toLocaleString()+'円'+(rt>0?'<span style="color:#b5651d">（備品は当日）</span>':'')+'</span>'
+        +'<span style="font-size:11px;font-weight:700;color:#1a7a3a;background:#e6f4ea;border:1px solid #9cc8ad;border-radius:10px;padding:1px 8px;margin-left:6px;white-space:nowrap">✓ 支払い済み</span>'; }
+    else{ dayAmtHtml='<span style="font-size:13px;color:#999">'+amountText+'</span>'; }
     const daySrcL=(r.source||detectOtaFromText(r.memo))?getSrcLabel(r.source||detectOtaFromText(r.memo)):'';
     const linkedStayH=(r.linkedStayIds||[]).map(sid=>{
       const ls=stays.find(x=>x.id===sid);if(!ls||isCancelled(ls))return'';
@@ -1604,8 +1621,7 @@ function renderList(){
           (ninzu>0?'　'+ninzu+fac.priceUnit:'')+(r.name?'　'+r.name:'')+
           (fac.note?'<span style="font-size:12px;color:#aaa;font-weight:400">（'+fac.note+'）</span>':'')+
         '</span>'+
-        '<span style="font-size:13px;color:#999'+(passPaid?';text-decoration:line-through':'')+'">'+amountText+'</span>'+
-        (passPaid?'<span style="font-size:11px;font-weight:700;color:#1a7a3a;background:#e6f4ea;border:1px solid #9cc8ad;border-radius:10px;padding:1px 8px;margin-left:6px;white-space:nowrap">✓ 年間パス・支払い済み</span>':'')+
+        dayAmtHtml+
       '</div>'+
       (rental.length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+rental.length+'点（'+rt.toLocaleString()+'円）</summary><div style="margin-top:2px">'+rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
