@@ -602,8 +602,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=337;
-const APP_BUILD_DATE='2026/07/23 12:07';
+const APP_VERSION=338;
+const APP_BUILD_DATE='2026/07/23 12:53';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3291,9 +3291,16 @@ function getHolidays(year){
   _holidayCache[year]=h; return h;
 }
 
-function initCal(){calYear=new Date().getFullYear();calMonth=new Date().getMonth();calSelDate=null;renderCal();}
+function initCal(){calYear=new Date().getFullYear();calMonth=new Date().getMonth();calSelDate=null;bindCalSwipe();renderCal();}
 function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCal();}
 function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCal();}
+// カレンダーを左右スワイプで翌月/前月に切替（縦スクロールは邪魔しないよう横優勢のスワイプのみ反応）
+function bindCalSwipe(){
+  var el=document.getElementById('tab-cal'); if(!el||el._swipeBound)return; el._swipeBound=true;
+  var sx=0,sy=0,st=0,active=false;
+  el.addEventListener('touchstart',function(e){ if(!e.touches||e.touches.length!==1){active=false;return;} var t=e.touches[0]; sx=t.clientX; sy=t.clientY; st=Date.now(); active=true; },{passive:true});
+  el.addEventListener('touchend',function(e){ if(!active)return; active=false; var t=e.changedTouches&&e.changedTouches[0]; if(!t)return; var dx=t.clientX-sx, dy=t.clientY-sy; if((Date.now()-st)<600 && Math.abs(dx)>60 && Math.abs(dx)>Math.abs(dy)*1.8){ if(dx<0)calNext(); else calPrev(); } },{passive:true});
+}
 
 function getDateStr(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
 
