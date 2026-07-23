@@ -60,6 +60,11 @@ textarea{resize:vertical;min-height:60px}
 .wf-btn{flex:1;padding:4px 2px;font-size:11px;border:1px solid #ccc;border-radius:5px;background:#fff;color:#555;cursor:pointer;font-family:inherit}
 .wf-btn.on{background:#e6f4ea;border-color:#7bbf96;color:#1c5c39;font-weight:600}
 .wf-btn.arm{background:#fff4d6;border-color:#e0b000;color:#8a6d00;font-weight:600}
+/* カレンダー中央左右の月送り矢印（PC/マウス時のみ表示。タッチはスワイプで操作） */
+#cal-gridwrap{position:relative}
+.cal-navarrow{display:none;position:absolute;top:50%;transform:translateY(-50%);width:28px;height:46px;border:1px solid #e0e0e0;border-radius:8px;background:rgba(255,255,255,0.65);color:#999;font-size:20px;line-height:1;cursor:pointer;align-items:center;justify-content:center;padding:0;z-index:5;transition:background .15s,color .15s}
+.cal-navarrow:hover{background:#fff;color:#333;border-color:#bbb}
+@media (hover:hover) and (pointer:fine){ #cal-gridwrap{padding:0 34px} .cal-navarrow{display:flex} }
 .addmode-toggle{display:flex;gap:8px;margin-bottom:12px}
 .addmode-toggle button{flex:1;padding:11px;font-size:15px;font-weight:600;border:1px solid #ccc;border-radius:8px;background:#fff;color:#888;cursor:pointer}
 .addmode-toggle button.on{background:#224466;color:#fff;border-color:#224466}
@@ -431,7 +436,11 @@ details[open] summary{opacity:0.75}
       <button class="btn-sm" id="calf-stay" onclick="setCalFilter('stay')">宿泊</button>
       <button class="btn-sm" id="calf-cancel" onclick="toggleShowCancelled()">キャンセル非表示</button>
     </div>
-    <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px"></div>
+    <div id="cal-gridwrap">
+      <button class="cal-navarrow" style="left:0" onclick="calPrev()" aria-label="前月">‹</button>
+      <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px"></div>
+      <button class="cal-navarrow" style="right:0" onclick="calNext()" aria-label="翌月">›</button>
+    </div>
     <div id="cal-detail" style="padding:0 4px;margin-top:4px"></div>
   </div>
 
@@ -602,8 +611,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=338;
-const APP_BUILD_DATE='2026/07/23 12:53';
+const APP_VERSION=339;
+const APP_BUILD_DATE='2026/07/23 12:57';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
