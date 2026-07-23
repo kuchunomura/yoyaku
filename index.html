@@ -602,8 +602,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=333;
-const APP_BUILD_DATE='2026/07/23 11:26';
+const APP_VERSION=334;
+const APP_BUILD_DATE='2026/07/23 11:33';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1490,6 +1490,8 @@ function renderList(){
       return '<div class="card-meta" style="font-size:12px;color:#224466;margin-top:2px">📌 '+(lr.date?fmtDate(lr.date):'')+' '+dLinkLabel(lr)+( lr.name?' '+lr.name:'')+(lr.startTime?' '+lr.startTime:'')+'</div>';
     }).join('');
     const wf=s.wf||{};
+    // OUT済みは操作パネルを既定で折り畳む（手動で開いた場合は _cardOpen で上書き）
+    const cardOpen=(_cardOpen[s.id]===undefined?!wf.out:_cardOpen[s.id]);
     const wfBtn=(k,lb)=>{var armed=wfArm&&wfArm.id===s.id&&wfArm.key===k;return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="'+k+'" class="wf-btn'+(wf[k]?' on':'')+(armed?' arm':'')+'">'+(armed?'もう1タップで確定':((wf[k]?'✅':'')+lb))+'</button>';};
     const cancelBtn=(()=>{var cArmed=wfArm&&wfArm.id===s.id&&wfArm.key==='cancel';return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="cancel" class="wf-btn'+(cArmed?' arm':'')+'" style="'+(s.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(cArmed?'もう1タップで確定':(s.cancelled?'↩ キャンセルを取り消し':'キャンセル'))+'</button>';})();
     const ddStyle='display:none;position:absolute;top:100%;left:0;z-index:20;background:#fff;border:1px solid #ccc;border-radius:8px;padding:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);margin-top:3px';
@@ -1528,12 +1530,12 @@ function renderList(){
         '<span style="display:flex;gap:6px;flex-shrink:0;align-items:center">'+
           '<button class="btn-sm" data-act="openEditStay" data-id="'+s.id+'">編集</button>'+
           '<button class="btn-sm" data-act="delStay" data-id="'+s.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
-          '<button class="btn-sm" id="cardtog-'+s.id+'" data-act="toggleCardBtns" data-id="'+s.id+'" style="color:#666">'+((_cardOpen[s.id]!==false)?'▲ 閉じる':'▼ 操作')+'</button>'+
+          '<button class="btn-sm" id="cardtog-'+s.id+'" data-act="toggleCardBtns" data-id="'+s.id+'" style="color:#666">'+(cardOpen?'▲ 閉じる':'▼ 操作')+'</button>'+
         '</span>'+
       '</div>'+
       // OUT確定後に出す「部屋掃除」（2タップ確定）。折り畳みの外に置くので、OUTで折り畳みが閉じても見える。
       ((s.wf&&s.wf.out)?'<div class="wf-row" style="border-top:none;padding-top:0;margin-top:5px">'+wfBtn('clean','部屋掃除')+'</div>':'')+
-      '<div id="cardbtns-'+s.id+'" data-disp="block" style="display:'+((_cardOpen[s.id]!==false)?'block':'none')+'">'+
+      '<div id="cardbtns-'+s.id+'" data-disp="block" style="display:'+(cardOpen?'block':'none')+'">'+
         '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+cancelBtn+'</div>'+
       '</div>';
     return div;
@@ -1671,7 +1673,7 @@ function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;co
 function toggleUnitSel(id){var el=document.getElementById('unitsel-'+id);if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'flex':'none';}
 // カード下部の操作ボタン群（編集〜キャンセル）を▼で開閉
 var _cardOpen={};
-function toggleCardBtns(id){var isOpen=(_cardOpen[id]!==false);_cardOpen[id]=!isOpen;var open=_cardOpen[id];var el=document.getElementById('cardbtns-'+id);var tg=document.getElementById('cardtog-'+id);if(el)el.style.display=open?(el.getAttribute('data-disp')||'block'):'none';if(tg)tg.textContent=open?'▲ 閉じる':'▼ 操作';}
+function toggleCardBtns(id){var el=document.getElementById('cardbtns-'+id);var tg=document.getElementById('cardtog-'+id);var isOpen=el?(el.style.display!=='none'):(_cardOpen[id]!==false);_cardOpen[id]=!isOpen;var open=_cardOpen[id];if(el)el.style.display=open?(el.getAttribute('data-disp')||'block'):'none';if(tg)tg.textContent=open?'▲ 閉じる':'▼ 操作';}
 // ベッド構成（ドーム・ツリーハウス）。タップで切替
 function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=(bedCode(s.bed)==='ws')?'ww':'ws';sv(STKEY,stays);autoPush();renderList();}
 // メモ等のテキストからOTAを判定（ソウエクスペリ/SOU/じゃらん/楽天）
