@@ -259,7 +259,7 @@ details[open] summary{opacity:0.75}
         <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
         <button type="button" id="csv-paste-tog" onclick="var b=document.getElementById('csv-paste-body');var o=(b.style.display==='none');b.style.display=o?'block':'none';this.textContent=o?'▲ 貼り付け欄を隠す':'▼ または貼り付けで取り込む（スプレッドシートからコピペ）';" style="display:block;width:100%;text-align:left;cursor:pointer;font-size:12px;color:#888;background:none;border:none;padding:4px 0;margin:2px 0;font-family:inherit">▼ または貼り付けで取り込む（スプレッドシートからコピペ）</button>
         <div id="csv-paste-body" style="display:none">
-          <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px" oninput="setCsvFileName('')"></textarea>
+          <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px" oninput="setCsvFileName('');updatePendingCsvMonths(this.value)"></textarea>
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
           <span style="font-size:20px;font-weight:800;color:#6b4f20;flex-shrink:0">③</span>
@@ -602,8 +602,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'外部サイト①',other2:'外部サイト②',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=330;
-const APP_BUILD_DATE='2026/07/22 17:15';
+const APP_VERSION=331;
+const APP_BUILD_DATE='2026/07/23 09:47';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -664,6 +664,8 @@ healRentalQty();
 let facFilter='all',addFacId='walk',addCourse=55,editId=null,editType='day';
 let lastCsvFacVal=''; // 取込先施設の選択記憶（タブ名に表示・タブ切替で復元）
 let lastCsvFileName=''; // 直前に読み込んだCSVファイル名（取込時に施設ごとへ保存＝同期される）
+let _pendingCsvText=''; // ドラッグ/選択中CSVの中身（取込前・何月分か判定用）
+let _pendingCsvMonths=[]; // そのCSVが何月分か（'YYYY-MM'配列）。月別チップに「取込予定▶」を出す
 let rentalSt={},stayRentalSt={};
 let dateFilter=null;
 let listFromToday=true; // 一覧は既定で今日以降のみ表示
@@ -2543,7 +2545,7 @@ function renderCsvFacOptions(){
   // 前回の選択を復元（localStorageにも保存＝リロード・取込後も維持。※端末ごと・同期はしない）＆タブ名に反映
   if(!lastCsvFacVal) lastCsvFacVal=ld('yv_csv_fac')||'';
   if(lastCsvFacVal){ for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===lastCsvFacVal){ sel.value=lastCsvFacVal; break; } } }
-  sel.onchange=function(){ lastCsvFacVal=sel.value; sv('yv_csv_fac',sel.value); updateCsvFacTitle(); renderCsvImpLog(); renderCsvFileName(); };
+  sel.onchange=function(){ lastCsvFacVal=sel.value; sv('yv_csv_fac',sel.value); updateCsvFacTitle(); updatePendingCsvMonths(_pendingCsvText); renderCsvFileName(); };
   updateCsvFacTitle();
 }
 // 取込先の選択施設をブラウザのタブ名に反映（例：予約メモ-空中テント）
@@ -2571,15 +2573,16 @@ function renderCsvImpLog(){
   // 月別チップ：今月＋翌2か月（OTA締切は先の月なので直近3か月の取込状況を月別に出す）
   var _tn=new Date(), months=[];
   for(var _mi=0;_mi<3;_mi++){ var _dm=new Date(_tn.getFullYear(),_tn.getMonth()+_mi,1); months.push(_dm.getFullYear()+'-'+('0'+(_dm.getMonth()+1)).slice(-2)); }
-  function monChips(csv, mtsFac){
+  function monChips(csv, mtsFac, isSel){
     var set=String(csv||'').split(',').filter(Boolean);
     return months.map(function(m){
       var has=set.indexOf(m)>=0, jm=(+m.split('-')[1])+'月';
       var ts=mtsFac&&mtsFac[m];
-      var msg=jm+'分：'+(has?(ts?('取込 '+fmtDateTime(ts)):'取込済み（この端末では日時未記録）'):'未取込');
-      return '<span onclick="showToast(\''+msg.replace(/'/g,"\\'")+'\',\'#333\',4000)" style="display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:3px;cursor:pointer;'
-        +(has?'background:#d7f0dd;color:#1a7a3a;border:1px solid #9ccfab':'background:#f2f2f2;color:#bbb;border:1px solid #e0e0e0')
-        +'">'+jm+(has?' ✓':' 未')+'</span>';
+      var isTarget=isSel && _pendingCsvMonths.indexOf(m)>=0; // このCSVがこの月に取り込まれる＝取込予定
+      var msg=isTarget?(jm+'分：このCSVはここへ取り込まれます（取込予定）'):(jm+'分：'+(has?(ts?('取込 '+fmtDateTime(ts)):'取込済み（この端末では日時未記録）'):'未取込'));
+      var css=isTarget?'background:#ffe0b2;color:#b06000;border:2px solid #e67700'
+        :(has?'background:#d7f0dd;color:#1a7a3a;border:1px solid #9ccfab':'background:#f2f2f2;color:#bbb;border:1px solid #e0e0e0');
+      return '<span onclick="showToast(\''+msg.replace(/'/g,"\\'")+'\',\'#333\',4000)" style="display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:3px;cursor:pointer;'+css+'">'+(isTarget?'▶':'')+jm+(has?' ✓':' 未')+'</span>';
     }).join('');
   }
   var rows=[];
@@ -2591,13 +2594,15 @@ function renderCsvImpLog(){
   el.innerHTML='<b>最終CSV取込日時</b>'
     +'<div style="display:grid;grid-template-columns:max-content 1fr;gap:5px 6px;margin-top:4px;line-height:1.7;">'
     +rows.map(function(r){
-      var prev=monChips(r[2], mts[r[4]])
+      var isSelRow=(r[4]===selKey);
+      var prev=monChips(r[2], mts[r[4]], isSelRow)
         +(r[1]?' <span style="color:#1a7a3a;font-size:11px">'+fmtDateTime(r[1])+(lmon[r[4]]?'（'+monLabel(lmon[r[4]])+'）':'')+'</span>':' <span style="color:#bbb;font-size:11px">未取込</span>')
         +(r[3]?' <span style="color:#2471a3;font-weight:600;font-size:11px">📄'+htmlEscape(r[3])+'</span>':'');
       var next='';
-      if(r[4]===selKey && lastCsvFileName){
+      if(isSelRow && lastCsvFileName){
         var dup=r[3] && r[3]===lastCsvFileName;
-        next='<br><span style="color:'+(dup?'#c0392b':'#e67700')+';font-weight:700">→ 📄'+htmlEscape(lastCsvFileName)
+        var _pmL=_pendingCsvMonths.length?(_pendingCsvMonths.map(function(mm){return (+mm.split('-')[1])+'月';}).join('・')+'分'):'';
+        next='<br><span style="color:'+(dup?'#c0392b':'#e67700')+';font-weight:700">→ '+(_pmL?'<span style="background:#ffe0b2;color:#b06000;border-radius:4px;padding:0 6px;margin-right:5px">'+_pmL+'へ ▶</span>':'')+'📄'+htmlEscape(lastCsvFileName)
           +(dup?'（⚠ 前回と同じファイル）':'（新規）')+'</span>';
       }
       return '<div>'+r[0]+'</div><div>'+prev+next+'</div>';
@@ -3096,13 +3101,35 @@ function renderCsvFileName(){
 function setCsvFileName(name){
   name=(name||'').replace(/\.(csv|tsv|txt)$/i,'').trim();
   lastCsvFileName=name;
+  if(!name){ _pendingCsvText=''; _pendingCsvMonths=[]; } // 取込完了/クリア時は取込予定もリセット
   renderCsvFileName();
   renderCsvImpLog(); // 上の取込ログにも施設ごとの前回→今回を出す
 }
+// 選択中の取込先が日帰りか宿泊か
+function _csvSelType(){ var v=(document.getElementById('csv-fac')||{}).value||''; return v.split(':')[0]==='day'?'day':'stay'; }
+// 取込前のCSVから「何月分か（YYYY-MM）」を判定。取込本体(importCSV)と同じ日付ロジックに合わせる
+function detectCsvMonths(text){
+  if(!text||!text.trim()) return [];
+  var type=_csvSelType();
+  var rows=parseDelimited(text);
+  var headerRow=(rows.length && !/^\d+$/.test(String(rows[0][0]||'').trim())) ? rows[0] : null;
+  function hcol(re){ if(!headerRow) return -1; for(var i=0;i<headerRow.length;i++){ if(re.test(String(headerRow[i]||''))) return i; } return -1; }
+  var Hdate = hcol(/(利用日|予約日|チェックイン|宿泊日|来店日|日時|date)/i);
+  var mon={};
+  rows.forEach(function(f){
+    if(!/^\d+$/.test(String(f[0]||'').trim())) return; // データ行のみ
+    var md='';
+    if(type==='day' && Hdate>=0){ var pd=parseWpDateTime(f[Hdate]); if(pd.date) md=pd.date; }
+    if(!md){ for(var k=0;k<f.length;k++){ var p=parseWpDateTime(f[k]); if(p.date){ md=p.date; break; } } } // 宿泊/ヘッダ無し＝最初の日付列（＝チェックイン/予約日）
+    if(md&&/^\d{4}-\d{2}/.test(md)) mon[md.slice(0,7)]=1;
+  });
+  return Object.keys(mon).sort();
+}
+function updatePendingCsvMonths(text){ _pendingCsvText=(text||''); _pendingCsvMonths=detectCsvMonths(_pendingCsvText); renderCsvImpLog(); }
 function setupCsvDrop(){
   var dz=document.getElementById('csv-drop'); if(!dz) return;
   var fi=document.getElementById('csv-file');
-  if(fi) fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]) setCsvFileName(fi.files[0].name); });
+  if(fi) fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]){ setCsvFileName(fi.files[0].name); var fr2=new FileReader(); fr2.onload=function(e2){ updatePendingCsvMonths(decodeBytes(e2.target.result)); }; fr2.readAsArrayBuffer(fi.files[0]); } });
   ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fdeccb'; dz.style.borderColor='#c9962f'; }); });
   ['dragleave','dragend'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fffdf8'; dz.style.borderColor='#d9b676'; }); });
   dz.addEventListener('drop',function(e){
@@ -3112,8 +3139,10 @@ function setupCsvDrop(){
     if(!files||!files[0]) return;
     var fr=new FileReader();
     fr.onload=function(ev){
-      document.getElementById('csv-text').value=decodeBytes(ev.target.result);
+      var _dec=decodeBytes(ev.target.result);
+      document.getElementById('csv-text').value=_dec;
       setCsvFileName(files[0].name);
+      updatePendingCsvMonths(_dec); // 何月分か判定して月チップに「取込予定▶」を出す
       var res=document.getElementById('csv-result');
       if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 「'+files[0].name+'」を読み込みました。施設を選んで「取り込む」を押してください。'; }
     };
