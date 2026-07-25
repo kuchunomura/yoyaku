@@ -268,11 +268,10 @@ details[open] summary{opacity:0.75}
           <input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む
         </label>
         <label style="margin-top:10px;font-size:14px;line-height:1.5"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span id="csv-file-name" style="color:#1a7a3a;font-weight:700;font-size:12.5px"></span><br><span style="color:#c0392b;font-weight:600;font-size:12.5px">CSVに施設は未記載なので認識できません。間違えないように</span></label>
-        <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:14px;text-align:center;font-size:13.5px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<br><span style="font-size:11px;color:#9a8050">（またはタップしてファイルを選択）</span></div>
+        <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:14px;text-align:center;font-size:13.5px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<br><span style="font-size:11px;color:#9a8050">（タップでファイル選択／PCは Ctrl+V で中身の貼り付けもOK）</span></div>
         <div id="csv-drop-preview" style="display:none;margin:4px 0 0;font-size:11px"></div>
         <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
-        <div style="font-size:12px;color:#9a8050;margin:6px 0 2px">または、CSVの中身をここに貼り付け（スプレッドシートからコピペ）</div>
-        <textarea id="csv-text" placeholder="ここにCSVの中身を貼り付けてもOK" style="min-height:56px;font-size:12px;width:100%;box-sizing:border-box" oninput="setCsvFileName('');updatePendingCsvMonths(this.value);showCsvDropPreview('貼り付け',this.value)"></textarea>
+        <textarea id="csv-text" style="display:none"></textarea>
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
           <span style="font-size:20px;font-weight:800;color:#6b4f20;flex-shrink:0">③</span>
           <button class="btn-primary" style="background:#6b4f20;margin:0;flex:1" onclick="importCSV()">選択した施設を取り込む</button>
@@ -623,8 +622,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=348;
-const APP_BUILD_DATE='2026/07/25 11:08';
+const APP_VERSION=349;
+const APP_BUILD_DATE='2026/07/25 11:24';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3242,6 +3241,21 @@ function updatePendingCsvMonths(text){ _pendingCsvText=(text||''); _pendingCsvMo
 function setupCsvDrop(){
   var dz=document.getElementById('csv-drop'); if(!dz) return;
   var fi=document.getElementById('csv-file');
+  // ドロップ欄が貼り付けも兼ねる：取込タブ表示中に Ctrl+V したら中身をCSVとして読む（入力欄への貼り付けは邪魔しない）
+  if(!window._csvPasteBound){
+    window._csvPasteBound=true;
+    document.addEventListener('paste',function(e){
+      var dt=document.getElementById('tab-day'); if(!dt || dt.style.display==='none') return; // CSV取込タブ表示中のみ
+      var ae=document.activeElement; if(ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.isContentEditable)) return; // 入力欄への貼り付けは通常どおり
+      var cd=e.clipboardData||window.clipboardData; var txt=cd?cd.getData('text'):''; if(!txt||!txt.trim()) return;
+      if(!/\n/.test(txt) && txt.split(/[\t,]/).length<3) return; // CSVらしさ（改行あり or 複数列）だけ受ける
+      e.preventDefault();
+      setCsvFileName(''); // 直前のファイル名表示をクリア（この後で貼り付け内容を保持）
+      updatePendingCsvMonths(txt); // 内容を _pendingCsvText に保持＋月判定
+      showCsvDropPreview('貼り付け',txt);
+      var res=document.getElementById('csv-result'); if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 貼り付けを読み込みました。施設を選んで「取り込む」を押してください。'; }
+    });
+  }
   if(fi) fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]){ setCsvFileName(fi.files[0].name); var fr2=new FileReader(); fr2.onload=function(e2){ var _d2=decodeBytes(e2.target.result); updatePendingCsvMonths(_d2); showCsvDropPreview(fi.files[0].name,_d2); }; fr2.readAsArrayBuffer(fi.files[0]); } });
   ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fdeccb'; dz.style.borderColor='#c9962f'; }); });
   ['dragleave','dragend'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fffdf8'; dz.style.borderColor='#d9b676'; }); });
