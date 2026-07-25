@@ -622,8 +622,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=353;
-const APP_BUILD_DATE='2026/07/25 16:16';
+const APP_VERSION=354;
+const APP_BUILD_DATE='2026/07/25 16:39';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2367,17 +2367,63 @@ async function gasReadJson(res){
     throw new Error('応答を解析できません（先頭: '+head+'）');
   }
 }
+// ===== 端末間マージ同期（キャンセル/削除の"復活"を防ぐ3方向マージ）=====
+// 従来は sync_all で「その端末の全件」を丸ごと書き込む last-writer-wins だった。
+// → 古いデータを持つ端末が書くと、他端末のキャンセル/削除を踏み潰して"復活"させてしまう。
+// 対策：書き込む前に必ずシートを読み、レコード単位で base(前回サーバ状態)/local/remote を
+// 3方向マージしてから書く。「変更していないローカル」は remote のキャンセル/削除に負ける＝復活しない。
+// GAS側は不変（＝再デプロイ不要）。base は yv_syncbase（id→内容ハッシュ）に端末ごとに保存。
+var _syncTsLast=0;
+function nowTs(){ var t=Date.now(); if(t<=_syncTsLast)t=_syncTsLast+1; _syncTsLast=t; return t; }
+function _stableStr(o){
+  if(o===null||typeof o!=='object') return JSON.stringify(o===undefined?null:o);
+  if(Array.isArray(o)) return '['+o.map(_stableStr).join(',')+']';
+  var ks=Object.keys(o).sort(); var parts=[];
+  for(var i=0;i<ks.length;i++){ if(ks[i]==='updatedAt')continue; parts.push(JSON.stringify(ks[i])+':'+_stableStr(o[ks[i]])); }
+  return '{'+parts.join(',')+'}';
+}
+function _recHash(o){ return _stableStr(o); } // updatedAtを除いた内容ハッシュ
+function _loadSyncBase(){ var b=ld('yv_syncbase'); if(!b||typeof b!=='object')b={}; if(!b.r||typeof b.r!=='object')b.r={}; if(!b.s||typeof b.s!=='object')b.s={}; return b; }
+function _buildBaseMap(arr){ var m={}; (arr||[]).forEach(function(o){ if(o&&o.id!=null)m[String(o.id)]=_recHash(o); }); return m; }
+function _saveSyncBase(rArr,sArr){ sv('yv_syncbase',{r:_buildBaseMap(rArr),s:_buildBaseMap(sArr)}); }
+// 3方向マージ。baseMap=前回サーバ状態のハッシュ表, local/remote=レコード配列。返り値=マージ済み配列。
+function _mergeById(baseMap, localArr, remoteArr){
+  baseMap=baseMap||{};
+  var L={}, R={}, ids=[], seen={};
+  (localArr||[]).forEach(function(o){ if(o&&o.id!=null){var k=String(o.id);L[k]=o;if(!seen[k]){seen[k]=1;ids.push(k);}} });
+  (remoteArr||[]).forEach(function(o){ if(o&&o.id!=null){var k=String(o.id);R[k]=o;if(!seen[k]){seen[k]=1;ids.push(k);}} });
+  var out=[];
+  ids.forEach(function(k){
+    var lo=L[k], ro=R[k], hasB=Object.prototype.hasOwnProperty.call(baseMap,k), bh=hasB?baseMap[k]:null;
+    var lChg=!!(lo && hasB && _recHash(lo)!==bh);
+    var rChg=!!(ro && hasB && _recHash(ro)!==bh);
+    if(lo && ro){
+      if(!hasB){ out.push(ro); return; }                                  // 基準なし＝サーバ優先（初回・安全側）
+      if(lChg && !rChg){ lo.updatedAt=nowTs(); out.push(lo); }            // こちらだけ変更＝こちら
+      else if(rChg && !lChg){ out.push(ro); }                            // あちらだけ変更＝あちら（★復活防止の核）
+      else if(!lChg && !rChg){ out.push(ro); }                           // 双方無変更＝同一。remote採用
+      else { var lt=+(lo.updatedAt||0), rt=+(ro.updatedAt||0); if(lt>rt){ lo.updatedAt=nowTs(); out.push(lo); } else { out.push(ro); } } // 競合＝新しい方（同点はremote）
+    } else if(lo && !ro){
+      if(!hasB){ lo.updatedAt=nowTs(); out.push(lo); }                    // この端末で新規追加＝残す
+      else if(lChg){ lo.updatedAt=nowTs(); out.push(lo); }               // remote削除でもこちらが編集＝残す
+      // else remote削除・こちら無変更＝削除を尊重（出さない）
+    } else if(!lo && ro){
+      if(!hasB){ out.push(ro); }                                         // 他端末で新規追加＝残す
+      else if(rChg){ out.push(ro); }                                     // local削除でもremoteが編集＝残す
+      // else local削除・remote無変更＝削除を尊重（出さない）
+    }
+  });
+  return out;
+}
 async function syncToSheet(silent){
   const url=(ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value:'')||'').trim();
   if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
   if(!gasUrlOk(url)){ var _st0=document.getElementById('sync-status'); if(_st0)_st0.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
-  // ★カラの端末からシートを空にしない安全装置（2026/07/16の事故対策の対）
-  // 同期はローカルの全件でシートを作り直すため、データが無い端末で押すと
-  // 他の端末が入れた予約をシートごと消してしまう。読込側(loadFromSheet)と同じ穴。
-  // silent（autoPushからの自動送信）のときは黙って中止する。ダイアログで固まらせないため。
+  // ★カラの端末はシートに書き込まない（2026/07/16の事故対策）。マージでも念のため据え置き。
+  // silent（autoPush）は黙って中止。受信は loadFromSheet（起動時/60秒/復帰時）が担う。
   if((reservations.length+stays.length)===0){
     if(silent) return;
-    if(!confirm('この端末には予約が1件もありません。\n\nこのまま同期すると、スプレッドシートの予約を全部消してしまいます。\n（他の端末が入れたデータも消えます）\n\n本当に実行しますか？\n\n※ 予約を戻したいだけなら「キャンセル」を押して「📥 シートから読込」を使ってください。')){
+    if(!confirm('この端末には予約が1件もありません。\n\n同期しても他端末のデータは消えませんが、この端末には何も送るものがありません。\n\n最新を取り込むには「📥 シートから読込」を使ってください。\n\nこのまま続けますか？')){
       showToast('中止しました。読み込むなら「📥 シートから読込」を押してください','#c07000',6000);
       return;
     }
@@ -2385,6 +2431,25 @@ async function syncToSheet(silent){
   const st=document.getElementById('sync-status');
   if(st)st.textContent='同期中...';
   try{
+    // ① まずシートの現在値を取得（マージの remote）
+    var _gres=await fetch(url,{method:'GET',redirect:'follow'});
+    var _gjson=await gasReadJson(_gres);
+    if(_gjson.status!=='ok'){ if(st)st.textContent='⚠ エラー: '+(_gjson.message||'読取失敗'); if(!silent)showToast('⚠ 同期失敗（シート読取）','#c00'); return; }
+    var remoteR=Array.isArray(_gjson.reservations)?_gjson.reservations:[];
+    var remoteS=Array.isArray(_gjson.stays)?_gjson.stays:[];
+    // ② 3方向マージ（base=前回サーバ状態）。古いローカルが他端末のキャンセル/削除を踏み潰さない
+    var base=_loadSyncBase();
+    var mergedR=_mergeById(base.r, reservations, remoteR);
+    var mergedS=_mergeById(base.s, stays, remoteS);
+    // 大量消失ガード：シートにある予約の半分以上が消える結果は異常とみなし中止（誤爆防止）
+    var _remCnt=remoteR.length+remoteS.length, _mrgCnt=mergedR.length+mergedS.length;
+    if(_remCnt>=8 && _mrgCnt < _remCnt*0.5){
+      if(st)st.textContent='⚠ 安全のため同期を保留（大量消失を検知）';
+      if(!silent)showToast('⚠ 多数の予約が消える結果になったため保留しました。「📥 シートから読込」で最新を取得してください','#c00',9000);
+      return;
+    }
+    reservations=mergedR; stays=mergedS; sv(RKEY,reservations); sv(STKEY,stays);
+    // ③ マージ結果でシートを更新
     const res=await fetch(url,{
       method:'POST',
       redirect:'follow',
@@ -2393,14 +2458,17 @@ async function syncToSheet(silent){
     });
     const json=await gasReadJson(res);
     if(json.status==='ok'){
+      _saveSyncBase(reservations,stays); // 書き込んだ内容＝新しいサーバ状態を base に
       if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 同期完了';
       markSync('保存');
+      renderList(); // マージで remote の変更（他端末のキャンセル等）が入っている場合があるので反映
       if(!silent)showToast('✓ スプレッドシートに同期しました','#1a7a3a');
     }else{
       if(st)st.textContent='⚠ エラー: '+json.message;
       if(!silent)showToast('⚠ 同期失敗','#c00');
     }
   }catch(e){
+    // GET/POST失敗時：ローカルは保持され、次の自動同期（60秒/操作時）で再度マージ送信される
     if(st)st.textContent='⚠ 通信エラー: '+e.message;
     if(!silent)showToast('⚠ 通信エラー: '+e.message,'#c00',9000);
   }
@@ -2428,8 +2496,16 @@ async function loadFromSheet(silent){
         if(!silent) showToast('⚠ シートが空のため読み込みませんでした。この端末のデータを残しています。シートへ書き出すには「📤 同期（保存）」を押してください','#c00',8000);
         return;
       }
-      if(Array.isArray(json.reservations))reservations=json.reservations;
-      if(Array.isArray(json.stays))stays=json.stays;
+      // 読込も3方向マージ：この端末の未送信の変更を守りつつ、他端末の変更（キャンセル/削除含む）を取り込む。
+      // base=前回サーバ状態。読込後は base をサーバ真値に更新し、こちらが上乗せした分は末尾で autoPush。
+      var _srvR=Array.isArray(json.reservations)?json.reservations:reservations;
+      var _srvS=Array.isArray(json.stays)?json.stays:stays;
+      var _lb=_loadSyncBase();
+      var _mR=_mergeById(_lb.r, reservations, _srvR);
+      var _mS=_mergeById(_lb.s, stays, _srvS);
+      var _localContrib=(_stableStr(_mR)!==_stableStr(_srvR))||(_stableStr(_mS)!==_stableStr(_srvS));
+      reservations=_mR; stays=_mS;
+      _saveSyncBase(_srvR,_srvS); // base=サーバ真値（こちらの上乗せ分は次のautoPushでサーバへ）
       if(json.otaack&&typeof json.otaack==='object')sv('yv_otaack',json.otaack);
       if(json.qack&&typeof json.qack==='object')sv('yv_qack',json.qack);
       // 直近ローカルで押したチェックを、同期の往復ラグでシートの古い値に上書きされないよう復元
@@ -2450,7 +2526,7 @@ async function loadFromSheet(silent){
       markSync('同期');
       if(!silent)showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）'+(_rep?'／人数'+_rep+'件を自動修正':'')+(_rq?'／備品数量'+_rq+'件を自動修正':'')+(_rt?'／時刻'+_rt+'件を自動修正':'')+(_rd?'／備品'+_rd+'件を再読取':''),'#1a7a3a');
       renderList();
-      if(_rep||_rq||_rt||_rd)autoPush(); // 修正結果をシートへ書き戻して全端末で共有
+      if(_rep||_rq||_rt||_rd||_localContrib)autoPush(); // 修正結果＋この端末の未送信変更をシートへ書き戻して全端末で共有
     }else{ if(st)st.textContent='⚠ エラー: '+json.message; if(!silent)showToast('⚠ 読込失敗','#c00'); }
   }catch(e){ if(st)st.textContent='⚠ 通信エラー: '+e.message; if(!silent)showToast('⚠ 通信エラー: '+e.message,'#c00',9000); }
 }
