@@ -113,11 +113,12 @@ textarea{resize:vertical;min-height:60px}
 .free-item{font-size:12px;color:#085041;background:#d8f5eb;border-radius:6px;padding:3px 8px;margin-right:4px;margin-bottom:4px;display:inline-block}
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a7a3a;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:200;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
-/* CSV取込：PCでは「最終CSV取込日時」を取込UIの左に並べる（スマホは縦積み） */
-#csv-day-wrap{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
-#csv-import-col{flex:1.5 1 340px;min-width:300px}
-#csv-implog-col{flex:1 1 280px;min-width:260px}
-@media (min-width:900px){ #csv-day-wrap{flex-wrap:nowrap} #csv-implog-col{order:-1} }
+/* CSV取込：取込UIの幅(520px本体)は変えず、「最終CSV取込日時」だけ本体の左余白へ絶対配置（広いPC）。狭い画面は縦積み */
+#csv-day-wrap{position:relative}
+#csv-implog-col{margin-top:16px}
+@media (min-width:1160px){
+  #csv-implog-col{position:absolute;top:0;right:100%;width:300px;margin:0 16px 0 0}
+}
 .stock-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #eee;font-size:14px}
 .stock-row:last-child{border-bottom:none}
 .stock-name{flex:1;font-size:13px}
@@ -623,8 +624,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=345;
-const APP_BUILD_DATE='2026/07/25 10:28';
+const APP_VERSION=346;
+const APP_BUILD_DATE='2026/07/25 10:40';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
