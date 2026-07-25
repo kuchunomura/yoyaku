@@ -271,10 +271,8 @@ details[open] summary{opacity:0.75}
         <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:14px;text-align:center;font-size:13.5px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<br><span style="font-size:11px;color:#9a8050">（またはタップしてファイルを選択）</span></div>
         <div id="csv-drop-preview" style="display:none;margin:4px 0 0;font-size:11px"></div>
         <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
-        <button type="button" id="csv-paste-tog" onclick="var b=document.getElementById('csv-paste-body');var o=(b.style.display==='none');b.style.display=o?'block':'none';this.textContent=o?'▲ 貼り付け欄を隠す':'▼ または貼り付けで取り込む（スプレッドシートからコピペ）';" style="display:block;width:100%;text-align:left;cursor:pointer;font-size:12px;color:#888;background:none;border:none;padding:4px 0;margin:2px 0;font-family:inherit">▼ または貼り付けで取り込む（スプレッドシートからコピペ）</button>
-        <div id="csv-paste-body" style="display:none">
-          <textarea id="csv-text" placeholder="CSVの中身を貼り付け" style="min-height:60px;font-size:12px" oninput="setCsvFileName('');updatePendingCsvMonths(this.value);showCsvDropPreview('貼り付け',this.value)"></textarea>
-        </div>
+        <div style="font-size:12px;color:#9a8050;margin:6px 0 2px">または、CSVの中身をここに貼り付け（スプレッドシートからコピペ）</div>
+        <textarea id="csv-text" placeholder="ここにCSVの中身を貼り付けてもOK" style="min-height:56px;font-size:12px;width:100%;box-sizing:border-box" oninput="setCsvFileName('');updatePendingCsvMonths(this.value);showCsvDropPreview('貼り付け',this.value)"></textarea>
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
           <span style="font-size:20px;font-weight:800;color:#6b4f20;flex-shrink:0">③</span>
           <button class="btn-primary" style="background:#6b4f20;margin:0;flex:1" onclick="importCSV()">選択した施設を取り込む</button>
@@ -625,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=347;
-const APP_BUILD_DATE='2026/07/25 10:52';
+const APP_VERSION=348;
+const APP_BUILD_DATE='2026/07/25 11:08';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3093,7 +3091,7 @@ function importCSV(){
     fr.onload=function(e){ proceed(decodeBytes(e.target.result)); };
     fr.onerror=function(){ res.style.color='#c00'; res.textContent='⚠ ファイル読み込みエラー'; };
     fr.readAsArrayBuffer(fileInput.files[0]);
-  } else { proceed(document.getElementById('csv-text').value); }
+  } else { var _pv=document.getElementById('csv-text').value; proceed((_pv&&_pv.trim())?_pv:_pendingCsvText); } // 貼り付け欄が空ならドロップ内容(_pendingCsvText)を使う
 }
 
 // 指定した取込（履歴の1バッチ）を取り消して取込前の状態に戻す。リロード後・後日でも可（端末ごとの履歴）。
@@ -3255,10 +3253,9 @@ function setupCsvDrop(){
     var fr=new FileReader();
     fr.onload=function(ev){
       var _dec=decodeBytes(ev.target.result);
-      document.getElementById('csv-text').value=_dec;
       setCsvFileName(files[0].name);
-      updatePendingCsvMonths(_dec); // 何月分か判定して月チップに「取込予定▶」を出す
-      showCsvDropPreview(files[0].name,_dec); // ドロップした場所に中身プレビューを表示（貼り付け欄を開かず確認できる）
+      updatePendingCsvMonths(_dec); // 内容は _pendingCsvText に保持（取込時に使用）＋何月分か判定して月チップに「取込予定▶」を出す
+      showCsvDropPreview(files[0].name,_dec); // ドロップした場所に中身プレビューを表示（貼り付け欄を汚さない）
       var res=document.getElementById('csv-result');
       if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 「'+files[0].name+'」を読み込みました。施設を選んで「取り込む」を押してください。'; }
     };
