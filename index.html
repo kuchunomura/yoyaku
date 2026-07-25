@@ -622,8 +622,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=352;
-const APP_BUILD_DATE='2026/07/25 14:38';
+const APP_VERSION=353;
+const APP_BUILD_DATE='2026/07/25 16:16';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3814,6 +3814,36 @@ if(ld(GAS_KEY)) loadFromSheet(true);
 // 自動同期：60秒ごと＋画面に戻ったときにシートから読込（手動編集も自動で反映）
 setInterval(function(){ if(ld(GAS_KEY) && !document.hidden && !window._printing) loadFromSheet(true); }, 60000);
 document.addEventListener('visibilitychange', function(){ if(!document.hidden && ld(GAS_KEY) && !window._printing) loadFromSheet(true); });
+
+// ===== 新バージョン検知（他端末に「新版あり→更新してください」を通知）=====
+// 自分自身のindex.htmlを定期取得し、中の APP_VERSION が実行中より新しければ通知バナーを出す。
+// 強制リロードはしない（作業中に画面が飛ぶと困るため）。タップで新バージョンに更新。
+function _showUpdateBanner(newV){
+  var b=document.getElementById('update-banner');
+  if(!b){
+    b=document.createElement('div');
+    b.id='update-banner';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#1a7a3a;color:#fff;padding:11px 14px;text-align:center;font-size:14px;font-weight:bold;box-shadow:0 2px 8px rgba(0,0,0,.35);cursor:pointer;line-height:1.5';
+    document.body.appendChild(b);
+  }
+  b.textContent='🔄 新版あり（v'+newV+'）→ タップして新バージョンに更新してください';
+  b.onclick=function(){ location.href=location.pathname+'?v='+newV; };
+}
+var _updChecking=false;
+function checkForUpdate(){
+  if(_updChecking)return; _updChecking=true;
+  fetch(location.pathname+'?_ck='+Date.now(),{cache:'no-store'})
+    .then(function(r){return r.text();})
+    .then(function(t){
+      var m=t.match(/const\s+APP_VERSION\s*=\s*(\d+)/);
+      if(m){ var rv=parseInt(m[1],10); if(rv>APP_VERSION) _showUpdateBanner(rv); }
+    })
+    .catch(function(){})
+    .then(function(){ _updChecking=false; });
+}
+setTimeout(checkForUpdate,8000);                                   // 起動8秒後に一度
+setInterval(function(){ if(!document.hidden) checkForUpdate(); },180000); // 3分ごと
+document.addEventListener('visibilitychange',function(){ if(!document.hidden) checkForUpdate(); });
 
 // カードボタンのイベントデリゲーション（起動後に登録）
 document.addEventListener('click',function(e){
