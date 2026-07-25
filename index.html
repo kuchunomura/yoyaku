@@ -611,8 +611,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=341;
-const APP_BUILD_DATE='2026/07/23 14:52';
+const APP_VERSION=342;
+const APP_BUILD_DATE='2026/07/25 09:51';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1139,10 +1139,15 @@ function _isOta(k){return ['rakuten','jalan','sou','other1','other2','other3'].i
 // OTA（前払い）予約か。レジと同じ扱い＝宿泊/日帰り本体は0円（支払い済み）、レンタル/備品だけ当日集金
 function otaPaid(o){var src=(o&&o.source)||detectOtaFromText((o&&o.memo)||'');return !!(src&&_isOta(src));}
 function _normName(n){return String(n||'').replace(/[\s　]/g,'').trim();}
-// 予約者名が一致（完全一致 or 一方が他方を含む）
+// 空白で分割・小文字化・ソートしたトークン（姓名の語順違いを吸収するため）
+function _nameTokens(n){return String(n||'').toLowerCase().split(/[\s　]+/).map(function(x){return x.trim();}).filter(Boolean).sort();}
+// 予約者名が一致（完全一致 / 一方が他方を含む / 姓名の語順違い ATSUSHI YOSHIDA↔YOSHIDA ATSUSHI も一致）
 function _nameMatch(a,b){
   var an=_normName(a.name),bn=_normName(b.name);
-  return !!(an&&bn&&(an===bn||an.indexOf(bn)>=0||bn.indexOf(an)>=0));
+  if(!an||!bn)return false;
+  if(an===bn||an.indexOf(bn)>=0||bn.indexOf(an)>=0)return true;
+  var ta=_nameTokens(a.name),tb=_nameTokens(b.name);
+  return ta.length>=2&&ta.length===tb.length&&ta.join('|')===tb.join('|');
 }
 // 候補として出す条件（名前一致 or 同一OTA）。◎ハイライト用。自動紐づけには使わない。
 function _likelyLink(a,b){
@@ -1178,10 +1183,26 @@ function dayUnitPrice(fac,course,mura,sgd){
   if(sgd) return base-sgd;
   return base;
 }
-// 予約者名が一致する日帰り↔宿泊を前後±1日で自動紐づけ（追加のみ。解除は編集で可能）
+// 予約者名が一致する日帰り↔宿泊／日帰り↔日帰りを前後±1日で自動紐づけ（追加のみ。解除は編集で可能）
 // ※名前が違う場合は自動紐づけしない（候補には出るので手動で紐づけ可能）
+var _autoLinkRan=false;
 function autoLinkAll(){
   var changed=false;
+  // 日帰り↔日帰り：同名（±1日）を相互紐づけ（linkedDayIds）。宿泊↔日帰りと同じ考え方
+  for(var i=0;i<reservations.length;i++){
+    var r1=reservations[i];
+    if(!r1.date||isCancelled(r1))continue;
+    for(var j=i+1;j<reservations.length;j++){
+      var r2=reservations[j];
+      if(!r2.date||isCancelled(r2))continue;
+      if(Math.abs((new Date(r1.date)-new Date(r2.date))/86400000)>1)continue;
+      if(!_nameMatch(r1,r2))continue;
+      r1.linkedDayIds=r1.linkedDayIds||[];
+      r2.linkedDayIds=r2.linkedDayIds||[];
+      if(r1.linkedDayIds.indexOf(r2.id)<0){r1.linkedDayIds.push(r2.id);changed=true;}
+      if(r2.linkedDayIds.indexOf(r1.id)<0){r2.linkedDayIds.push(r1.id);changed=true;}
+    }
+  }
   stays.forEach(function(s){
     if(!s.checkin)return;
     if(isCancelled(s))return; // キャンセル済みは自動紐づけしない
@@ -1408,6 +1429,8 @@ function saveStay(){
 
 // 一覧
 function renderList(){
+  // 既存データにも自動紐づけを反映（1回／シート読込後は再実行）。変更が出たら保存＋シートへ書き戻し
+  if(!_autoLinkRan){ _autoLinkRan=true; if(autoLinkAll()){ sv(RKEY,reservations); sv(STKEY,stays); autoPush(); } }
   renderFltTabs();
   renderQuickDates();
   renderOtaAlerts();
@@ -2407,6 +2430,7 @@ async function loadFromSheet(silent){
       // 最終CSV取込日時：施設ごとに新しい方を残してマージ（他デバイスの取込時刻を消さない）
       if(json.csvimp&&typeof json.csvimp==='object'){ var _ci=ld('yv_csvimp')||{}; var _cm=ld('yv_csvimp_mon')||{}; var _if=ld('yv_csvimp_file')||{}; var _ilm=ld('yv_csvimp_lastmon')||{}; var _imts=ld('yv_csvimp_mts')||{}; var _rm=(json.csvimpmon&&typeof json.csvimpmon==='object')?json.csvimpmon:{}; var _rf=(json.csvimpfile&&typeof json.csvimpfile==='object')?json.csvimpfile:{}; var _rlm=(json.csvimplastmon&&typeof json.csvimplastmon==='object')?json.csvimplastmon:{}; var _rmts=(json.csvimpmts&&typeof json.csvimpmts==='object')?json.csvimpmts:{}; for(var _ck in json.csvimp){ var _cv=Number(json.csvimp[_ck])||0; if(_cv>(Number(_ci[_ck])||0)){ _ci[_ck]=_cv; if(_rf[_ck]!==undefined)_if[_ck]=_rf[_ck]; if(_rlm[_ck]!==undefined)_ilm[_ck]=_rlm[_ck]; } } for(var _mk in _rm){ var _uu={}; String(_cm[_mk]||'').split(',').concat(String(_rm[_mk]||'').split(',')).forEach(function(x){x=(x||'').trim();if(x)_uu[x]=1;}); _cm[_mk]=Object.keys(_uu).sort().join(','); } for(var _fk in _rmts){ var _mm=_rmts[_fk]; if(!_mm||typeof _mm!=='object')continue; if(!_imts[_fk])_imts[_fk]={}; for(var _mk2 in _mm){ var _mv=Number(_mm[_mk2])||0; if(_mv>(Number(_imts[_fk][_mk2])||0))_imts[_fk][_mk2]=_mv; } } sv('yv_csvimp',_ci); sv('yv_csvimp_mon',_cm); sv('yv_csvimp_file',_if); sv('yv_csvimp_lastmon',_ilm); sv('yv_csvimp_mts',_imts); if(typeof renderCsvImpLog==='function')renderCsvImpLog(); }
       sv(RKEY,reservations);sv(STKEY,stays);
+      _autoLinkRan=false; // 新しく取得したデータに対して renderList で自動紐づけを再実行する
       var _rep=repairNinzuFromAmount(); // 読込データの人数誤読を自動修復
       var _rq=healRentalQty();          // 客チェック方式メモの備品数量バグ（金額=数量）を自動修復
       var _rt=0;                          // +9自動補正は廃止（CSVの時刻をそのまま使う。過去に補正した分は再取込で正しくなる）
