@@ -611,8 +611,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=343;
-const APP_BUILD_DATE='2026/07/25 09:56';
+const APP_VERSION=344;
+const APP_BUILD_DATE='2026/07/25 10:12';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -841,9 +841,9 @@ const dLinkLabel=r=>{const f=getFac(r&&r.facility);return f?f.label:'';};
 
 function clearDateFilter(){dateFilter=null;renderList();}
 
-function showToast(msg,col){
+function showToast(msg,col,dur){
   const t=document.getElementById('toast');t.textContent=msg;t.style.background=col||'#1a7a3a';
-  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);
+  t.classList.add('show');clearTimeout(window._toastT);window._toastT=setTimeout(()=>t.classList.remove('show'),dur||2200);
 }
 
 function switchTab(t,keepDateFilter){
@@ -2614,6 +2614,16 @@ function updateCsvFacTitle(){
 // 取込先selectの値→表示名
 function csvOptLabel(val){var s=document.getElementById('csv-fac');if(s)for(var i=0;i<s.options.length;i++){if(s.options[i].value===val)return s.options[i].textContent;}return val;}
 function fmtDateTime(ts){var d=new Date(ts);var w=['日','月','火','水','木','金','土'][d.getDay()];return (d.getMonth()+1)+'/'+d.getDate()+'（'+w+'）'+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
+// 月チップ：取込直後の一時ハイライト・クリックで選択中の月
+var _recentImp=null;        // {key,months:{'YYYY-MM':1},t} 取込直後だけ色を変える
+var RECENT_IMP_MS=6000;     // 取込後ハイライトを出す時間（ミリ秒）
+var _csvChipSel=null;       // {key,month} クリックした月（色を変える）
+// 月チップをタップ：施設名＋取込日時をトースト表示し、その月を選択色にする
+function onCsvChipClick(key,month,msg){
+  _csvChipSel={key:key,month:month};
+  renderCsvImpLog();
+  showToast(msg,'#37474f',6000); // 黒でない見やすい背景＋長めに表示
+}
 // カテゴリ別の最終CSV取込日時を表示
 function renderCsvImpLog(){
   var el=document.getElementById('csv-implog'); if(!el) return;
@@ -2627,16 +2637,24 @@ function renderCsvImpLog(){
   // 月別チップ：今月＋翌2か月（OTA締切は先の月なので直近3か月の取込状況を月別に出す）
   var _tn=new Date(), months=[];
   for(var _mi=0;_mi<3;_mi++){ var _dm=new Date(_tn.getFullYear(),_tn.getMonth()+_mi,1); months.push(_dm.getFullYear()+'-'+('0'+(_dm.getMonth()+1)).slice(-2)); }
-  function monChips(csv, mtsFac, isSel){
+  function monChips(csv, mtsFac, isSel, facKey, facLabel){
     var set=String(csv||'').split(',').filter(Boolean);
+    var esc=function(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");};
     return months.map(function(m){
       var has=set.indexOf(m)>=0, jm=(+m.split('-')[1])+'月';
       var ts=mtsFac&&mtsFac[m];
       var isTarget=isSel && _pendingCsvMonths.indexOf(m)>=0; // このCSVがこの月に取り込まれる＝取込予定
-      var msg=isTarget?(jm+'分：このCSVはここへ取り込まれます（取込予定）'):(jm+'分：'+(has?(ts?('取込 '+fmtDateTime(ts)):'取込済み（この端末では日時未記録）'):'未取込'));
-      var css=isTarget?'background:#ffe0b2;color:#b06000;border:2px solid #e67700'
-        :(has?'background:#d7f0dd;color:#1a7a3a;border:1px solid #9ccfab':'background:#f2f2f2;color:#bbb;border:1px solid #e0e0e0');
-      return '<span onclick="showToast(\''+msg.replace(/'/g,"\\'")+'\',\'#333\',4000)" style="display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:3px;cursor:pointer;'+css+'">'+(isTarget?'▶':'')+jm+(has?' ✓':' 未')+'</span>';
+      var info=has?(ts?('取込 '+fmtDateTime(ts)):'取込済み（この端末では日時未記録）'):'未取込';
+      var msg=(facLabel?facLabel+'　':'')+(isTarget?(jm+'分：このCSVはここへ取り込まれます（取込予定）'):(jm+'分：'+info)); // 左に施設名も併記
+      var recentFlash=_recentImp && _recentImp.key===facKey && _recentImp.months[m] && (Date.now()-_recentImp.t<RECENT_IMP_MS); // 取込直後の数秒だけハイライト
+      var clicked=_csvChipSel && _csvChipSel.key===facKey && _csvChipSel.month===m; // クリックした月
+      var css;
+      if(recentFlash) css='background:#fff59d;color:#7a5c00;border:2px solid #f0a000'; // 取込直後の黄色ハイライト
+      else if(clicked) css='background:#cfe8ff;color:#0a4a80;border:2px solid #2b7fd0'; // クリックした月＝青
+      else if(isTarget) css='background:#ffe0b2;color:#b06000;border:2px solid #e67700';
+      else if(has) css='background:#d7f0dd;color:#1a7a3a;border:1px solid #9ccfab';
+      else css='background:#f2f2f2;color:#bbb;border:1px solid #e0e0e0';
+      return '<span onclick="onCsvChipClick(\''+esc(facKey)+'\',\''+m+'\',\''+esc(msg)+'\')" style="display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:3px;cursor:pointer;'+css+'">'+(isTarget?'▶':'')+jm+(has?' ✓':' 未')+'</span>';
     }).join('');
   }
   // 月チップの✓は「今その施設・その月に予約が実在するか」で判定（取込ログの累積ではなく実データ）。
@@ -2657,7 +2675,7 @@ function renderCsvImpLog(){
     +rows.map(function(r){
       var isSelRow=(r[4]===selKey);
       var hasData=!!(dataMonths[r[4]] && Object.keys(dataMonths[r[4]]).length); // その施設に予約が実在するか
-      var prev=monChips(r[2], mts[r[4]], isSelRow)
+      var prev=monChips(r[2], mts[r[4]], isSelRow, r[4], r[0])
         +((r[1]&&hasData)?' <span style="color:#1a7a3a;font-size:12.5px;font-weight:600">'+fmtDateTime(r[1])+(lmon[r[4]]?'（'+monLabel(lmon[r[4]])+'）':'')+'</span>':' <span style="color:#bbb;font-size:11px">未取込</span>')
         +((r[3]&&hasData)?' <span style="color:#2471a3;font-weight:700;font-size:12.5px">📄'+htmlEscape(r[3])+'</span>':'');
       var next='';
@@ -3010,6 +3028,8 @@ function importCSV(){
     var _mon=ld('yv_csvimp_mon')||{}; var _pm=String(_mon[sel]||'').split(',').filter(Boolean); Object.keys(_impMonths).forEach(function(m){ if(_pm.indexOf(m)<0)_pm.push(m); }); _mon[sel]=_pm.sort().join(','); sv('yv_csvimp_mon',_mon); // 取込済みの月を累積(union)で記録＝月別チップに使う
     var _mts=ld('yv_csvimp_mts')||{}; var _cm2=_mts[sel]||{}; Object.keys(_impMonths).forEach(function(m){ _cm2[m]=Date.now(); }); _mts[sel]=_cm2; sv('yv_csvimp_mts',_mts); // 月ごとの取込時刻（チップをタップで表示・同期される）
     var _lm=ld('yv_csvimp_lastmon')||{}; _lm[sel]=Object.keys(_impMonths).sort().join(','); sv('yv_csvimp_lastmon',_lm); // 最後の取込が何月分か（右の日時に併記・同期される）
+    _recentImp={key:sel,months:Object.assign({},_impMonths),t:Date.now()}; // 取込した月を数秒だけ黄色ハイライト
+    setTimeout(function(){ _recentImp=null; renderCsvImpLog(); }, RECENT_IMP_MS); // 時間経過で解除して再描画
     var _impF=ld('yv_csvimp_file')||{}; _impF[sel]=lastCsvFileName||''; sv('yv_csvimp_file',_impF); // 取込ファイル名（施設ごと・同期される・被り確認用）
     setCsvFileName(''); // 取込済みなので「→ 📄」の待機表示を消す（ファイル名はログ側に📄として残る）。中でrenderCsvImpLog()も呼ばれる
     sv(RKEY,reservations); sv(STKEY,stays); autoPush();
