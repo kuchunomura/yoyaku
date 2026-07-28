@@ -150,7 +150,7 @@ details[open] summary{opacity:0.75}
 .plink{font-size:11px;color:#224466;margin-top:1px;font-weight:600}
 .pcompact .plink{font-size:8.5px;line-height:1.15;margin-top:0;font-weight:600}
 .pwf{margin-top:4px;font-size:11px;display:flex;gap:10px;flex-wrap:wrap;color:#888}
-.pbox{display:inline-block;width:11px;height:11px;border:1px solid #bbb;text-align:center;line-height:10px;margin-right:3px;font-size:10px;vertical-align:-1px}
+.pbox{display:inline-block;width:11px;height:11px;border:1px solid #bbb;text-align:center;line-height:10px;margin-left:3px;margin-right:10px;font-size:10px;vertical-align:-1px}
 .pu-wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:3px 0 7px}
 .pu-frame{border:1px solid #ccc;border-radius:4px;padding:4px 7px;font-size:12px;break-inside:avoid;box-sizing:border-box;min-height:64px;display:flex;flex-direction:column}
 .pu-frame.pu-vacant{border-color:#e0e0e0}
@@ -194,7 +194,7 @@ details[open] summary{opacity:0.75}
 .pcompact .pr1{font-size:11.5px;font-weight:600;line-height:1.2}
 .pcompact .pr2,.pcompact .pr3{font-size:8.5px;line-height:1.15;margin-top:0}
 .pcompact .pwf{margin-top:auto;font-size:7.5px;gap:4px;color:#888}
-.pcompact .pbox{width:10px;height:10px;line-height:9px;font-size:9px;margin-right:2px}
+.pcompact .pbox{width:10px;height:10px;line-height:9px;font-size:9px;margin-left:2px;margin-right:7px}
 .pcompact .pgap{height:0;margin:5px 0 3px;border-top:1.5px solid #333}
 @media print{
   #app{display:none!important}
@@ -622,8 +622,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=354;
-const APP_BUILD_DATE='2026/07/25 16:39';
+const APP_VERSION=355;
+const APP_BUILD_DATE='2026/07/28 23:34';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3644,8 +3644,9 @@ function _pDateList(from,to){var a=[],d=from,g=0;while(d<=to&&g<400){a.push(d);d
 function _pbox(on){return '<span class="pbox">'+(on?'✓':'')+'</span>';}
 function _pStayCat(s){return s.facGroup||((getSFac(s.facility)||{}).group)||'宿泊';}
 function _pCatIO(cat){var f=STAY_FACS.find(function(x){return x.group===cat;});return f?{ci:f.ci,co:f.co}:{ci:'',co:''};}
-function _pWfStay(s){var wf=(s&&s.wf)||{};return _pbox(wf.prep)+'部屋準備'+_pbox(wf.pay)+'会計'+_pbox(wf.guide)+'案内'+_pbox(wf.out)+'OUT'+_pbox(s&&s.cancelled)+'キャンセル';}
-function _pWfDay(r){return _pbox(r&&r.done)+'会計'+_pbox(r&&r.cancelled)+'キャンセル';}
+// チェック欄はラベルを先に、☐を右側に（ペンで記入しやすいように）
+function _pWfStay(s){var wf=(s&&s.wf)||{};return '部屋準備'+_pbox(wf.prep)+'会計'+_pbox(wf.pay)+'案内'+_pbox(wf.guide)+'OUT'+_pbox(wf.out)+'キャンセル'+_pbox(s&&s.cancelled);}
+function _pWfDay(r){return '会計'+_pbox(r&&r.done)+'キャンセル'+_pbox(r&&r.cancelled);}
 // 印刷用の紐づけ行（📌）。カード表示と同じ内容を印刷にも出す。
 function _pLinksStay(s){
   return ((s&&s.linkedDayIds)||[]).map(function(lid){
