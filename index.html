@@ -622,8 +622,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=364;
-const APP_BUILD_DATE='2026/07/30 17:14';
+const APP_VERSION=365;
+const APP_BUILD_DATE='2026/07/30 17:26';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2687,7 +2687,7 @@ function renderCsvFacOptions(){
   // 前回の選択を復元（localStorageにも保存＝リロード・取込後も維持。※端末ごと・同期はしない）＆タブ名に反映
   if(!lastCsvFacVal) lastCsvFacVal=ld('yv_csv_fac')||'';
   if(lastCsvFacVal){ for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===lastCsvFacVal){ sel.value=lastCsvFacVal; break; } } }
-  sel.onchange=function(){ lastCsvFacVal=sel.value; sv('yv_csv_fac',sel.value); updateCsvFacTitle(); updatePendingCsvMonths(_pendingCsvText); renderCsvFileName(); if(_pendingCsvText) checkCsvFacAtLoad(_pendingCsvText); /* ★CSV読込済みで施設を手動変更した時も照合 */ };
+  sel.onchange=function(){ lastCsvFacVal=sel.value; sv('yv_csv_fac',sel.value); updateCsvFacTitle(); updatePendingCsvMonths(_pendingCsvText); renderCsvFileName(); };
   updateCsvFacTitle();
 }
 // 取込先の選択施設をブラウザのタブ名に反映（例：予約メモ-空中テント）
@@ -3346,6 +3346,7 @@ function detectCsvMonths(text){
 }
 function updatePendingCsvMonths(text){ _pendingCsvText=(text||''); _pendingCsvMonths=detectCsvMonths(_pendingCsvText); renderCsvImpLog(); renderCsvImportInfo(); }
 // ②CSVファイル欄の右に「取込先／件数／月」を常時インライン表示（ダイアログ無しで取込前に目視確認できる）。
+// 施設違いの疑い（値の施設名 or 予約番号が別施設に既取込）があれば、ポップアップ無しで赤バッジ＋ワンタップ切替リンクにする。
 function renderCsvImportInfo(){
   var el=document.getElementById('csv-import-info'); if(!el) return;
   if(!_pendingCsvText || !_pendingCsvText.trim()){ el.style.display='none'; el.innerHTML=''; return; }
@@ -3353,9 +3354,29 @@ function renderCsvImportInfo(){
   rows.forEach(function(f){ if(/^\d+$/.test(String(f[0]||'').trim())) dCnt++; });
   var mns=detectCsvMonths(_pendingCsvText);
   var mnL=mns.length?(mns.map(function(m){return (+m.split('-')[1])+'月';}).join('・')+'分'):'月不明';
-  var selL=csvOptLabel((document.getElementById('csv-fac')||{}).value||'');
-  el.style.display='inline-block';
-  el.innerHTML='取込先 <b style="color:#1a7a3a">'+htmlEscape(selL)+'</b>／'+dCnt+'件／'+htmlEscape(mnL);
+  var sel=(document.getElementById('csv-fac')||{}).value||'', selL=csvOptLabel(sel);
+  var det=detectCsvFacility(_pendingCsvText), target='';
+  if(det){ if(det!==sel) target=det; }
+  else { var wm=_csvWpIdFacMismatch(_pendingCsvText); if(wm) target=wm.topKey; }
+  if(target){
+    var tL=csvOptLabel(target);
+    el.style.display='block'; el.style.whiteSpace='normal'; el.style.marginLeft='0'; el.style.marginTop='4px';
+    el.style.background='#fdecec'; el.style.borderColor='#e3b3b3';
+    el.innerHTML='<b style="color:#c0392b">⚠ 取込先違い？</b> 選択「'+htmlEscape(selL)+'」→ このCSVは<b>「'+htmlEscape(tL)+'」</b>かも（'+dCnt+'件／'+htmlEscape(mnL)+'）　'
+      +'<a href="javascript:void(0)" onclick="switchCsvFacTo(\''+target.replace(/'/g,"\\'")+'\')" style="color:#1565c0;font-weight:700;text-decoration:underline">「'+htmlEscape(tL)+'」に切替</a>';
+  } else {
+    el.style.display='inline-block'; el.style.whiteSpace='nowrap'; el.style.marginLeft='8px'; el.style.marginTop='0';
+    el.style.background='#eef6ee'; el.style.borderColor='#bcd9bf';
+    el.innerHTML='取込先 <b style="color:#1a7a3a">'+htmlEscape(selL)+'</b>／'+dCnt+'件／'+htmlEscape(mnL);
+  }
+}
+// 上の「◯◯に切替」リンク：取込先セレクタをワンタップで切り替える（ポップアップ無し）。
+function switchCsvFacTo(key){
+  var selEl=document.getElementById('csv-fac'); if(!selEl) return;
+  selEl.value=key; sv('yv_csv_fac',key);
+  if(typeof updateCsvFacTitle==='function') updateCsvFacTitle();
+  _pendingCsvMonths=detectCsvMonths(_pendingCsvText);
+  renderCsvFileName(); renderCsvImpLog(); renderCsvImportInfo();
 }
 // 1つのセル群(行を空白連結した文字列)から施設名トークンを判定（''=無し）。
 // ※WordPressのList CSVには施設名が入らないため、フォームに「施設名を値として出す項目(隠しフィールド等)」を足すと、この判定が効く。
@@ -3396,26 +3417,6 @@ function _csvWpIdFacMismatch(text){
   if(mis>=3 && mis>=matched*0.5){ var topEf=Object.keys(other).sort(function(a,b){return other[b]-other[a];})[0]; return {topKey:(type==='day'?'day:':'staygroup:')+topEf, mis:mis, matched:matched}; }
   return null;
 }
-// ★ドロップ/選択/貼り付けの読み込み直後に施設を照合＝取込ボタンを押す前にミスに気づける。
-// (1)値に施設名があればそれで判定 →(2)無ければ予約番号が別施設に既取込かで判定。違えば取込先の切替を確認（キャンセルなら据え置き）。
-function checkCsvFacAtLoad(text){
-  var selEl=document.getElementById('csv-fac'); if(!selEl) return;
-  var sel=selEl.value||'';
-  var res=document.getElementById('csv-result');
-  var det=detectCsvFacility(text), reason='', target='';
-  if(det){ if(det===sel) return; target=det; reason='name'; }
-  else { var wm=_csvWpIdFacMismatch(text); if(!wm) return; target=wm.topKey; reason='wpid'; }
-  var dL=csvOptLabel(target), sL=csvOptLabel(sel);
-  var why=(reason==='name')?'（CSVの値に入っている施設名で判定）':'（このCSVの予約 '+_csvWpIdFacMismatch(text).mis+'件が既に「'+dL+'」に入っています）';
-  if(res){ res.style.color='#c0392b'; res.innerHTML='⚠ 選択は「'+htmlEscape(sL)+'」ですが、このCSVは<b>「'+htmlEscape(dL)+'」</b>のようです。'+htmlEscape(why); }
-  showConfirm('選択は「'+sL+'」ですが、\nこのCSVは「'+dL+'」のようです。\n'+why+'\n\n取込先を「'+dL+'」に切り替えますか？\n\n※キャンセルすると選択は「'+sL+'」のままです。', function(){
-    selEl.value=target;
-    if(typeof updateCsvFacTitle==='function') updateCsvFacTitle();
-    _pendingCsvMonths=detectCsvMonths(_pendingCsvText); // 日帰り/宿泊で日付列判定が変わるため月チップを取り直す
-    if(res){ res.style.color='#1a7a3a'; res.innerHTML='✓ 取込先を「'+htmlEscape(dL)+'」に切り替えました。内容を確認して「取り込む」を押してください。'; }
-    renderCsvFileName(); renderCsvImpLog();
-  });
-}
 function setupCsvDrop(){
   var dz=document.getElementById('csv-drop'); if(!dz) return;
   var fi=document.getElementById('csv-file');
@@ -3432,10 +3433,9 @@ function setupCsvDrop(){
       updatePendingCsvMonths(txt); // 内容を _pendingCsvText に保持＋月判定
       showCsvDropPreview('貼り付け',txt);
       var res=document.getElementById('csv-result'); if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 貼り付けを読み込みました。施設を選んで「取り込む」を押してください。'; }
-      checkCsvFacAtLoad(txt); // ★読み込んだ瞬間に施設を照合（ミスなら切替を提案）
     });
   }
-  if(fi) fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]){ setCsvFileName(fi.files[0].name); var fr2=new FileReader(); fr2.onload=function(e2){ var _d2=decodeBytes(e2.target.result); updatePendingCsvMonths(_d2); showCsvDropPreview(fi.files[0].name,_d2); checkCsvFacAtLoad(_d2); /* ★選択直後に施設照合 */ }; fr2.readAsArrayBuffer(fi.files[0]); } });
+  if(fi) fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]){ setCsvFileName(fi.files[0].name); var fr2=new FileReader(); fr2.onload=function(e2){ var _d2=decodeBytes(e2.target.result); updatePendingCsvMonths(_d2); showCsvDropPreview(fi.files[0].name,_d2); }; fr2.readAsArrayBuffer(fi.files[0]); } });
   ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fdeccb'; dz.style.borderColor='#c9962f'; }); });
   ['dragleave','dragend'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fffdf8'; dz.style.borderColor='#d9b676'; }); });
   dz.addEventListener('drop',function(e){
@@ -3451,7 +3451,6 @@ function setupCsvDrop(){
       showCsvDropPreview(files[0].name,_dec); // ドロップした場所に中身プレビューを表示（貼り付け欄を汚さない）
       var res=document.getElementById('csv-result');
       if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 「'+files[0].name+'」を読み込みました。施設を選んで「取り込む」を押してください。'; }
-      checkCsvFacAtLoad(_dec); // ★ドロップした瞬間に施設を照合（ミスなら切替を提案）
     };
     fr.readAsArrayBuffer(files[0]);
   });
