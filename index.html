@@ -252,7 +252,7 @@ details[open] summary{opacity:0.75}
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13.5px;cursor:pointer;font-weight:normal">
           <input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む
         </label>
-        <label style="margin-top:10px;font-size:14px;line-height:1.5"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span id="csv-file-name" style="color:#1a7a3a;font-weight:700;font-size:12.5px"></span><br><span style="color:#c0392b;font-weight:600;font-size:12.5px">CSVに施設は未記載なので認識できません。間違えないように</span></label>
+        <label style="margin-top:10px;font-size:14px;line-height:1.5"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span id="csv-file-name" style="color:#1a7a3a;font-weight:700;font-size:12.5px"></span><br><span style="color:#1a7a3a;font-weight:600;font-size:12.5px">読み込んだ瞬間にCSVの施設を自動判定→選択と違えば切替を確認します</span></label>
         <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:14px;text-align:center;font-size:13.5px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<br><span style="font-size:11px;color:#9a8050">（タップでファイル選択／PCは Ctrl+V で中身の貼り付けもOK）</span></div>
         <div id="csv-drop-preview" style="display:none;margin:4px 0 0;font-size:11px"></div>
         <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=360;
-const APP_BUILD_DATE='2026/07/30 16:18';
+const APP_VERSION=361;
+const APP_BUILD_DATE='2026/07/30 16:28';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2688,7 +2688,7 @@ function renderCsvFacOptions(){
   // 前回の選択を復元（localStorageにも保存＝リロード・取込後も維持。※端末ごと・同期はしない）＆タブ名に反映
   if(!lastCsvFacVal) lastCsvFacVal=ld('yv_csv_fac')||'';
   if(lastCsvFacVal){ for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===lastCsvFacVal){ sel.value=lastCsvFacVal; break; } } }
-  sel.onchange=function(){ lastCsvFacVal=sel.value; sv('yv_csv_fac',sel.value); updateCsvFacTitle(); updatePendingCsvMonths(_pendingCsvText); renderCsvFileName(); };
+  sel.onchange=function(){ lastCsvFacVal=sel.value; sv('yv_csv_fac',sel.value); updateCsvFacTitle(); updatePendingCsvMonths(_pendingCsvText); renderCsvFileName(); if(_pendingCsvText) checkCsvFacAtLoad(_pendingCsvText); /* ★CSV読込済みで施設を手動変更した時も照合 */ };
   updateCsvFacTitle();
 }
 // 取込先の選択施設をブラウザのタブ名に反映（例：予約メモ-空中テント）
@@ -3358,6 +3358,42 @@ function detectCsvMonths(text){
   return Object.keys(mon).sort();
 }
 function updatePendingCsvMonths(text){ _pendingCsvText=(text||''); _pendingCsvMonths=detectCsvMonths(_pendingCsvText); renderCsvImpLog(); }
+// CSVの「利用規約（Terms of Use）」項目名から施設を自動判定（''=判定不可＝見出し無し等）。
+// どのフォームも項目名に施設名が入る（例「ツリーハウス（宿泊）利用規約」「日帰り空中ウォークの利用規約」）。importCSV内の照合と同じマップ。
+function detectCsvFacility(text){
+  if(!text||!text.trim()) return '';
+  var rows=parseDelimited(text);
+  var headerRow=(rows.length && !/^\d+$/.test(String(rows[0][0]||'').trim())) ? rows[0] : null;
+  if(!headerRow) return '';
+  var luL='';
+  for(var i=0;i<headerRow.length;i++){ if(/利用規約|Terms of Use/i.test(String(headerRow[i]||''))){ luL=String(headerRow[i]); break; } }
+  if(!luL) return '';
+  if(/ツリーハウス（宿泊）/.test(luL)) return 'staygroup:ツリーハウス';
+  if(/透明ドーム（宿泊）/.test(luL)) return 'staygroup:透明ドーム';
+  if(/空中テント（宿泊）/.test(luL)) return 'staygroup:空中テント';
+  if(/空中ハンモック（宿泊）/.test(luL)) return 'staygroup:空中ハンモック';
+  if(/空中ウォーク/.test(luL)) return 'day:walk';
+  if(/BBQ/i.test(luL)) return 'day:bbq';
+  if(/ツリーハウス/.test(luL)) return 'day:tree';
+  return '';
+}
+// ★ドロップ/選択/貼り付けの読み込み直後に施設を照合＝取込ボタンを押す前にミスに気づける。
+// 選択施設と違えば、取込先を正しい施設へ切り替えるか確認する（キャンセルなら選択は据え置き）。
+function checkCsvFacAtLoad(text){
+  var det=detectCsvFacility(text); if(!det) return;
+  var selEl=document.getElementById('csv-fac'); if(!selEl) return;
+  var sel=selEl.value||'';
+  if(det===sel) return; // 一致＝問題なし
+  var dL=csvOptLabel(det), sL=csvOptLabel(sel);
+  var res=document.getElementById('csv-result');
+  if(res){ res.style.color='#c0392b'; res.innerHTML='⚠ 選択は「'+htmlEscape(sL)+'」ですが、このCSVは<b>「'+htmlEscape(dL)+'」</b>の予約です（利用規約の項目名で判定）。取込先が違います。'; }
+  showConfirm('選択は「'+sL+'」ですが、\nこのCSVは「'+dL+'」の予約です。\n（フォームの「利用規約」項目名から自動判定）\n\n取込先を「'+dL+'」に切り替えますか？\n\n※キャンセルすると選択は「'+sL+'」のままです。', function(){
+    selEl.value=det;
+    _pendingCsvMonths=detectCsvMonths(_pendingCsvText); // 日帰り/宿泊で日付列判定が変わるため月チップを取り直す
+    if(res){ res.style.color='#1a7a3a'; res.innerHTML='✓ 取込先を「'+htmlEscape(dL)+'」に切り替えました。内容を確認して「取り込む」を押してください。'; }
+    renderCsvImpLog();
+  });
+}
 function setupCsvDrop(){
   var dz=document.getElementById('csv-drop'); if(!dz) return;
   var fi=document.getElementById('csv-file');
@@ -3374,9 +3410,10 @@ function setupCsvDrop(){
       updatePendingCsvMonths(txt); // 内容を _pendingCsvText に保持＋月判定
       showCsvDropPreview('貼り付け',txt);
       var res=document.getElementById('csv-result'); if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 貼り付けを読み込みました。施設を選んで「取り込む」を押してください。'; }
+      checkCsvFacAtLoad(txt); // ★読み込んだ瞬間に施設を照合（ミスなら切替を提案）
     });
   }
-  if(fi) fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]){ setCsvFileName(fi.files[0].name); var fr2=new FileReader(); fr2.onload=function(e2){ var _d2=decodeBytes(e2.target.result); updatePendingCsvMonths(_d2); showCsvDropPreview(fi.files[0].name,_d2); }; fr2.readAsArrayBuffer(fi.files[0]); } });
+  if(fi) fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]){ setCsvFileName(fi.files[0].name); var fr2=new FileReader(); fr2.onload=function(e2){ var _d2=decodeBytes(e2.target.result); updatePendingCsvMonths(_d2); showCsvDropPreview(fi.files[0].name,_d2); checkCsvFacAtLoad(_d2); /* ★選択直後に施設照合 */ }; fr2.readAsArrayBuffer(fi.files[0]); } });
   ['dragenter','dragover'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fdeccb'; dz.style.borderColor='#c9962f'; }); });
   ['dragleave','dragend'].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); e.stopPropagation(); dz.style.background='#fffdf8'; dz.style.borderColor='#d9b676'; }); });
   dz.addEventListener('drop',function(e){
@@ -3392,6 +3429,7 @@ function setupCsvDrop(){
       showCsvDropPreview(files[0].name,_dec); // ドロップした場所に中身プレビューを表示（貼り付け欄を汚さない）
       var res=document.getElementById('csv-result');
       if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 「'+files[0].name+'」を読み込みました。施設を選んで「取り込む」を押してください。'; }
+      checkCsvFacAtLoad(_dec); // ★ドロップした瞬間に施設を照合（ミスなら切替を提案）
     };
     fr.readAsArrayBuffer(files[0]);
   });
