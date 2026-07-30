@@ -252,7 +252,7 @@ details[open] summary{opacity:0.75}
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13.5px;cursor:pointer;font-weight:normal">
           <input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む
         </label>
-        <label style="margin-top:10px;font-size:14px;line-height:1.5"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span id="csv-file-name" style="color:#1a7a3a;font-weight:700;font-size:12.5px"></span></label>
+        <label style="margin-top:10px;font-size:14px;line-height:1.5"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span id="csv-file-name" style="color:#1a7a3a;font-weight:700;font-size:12.5px"></span><span id="csv-import-info" style="display:none;margin-left:8px;font-size:12px;padding:2px 8px;border-radius:6px;background:#eef6ee;border:1px solid #bcd9bf;white-space:nowrap"></span></label>
         <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:14px;text-align:center;font-size:13.5px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<br><span style="font-size:11px;color:#9a8050">（タップでファイル選択／PCは Ctrl+V で中身の貼り付けもOK）</span><div id="csv-drop-preview" style="display:none;margin:10px 0 0;font-size:11px;text-align:left"></div></div>
         <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="font-size:13px">
         <textarea id="csv-text" style="display:none"></textarea>
@@ -622,8 +622,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=363;
-const APP_BUILD_DATE='2026/07/30 17:04';
+const APP_VERSION=364;
+const APP_BUILD_DATE='2026/07/30 17:14';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -862,7 +862,7 @@ function switchTab(t,keepDateFilter){
   const tabGrp=(t==='day'||t==='stay')?'add':t;
   document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===tabGrp));
   if(t==='list'){if(!keepDateFilter){dateFilter=null;listFromToday=true;_clearSearchInput();_clearRangeInputs();}renderList();}
-  if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();renderCsvFacOptions();renderCsvImpLog();renderCsvFileName();renderCsvImpHist();setTimeout(refreshDateDisps,0);}
+  if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();renderCsvFacOptions();renderCsvImpLog();renderCsvFileName();renderCsvImportInfo();renderCsvImpHist();setTimeout(refreshDateDisps,0);}
   if(t==='stay'){initStay();setTimeout(refreshDateDisps,0);}
   if(t==='cal')initCal();
   if(t==='settings'){renderSettings();renderStock();loadSNUI();loadGasUrl();}
@@ -2899,7 +2899,6 @@ function checkFacilityMismatch(){
     +'</div>';
 }
 var _csvFacBypass=false; // 施設取り違えチェックを確認ダイアログ後の再取込で一度だけスキップするフラグ
-var _csvFinalConfirmed=false; // 「取込先＝◯◯でいい？」最終確認を通過したら一度だけ立つフラグ
 function importCSV(){
   var res=document.getElementById('csv-result');
   var sel=document.getElementById('csv-fac').value;
@@ -3008,19 +3007,7 @@ function importCSV(){
         return;
       }
     }
-    // ── 取り込み前チェック③：最終確認 ──「取込先・件数・月」を見せて、初回取込の取り違えも人の目で止められるようにする。
-    // 施設違いの疑い(①.5/②)を確認済み(_csvFacBypass)ならダイアログ二重になるので出さない。
-    if(!_csvFinalConfirmed && !_csvFacBypass){
-      var _dCnt=0; rows.forEach(function(f){ if(/^\d+$/.test(String(f[0]||'').trim())) _dCnt++; });
-      var _mns=detectCsvMonths(text);
-      var _mnL=_mns.length?(_mns.map(function(m){return (+m.split('-')[1])+'月';}).join('・')+'分'):'月不明';
-      var _selL2=csvOptLabel(sel);
-      res.style.color='#6b4f20';
-      res.innerHTML='確認：取込先=「'+htmlEscape(_selL2)+'」／データ '+_dCnt+'件 ／ '+htmlEscape(_mnL);
-      showConfirm('この内容で取り込みます。よろしいですか？\n\n取込先 ＝ 「'+_selL2+'」\nデータ ＝ '+_dCnt+' 件\n対象月 ＝ '+_mnL+'\n\n※取込先が違うと予約が別施設へ移動します。よく確認してください。', function(){ _csvFinalConfirmed=true; importCSV(); });
-      return;
-    }
-    _csvFacBypass=false; _csvFinalConfirmed=false;
+    _csvFacBypass=false;
     // ── 取消(アンドゥ)用：この取込で「追加した予約id」と「更新前の予約内容」だけ控える（後からでも取り消せるよう履歴に保存） ──
     var _batchAdded=[], _batchPrevUpdated=[], _batchDeleted=[];
     var _csvWpIds={}; // このCSVに含まれる予約番号（取込後の「はみ出し予約」検知に使う）
@@ -3316,7 +3303,7 @@ function renderCsvFileName(){
 function setCsvFileName(name){
   name=(name||'').replace(/\.(csv|tsv|txt)$/i,'').trim();
   lastCsvFileName=name;
-  if(!name){ _pendingCsvText=''; _pendingCsvMonths=[]; showCsvDropPreview('',''); } // 取込完了/クリア時は取込予定もプレビューもリセット
+  if(!name){ _pendingCsvText=''; _pendingCsvMonths=[]; showCsvDropPreview('',''); renderCsvImportInfo(); } // 取込完了/クリア時は取込予定もプレビューもリセット
   renderCsvFileName();
   renderCsvImpLog(); // 上の取込ログにも施設ごとの前回→今回を出す
 }
@@ -3357,7 +3344,19 @@ function detectCsvMonths(text){
   });
   return Object.keys(mon).sort();
 }
-function updatePendingCsvMonths(text){ _pendingCsvText=(text||''); _pendingCsvMonths=detectCsvMonths(_pendingCsvText); renderCsvImpLog(); }
+function updatePendingCsvMonths(text){ _pendingCsvText=(text||''); _pendingCsvMonths=detectCsvMonths(_pendingCsvText); renderCsvImpLog(); renderCsvImportInfo(); }
+// ②CSVファイル欄の右に「取込先／件数／月」を常時インライン表示（ダイアログ無しで取込前に目視確認できる）。
+function renderCsvImportInfo(){
+  var el=document.getElementById('csv-import-info'); if(!el) return;
+  if(!_pendingCsvText || !_pendingCsvText.trim()){ el.style.display='none'; el.innerHTML=''; return; }
+  var rows=parseDelimited(_pendingCsvText), dCnt=0;
+  rows.forEach(function(f){ if(/^\d+$/.test(String(f[0]||'').trim())) dCnt++; });
+  var mns=detectCsvMonths(_pendingCsvText);
+  var mnL=mns.length?(mns.map(function(m){return (+m.split('-')[1])+'月';}).join('・')+'分'):'月不明';
+  var selL=csvOptLabel((document.getElementById('csv-fac')||{}).value||'');
+  el.style.display='inline-block';
+  el.innerHTML='取込先 <b style="color:#1a7a3a">'+htmlEscape(selL)+'</b>／'+dCnt+'件／'+htmlEscape(mnL);
+}
 // 1つのセル群(行を空白連結した文字列)から施設名トークンを判定（''=無し）。
 // ※WordPressのList CSVには施設名が入らないため、フォームに「施設名を値として出す項目(隠しフィールド等)」を足すと、この判定が効く。
 // ツリーハウスは日帰り/宿泊が同名なので「宿泊」の有無で振り分ける。
