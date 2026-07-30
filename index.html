@@ -113,12 +113,9 @@ textarea{resize:vertical;min-height:60px}
 .free-item{font-size:12px;color:#085041;background:#d8f5eb;border-radius:6px;padding:3px 8px;margin-right:4px;margin-bottom:4px;display:inline-block}
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a7a3a;color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:200;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
-/* CSV取込：取込UIの幅(520px本体)は変えず、「最終CSV取込日時」だけ本体の左余白へ絶対配置（広いPC）。狭い画面は縦積み */
+/* CSV取込：最終CSV取込日時は③「取り込む」ボタンの直下（通常フロー）。横幅は本体いっぱいなので日時＋📄ファイル名も1行に収まりやすい */
 #csv-day-wrap{position:relative}
-#csv-implog-col{margin-top:16px}
-@media (min-width:1160px){
-  #csv-implog-col{position:absolute;top:0;right:100%;width:300px;margin:0 16px 0 0}
-}
+#csv-implog-col{margin-top:0}
 .stock-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #eee;font-size:14px}
 .stock-row:last-child{border-bottom:none}
 .stock-name{flex:1;font-size:13px}
@@ -250,18 +247,6 @@ details[open] summary{opacity:0.75}
       <div id="csv-import-col">
     <div class="section-title">📥 WordPress予約CSV取込</div>
       <div style="background:#fff7e6;border:1px solid #e8c878;border-radius:8px;padding:12px;margin-top:4px">
-        <button type="button" id="csv-help-tog" onclick="(function(){var b=document.getElementById('csv-help-body');var t=document.getElementById('csv-help-tog');var o=(b.style.display==='none');b.style.display=o?'block':'none';t.textContent=(o?'▲ 説明を隠す':'▼ 説明を見る');})()" style="display:block;width:100%;text-align:left;cursor:pointer;user-select:none;font-size:14px;font-weight:600;color:#6b4f20;background:#fff;border:1px solid #d9b676;border-radius:8px;padding:9px 12px;margin-bottom:8px;font-family:inherit">▼ 説明を見る</button>
-        <div id="csv-help-body" style="display:none">
-        <div style="font-size:13.5px;color:#6b4f20;margin-bottom:8px;line-height:1.6">
-          商品ごとのCSVを選んで取り込みます。文字コードは自動判定（UTF-8/Shift-JIS）。<b>メール・電話は取り込まず</b>、住所は<b>市区町村まで</b>に丸めます。予約IDで<b>重複は自動更新</b>。
-        </div>
-        <div style="font-size:12.5px;color:#555;background:#fffdf6;border:1px dashed #e8c878;border-radius:6px;padding:8px;margin-bottom:8px;line-height:1.7">
-          ℹ <b>「CSV取込」と「同期」は別物です。</b><br>
-          ・<b>📥 CSV取込</b>＝WordPressの予約をこのアプリに取り込む（外部→アプリの一方向）。<br>
-          ・<b>📊 同期</b>（設定タブ）＝アプリ⇄Googleスプレッドシートでデータを行き来（端末間の共有・印刷用）。<br>
-          毎日の予約反映は「CSV取込」、他端末と揃えるのは「同期」です。
-        </div>
-        </div>
         <label style="font-size:14px"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">①</span> 取込先の施設（このCSVの商品）　<span style="font-size:12.5px;color:#9a8050">▼タップで選択</span></label>
         <select id="csv-fac" onchange="renderCsvImpLog()" style="font-size:14px;-webkit-appearance:menulist;appearance:menulist;border:1px solid #888;border-radius:6px;padding:8px;background:#fff"></select>
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13.5px;cursor:pointer;font-weight:normal">
@@ -277,11 +262,31 @@ details[open] summary{opacity:0.75}
           <button class="btn-primary" style="background:#6b4f20;margin:0;flex:1" onclick="importCSV()">選択した施設を取り込む</button>
         </div>
         <div id="csv-result" style="font-size:12px;color:#555;margin-top:8px;line-height:1.6"></div>
-        <div style="background:#fffdf6;border:1px dashed #e8c878;border-radius:8px;padding:10px 12px;margin-top:10px;line-height:1.7">
-          <div style="font-size:14px"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">④</span> 「📋 一覧」タブで確認</div>
-          <div style="font-size:12.5px;color:#555;margin:2px 0 8px;padding-left:2px">取り込んだ宿泊予約を開いて、<b>宿泊施設の棟を選択</b>し、<b>備考欄とレンタルのチェックが合っているか</b>確認する。</div>
-          <div style="font-size:14px"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">⑤</span> 印刷</div>
-          <div style="font-size:12.5px;color:#555;margin-top:2px;padding-left:2px">確認できたら予約表を印刷する。</div>
+        <!-- 🗓 最終CSV取込日時（③のすぐ下・横幅いっぱい） -->
+        <div id="csv-implog-col">
+          <div class="section-title" style="margin-top:12px">🗓 最終CSV取込日時</div>
+          <div id="csv-implog" style="font-size:12.5px;color:#555;background:#fff;border:1px solid #e8d8b0;border-radius:6px;padding:8px;line-height:1.7"></div>
+        </div>
+        <!-- ▼説明・使い方（下へ移動＋④⑤を統合） -->
+        <div style="border-top:1px dashed #ccc;margin-top:12px;padding-top:10px">
+          <button type="button" id="csv-help-tog" onclick="(function(){var b=document.getElementById('csv-help-body');var t=document.getElementById('csv-help-tog');var o=(b.style.display==='none');b.style.display=o?'block':'none';t.textContent=(o?'▲ 説明・使い方を隠す':'▼ 説明・使い方を見る');})()" style="display:block;width:100%;text-align:left;cursor:pointer;user-select:none;font-size:14px;font-weight:600;color:#6b4f20;background:#fff;border:1px solid #d9b676;border-radius:8px;padding:9px 12px;font-family:inherit">▼ 説明・使い方を見る</button>
+          <div id="csv-help-body" style="display:none;margin-top:8px">
+            <div style="font-size:13.5px;color:#6b4f20;margin-bottom:8px;line-height:1.6">
+              商品ごとのCSVを選んで取り込みます。文字コードは自動判定（UTF-8/Shift-JIS）。<b>メール・電話は取り込まず</b>、住所は<b>市区町村まで</b>に丸めます。予約IDで<b>重複は自動更新</b>。
+            </div>
+            <div style="font-size:12.5px;color:#555;background:#fffdf6;border:1px dashed #e8c878;border-radius:6px;padding:8px;margin-bottom:8px;line-height:1.7">
+              ℹ <b>「CSV取込」と「同期」は別物です。</b><br>
+              ・<b>📥 CSV取込</b>＝WordPressの予約をこのアプリに取り込む（外部→アプリの一方向）。<br>
+              ・<b>📊 同期</b>（設定タブ）＝アプリ⇄Googleスプレッドシートでデータを行き来（端末間の共有・印刷用）。<br>
+              毎日の予約反映は「CSV取込」、他端末と揃えるのは「同期」です。
+            </div>
+            <div style="background:#fffdf6;border:1px dashed #e8c878;border-radius:8px;padding:10px 12px;line-height:1.7">
+              <div style="font-size:14px"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">④</span> 「📋 一覧」タブで確認</div>
+              <div style="font-size:12.5px;color:#555;margin:2px 0 8px;padding-left:2px">取り込んだ宿泊予約を開いて、<b>宿泊施設の棟を選択</b>し、<b>備考欄とレンタルのチェックが合っているか</b>確認する。</div>
+              <div style="font-size:14px"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">⑤</span> 印刷</div>
+              <div style="font-size:12.5px;color:#555;margin-top:2px;padding-left:2px">確認できたら予約表を印刷する。</div>
+            </div>
+          </div>
         </div>
         <div style="border-top:1px dashed #ccc;margin-top:12px;padding-top:10px">
           <button type="button" id="csv-imphist-tog" onclick="var b=document.getElementById('csv-imphist-body');var o=(b.style.display==='none');b.style.display=o?'block':'none';this.textContent=o?'▲ 取込履歴を隠す':'🕘 取込履歴（間違えたら取り消せる）▼';renderCsvImpHist();" style="display:block;width:100%;text-align:left;cursor:pointer;font-size:13px;font-weight:600;color:#6b4f20;background:#fff;border:1px solid #d9b676;border-radius:8px;padding:8px 12px;font-family:inherit">🕘 取込履歴（間違えたら取り消せる）▼</button>
@@ -299,10 +304,6 @@ details[open] summary{opacity:0.75}
         </div>
       </div>
       </div><!-- /csv-import-col -->
-      <div id="csv-implog-col">
-        <div class="section-title" style="margin-top:0">🗓 最終CSV取込日時</div>
-        <div id="csv-implog" style="font-size:12.5px;color:#555;background:#fff;border:1px solid #e8d8b0;border-radius:6px;padding:8px;line-height:1.7"></div>
-      </div>
     </div><!-- /csv-day-wrap -->
     <div class="separator"></div>
     <div class="section-title">手動予約</div>
@@ -622,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=358;
-const APP_BUILD_DATE='2026/07/30 09:34';
+const APP_VERSION=359;
+const APP_BUILD_DATE='2026/07/30 15:46';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1560,7 +1561,8 @@ function renderList(){
         '<span style="font-size:12px;font-weight:600;color:#111'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grpFacs.length>1?(grp+'（棟未選択）'):(grpFacs[0]?grpFacs[0].label:grp)))+(grpFacs.length>1?' ▾':'')+'</span>'+
         eventChipHtml(s.event)+
         (BED_GROUPS.includes(grp)?'<span style="position:relative;display:inline-block"><span data-act="toggleBedSel" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;color:#555;border-radius:10px;padding:1px 7px;white-space:nowrap;background:#f9e8e5;border:1px solid #ecd0cb">'+'<b>'+bedLabel(s.bed)+'</b>'+' ▾</span>'+bedSel+'</span>':'')+
-        '<span style="position:relative;display:inline-block"><span data-act="togglePetSel" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;color:#555;border-radius:10px;padding:1px 7px;white-space:nowrap;'+((s.petCount||0)>0?'background:#f6dcd7;border:1px solid #e3bcb4':'background:#f9e8e5;border:1px solid #ecd0cb')+'">'+((s.petCount||0)>0?'ペット'+s.petCount:'ペット無')+' ▾</span>'+petSel+'</span>'+
+        // ペットは居る時だけ表示（ペット無しは非表示。追加は「編集」のペット欄から）
+        ((s.petCount||0)>0?'<span style="position:relative;display:inline-block"><span data-act="togglePetSel" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;color:#555;border-radius:10px;padding:1px 7px;white-space:nowrap;background:#f6dcd7;border:1px solid #e3bcb4">ペット'+s.petCount+' ▾</span>'+petSel+'</span>':'')+
         (s.changed?'<span class="badge-changed">変更済み</span>':'')+
         (s.done?'<span class="badge badge-done">対応済み</span>':'')+
         (srcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+srcL+'</span>':'')+
@@ -2764,9 +2766,11 @@ function renderCsvImpLog(){
     +rows.map(function(r){
       var isSelRow=(r[4]===selKey);
       var hasData=!!(dataMonths[r[4]] && Object.keys(dataMonths[r[4]]).length); // その施設に予約が実在するか
-      // 日時は1かたまり。「（○月分）�ファイル名」も1かたまり(改行禁止)にして、折り返すなら『（○月分）』の前で改行させる
-      var _dtStr=(r[1]&&hasData)?' <span style="color:#1a7a3a;font-size:12.5px;font-weight:600;white-space:nowrap">'+fmtDateTime(r[1])+'</span>':' <span style="color:#bbb;font-size:11px">未取込</span>';
-      var _tail=(hasData&&(lmon[r[4]]||r[3]))?' <span style="white-space:nowrap">'+(lmon[r[4]]?'<span style="color:#1a7a3a;font-size:12.5px;font-weight:600">（'+monLabel(lmon[r[4]])+'）</span>':'')+(r[3]?' <span style="color:#2471a3;font-weight:700;font-size:12.5px">📄'+htmlEscape(r[3])+'</span>':'')+'</span>':'';
+      // 「日時（○月分）📄ファイル名」を丸ごと1かたまり(改行禁止)にする＝途中で改行しない。折り返すならチップの後（この塊ごと）で改行。
+      var _dtInner=(r[1]&&hasData)?'<span style="color:#1a7a3a;font-size:12.5px;font-weight:600">'+fmtDateTime(r[1])+'</span>':'<span style="color:#bbb;font-size:11px">未取込</span>';
+      var _tailInner=(hasData&&(lmon[r[4]]||r[3]))?(lmon[r[4]]?'<span style="color:#1a7a3a;font-size:12.5px;font-weight:600">（'+monLabel(lmon[r[4]])+'）</span>':'')+(r[3]?' <span style="color:#2471a3;font-weight:700;font-size:12.5px">📄'+htmlEscape(r[3])+'</span>':''):'';
+      var _dtStr=' <span style="white-space:nowrap">'+_dtInner+_tailInner+'</span>';
+      var _tail='';
       var prev=monChips(r[2], mts[r[4]], isSelRow, r[4], r[0])+_dtStr+_tail;
       var next='';
       if(isSelRow && lastCsvFileName){
