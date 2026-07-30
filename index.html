@@ -622,8 +622,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=355;
-const APP_BUILD_DATE='2026/07/28 23:34';
+const APP_VERSION=356;
+const APP_BUILD_DATE='2026/07/30 09:17';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2994,7 +2994,7 @@ function importCSV(){
     }
     _csvFacBypass=false;
     // ── 取消(アンドゥ)用：この取込で「追加した予約id」と「更新前の予約内容」だけ控える（後からでも取り消せるよう履歴に保存） ──
-    var _batchAdded=[], _batchPrevUpdated=[];
+    var _batchAdded=[], _batchPrevUpdated=[], _batchDeleted=[];
     var _csvWpIds={}; // このCSVに含まれる予約番号（取込後の「はみ出し予約」検知に使う）
     var _undoFileName=lastCsvFileName;
     var _dtDbg=[]; // 診断：日帰りの「日時セルの生値」を控える（時刻ズレ原因の特定用。個人情報は含めない＝名前と日時のみ）
@@ -3112,6 +3112,27 @@ function importCSV(){
       }
       else { arr.push(rec); added++; _batchAdded.push(rec.id); }
     });
+    // ── CSV通りに反映：このCSVに無い＝WordPressで削除/キャンセルされた予約をアプリからも削除 ──
+    // 厳格スコープで誤削除を防ぐ：①同じ施設グループ ②CSVが扱った月だけ ③wpId有り(=CSV由来のみ／手入力は絶対に消さない) ④今回のCSVに不在。
+    // 取込取消(undoImportBatch)で復活できるよう、消す前に丸ごと控える。
+    (function(){
+      var _fld=(type==='day')?'facility':'facGroup';
+      var _keep=[], _del=[];
+      var _src=(type==='day')?reservations:stays;
+      _src.forEach(function(x){
+        if(!x || !x.wpId){ _keep.push(x); return; }                     // 手入力(wpIdなし)は絶対に消さない
+        if((x[_fld]||'')!==facId){ _keep.push(x); return; }             // 別施設は対象外
+        var md=(type==='day')?(x.date||''):(x.checkin||'');
+        var mo=(md&&/^\d{4}-\d{2}/.test(md))?md.slice(0,7):'';
+        if(!mo || !_impMonths[mo]){ _keep.push(x); return; }            // CSVが扱った月以外は対象外
+        if(_csvWpIds[String(x.wpId)]){ _keep.push(x); return; }         // CSVに居る＝正常
+        _del.push(x);                                                   // CSVに無い＝WordPressで削除/キャンセル → 消す
+      });
+      if(_del.length){
+        _del.forEach(function(x){ _batchDeleted.push(JSON.parse(JSON.stringify(x))); }); // undo用に控える
+        if(type==='day') reservations=_keep; else stays=_keep;
+      }
+    })();
     autoLinkAll(); // 取込後に同名/同OTAを自動紐づけ
     // カテゴリ別の最終取込日時を記録
     var _imp=ld('yv_csvimp')||{}; _imp[sel]=Date.now(); sv('yv_csvimp',_imp);
@@ -3125,38 +3146,24 @@ function importCSV(){
     sv(RKEY,reservations); sv(STKEY,stays); autoPush();
     // 取込履歴に1件として保存（リロード後も過去の取込を選んで取り消せる。端末ごと・最大30件）
     var _batchId='imp_'+Date.now();
-    if(_batchAdded.length || _batchPrevUpdated.length){
+    if(_batchAdded.length || _batchPrevUpdated.length || _batchDeleted.length){
       var _hist=ld('yv_csvimp_hist')||[];
-      _hist.unshift({ id:_batchId, ts:Date.now(), type:type, facSel:sel, facLabel:csvOptLabel(sel), file:_undoFileName, addedIds:_batchAdded, prevUpdated:_batchPrevUpdated, added:added, updated:updated });
+      _hist.unshift({ id:_batchId, ts:Date.now(), type:type, facSel:sel, facLabel:csvOptLabel(sel), file:_undoFileName, addedIds:_batchAdded, prevUpdated:_batchPrevUpdated, deleted:_batchDeleted, added:added, updated:updated, deletedCount:_batchDeleted.length });
       if(_hist.length>30) _hist=_hist.slice(0,30);
       sv('yv_csvimp_hist',_hist);
       renderCsvImpHist();
     }
-    // ── はみ出し検知：このCSVに無いのに、選択施設・同月に入っている予約＝施設違い/OTAキャンセルの可能性 ──
-    // CSV自体が「その施設の予約一覧」なので、CSVに居ない＝その施設の予約ではない可能性が高い（メモ/OTA非依存で確実）。
-    var _strayArr=(type==='day')?reservations:stays;
-    var _strayFld=(type==='day')?'facility':'facGroup';
-    var _stray=[];
-    _strayArr.forEach(function(x){
-      if((x[_strayFld]||'')!==facId) return;
-      if(isCancelled(x)) return;
-      var md=(type==='day')?(x.date||''):(x.checkin||'');
-      var mo=(md&&/^\d{4}-\d{2}/.test(md))?md.slice(0,7):'';
-      if(!mo || !_impMonths[mo]) return; // CSVが扱った月だけ対象（部分CSVでの誤検出を避ける）
-      if(_csvWpIds[String(x.wpId)]) return; // CSVに居る＝正常
-      _stray.push(x);
-    });
+    // CSV通り反映：上で「このCSVに無いwpId予約」は既に自動削除済み（_batchDeleted）。ここではその結果を報告する。
     var _strayMonLabel=Object.keys(_impMonths).sort().map(function(m){return (+m.split('-')[1])+'月';}).join('・');
     res.style.color='#1a7a3a';
     res.innerHTML=
       '<div style="font-size:14px;font-weight:800;color:#1a4a30;background:#eafaf0;border:1px solid #a8d8bd;border-radius:8px;padding:8px 10px;margin-bottom:6px">✓ 【'+csvOptLabel(sel)+'】に取り込みました'+(_undoFileName?'（📄'+htmlEscape(_undoFileName)+'）':'')+'<br><span style="font-weight:700;font-size:13px">追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'')+'</span></div>'
-      +(_stray.length?('<div style="margin-top:8px;padding:8px 10px;background:#fff6f6;border:1px solid #e0b4b4;border-radius:8px;font-size:12px;color:#7a1030;line-height:1.6">⚠ このCSVに無いのに<b>「'+csvOptLabel(sel)+'」</b>の'+_strayMonLabel+'分に入っている予約 <b>'+_stray.length+'件</b>。<br>別施設の予約が紛れ込んでいる（施設違い）か、OTA側でキャンセルされた可能性があります。確認してください。<div style="margin-top:5px;display:flex;flex-direction:column;gap:4px">'
-        +_stray.sort(function(a,b){return String((type==='day')?a.date:a.checkin).localeCompare(String((type==='day')?b.date:b.checkin));}).map(function(x){var nm=htmlEscape(x.name||'（無名）');var dt=htmlEscape((type==='day')?(x.date||''):(x.checkin||''));var op=(type==='day')?('openEdit(\''+x.id+'\')'):('openEditStay(\''+x.id+'\')');return '<div>・<b>'+nm+'</b> <span style="color:#888">'+dt+'</span> <button onclick="'+op+'" style="font-size:11px;border:1px solid #bbb;border-radius:5px;background:#fff;padding:1px 7px;cursor:pointer">開く</button></div>';}).join('')
+      +(_batchDeleted.length?('<div style="margin-top:8px;padding:8px 10px;background:#fff6f6;border:1px solid #e0b4b4;border-radius:8px;font-size:12px;color:#7a1030;line-height:1.6">🗑 このCSVに無かった予約 <b>'+_batchDeleted.length+'件</b>（'+_strayMonLabel+'分）を<b>アプリからも削除</b>しました＝WordPressで削除/キャンセルされた分。<div style="margin-top:5px;display:flex;flex-direction:column;gap:3px">'
+        +_batchDeleted.slice().sort(function(a,b){return String((type==='day')?a.date:a.checkin).localeCompare(String((type==='day')?b.date:b.checkin));}).map(function(x){var nm=htmlEscape(x.name||'（無名）');var dt=htmlEscape((type==='day')?(x.date||''):(x.checkin||''));return '<div>・<b>'+nm+'</b> <span style="color:#888">'+dt+'</span></div>';}).join('')
         +'</div>'
-        +'<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e0b4b4;line-height:1.7">→ 直し方：これらは<b>「'+csvOptLabel(sel)+'」の予約ではない可能性大（施設の入れ間違い）</b>。<b>正しい施設の'+_strayMonLabel+'のCSV</b>を取り込むと、その予約は自動でそちらへ移動して直ります（<b>削除は不要</b>）。正しい施設が分かっていれば［開く］で棟/施設を直接変えてもOK。<br><span style="color:#9a6070">※キャンセルは各施設のCSVに含まれ、取り込めば自動で反映されるので、ここに残るのは基本"入れ間違い"です。</span></div>'
-        +'<div style="color:#9a6070;font-size:11px;margin-top:5px">※このCSVが「その施設の全予約」である前提の検知です（部分CSVだと正常な予約も出ます）。</div></div>'):'')
+        +'<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e0b4b4;color:#9a6070">※対象は<b>この施設・'+_strayMonLabel+'分・CSV取込由来</b>の予約だけ（手入力・他施設・他月は消えません）。もしCSVが全件でなく誤って消えた場合は、下の「↩ この取込を取り消す」で元に戻せます。</div></div>'):'')
       +(mismatch?('<div style="color:#c0392b;margin-top:2px;font-weight:600">⚠ '+mismatch+' 件は取込先の種別と一致しないため取り込みませんでした。<br>このCSVは'+(type==='day'?'<b>宿泊</b>予約のようです（ベッド情報・連泊あり）。上の選択を<b>「〇〇（宿泊）」</b>に変えて取り込み直してください。':'<b>日帰り</b>予約のようです（利用時間あり）。上の選択を<b>「☀ 日帰り」</b>の施設に変えてください。')+'</div>'):'')
-      +((_batchAdded.length||_batchPrevUpdated.length)?('<div style="margin-top:8px;padding:7px 9px;background:#fff7f2;border:1px solid #e0c0b0;border-radius:8px;font-size:12px;color:#7a1030;line-height:1.6">施設を間違えていませんか？ 上の施設名を確認してください。違う施設に入れてしまった場合は取り消せます（下の「🕘 取込履歴」からは後日でも取消可）。<br><button onclick="undoImportBatch(\''+_batchId+'\')" style="margin-top:6px;font-size:13px;font-weight:700;padding:8px 14px;border:1px solid #d0a0b0;border-radius:8px;background:#fff;color:#7a1030;cursor:pointer;font-family:inherit">↩ この取込を取り消す</button></div>'):'')
+      +((_batchAdded.length||_batchPrevUpdated.length||_batchDeleted.length)?('<div style="margin-top:8px;padding:7px 9px;background:#fff7f2;border:1px solid #e0c0b0;border-radius:8px;font-size:12px;color:#7a1030;line-height:1.6">施設違い・削除しすぎ等があれば、この取込（追加・更新・削除すべて）を取り消して元に戻せます（下の「🕘 取込履歴」からは後日でも取消可）。<br><button onclick="undoImportBatch(\''+_batchId+'\')" style="margin-top:6px;font-size:13px;font-weight:700;padding:8px 14px;border:1px solid #d0a0b0;border-radius:8px;background:#fff;color:#7a1030;cursor:pointer;font-family:inherit">↩ この取込を取り消す</button></div>'):'')
       +((type==='day'&&_dtDbg.length)?('<div style="margin-top:8px;padding:6px 8px;background:#fffbea;border:1px solid #e0cf90;border-radius:6px;font-size:11px;line-height:1.6">🔎 時刻の元データは、設定タブ →「🔎 時刻の元データを表示・コピー」で確認できます（同期後は他端末でも見られます）。</div>'):'');
     showToast('✓ CSV取込：追加'+added+'・更新'+updated+(mismatch?'（種別不一致'+mismatch+'件除外）':''));
     document.getElementById('csv-text').value=''; document.getElementById('csv-file').value='';
@@ -3189,6 +3196,11 @@ function undoImportBatch(id){
       var i=arr.findIndex(function(x){return x.id===prev.id;});
       if(i>=0) arr[i]=prev; else arr.push(prev);
     });
+    // ③ この取込で「CSVに無いため削除」した予約を復活
+    (b.deleted||[]).forEach(function(rec){
+      var arr=isDay?reservations:stays;
+      if(!arr.some(function(x){return x.id===rec.id;})) arr.push(rec);
+    });
     sv(RKEY,reservations); sv(STKEY,stays);
     // 履歴からこのバッチを除去
     sv('yv_csvimp_hist',(ld('yv_csvimp_hist')||[]).filter(function(x){return x.id!==id;}));
@@ -3204,7 +3216,7 @@ function renderCsvImpHist(){
   if(!hist.length){ el.innerHTML='<span style="color:#bbb">取込履歴はありません</span>'; return; }
   el.innerHTML=hist.map(function(b){
     return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #f0f0f0">'
-      +'<div style="font-size:12px;color:#333;line-height:1.4">'+fmtDateTime(b.ts)+'　<b>'+htmlEscape(b.facLabel)+'</b>'+(b.file?'　📄'+htmlEscape(b.file):'')+'<br><span style="color:#888;font-size:11px">追加'+b.added+'・更新'+b.updated+'件</span></div>'
+      +'<div style="font-size:12px;color:#333;line-height:1.4">'+fmtDateTime(b.ts)+'　<b>'+htmlEscape(b.facLabel)+'</b>'+(b.file?'　📄'+htmlEscape(b.file):'')+'<br><span style="color:#888;font-size:11px">追加'+b.added+'・更新'+b.updated+'件'+(b.deletedCount?'・削除'+b.deletedCount+'件':'')+'</span></div>'
       +'<button onclick="undoImportBatch(\''+b.id+'\')" style="flex:0 0 auto;font-size:11px;padding:5px 9px;border:1px solid #d0a0b0;border-radius:8px;background:#fff;color:#7a1030;cursor:pointer;font-family:inherit">↩ 取消</button>'
       +'</div>';
   }).join('');
