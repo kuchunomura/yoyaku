@@ -247,23 +247,23 @@ details[open] summary{opacity:0.75}
       <div id="csv-import-col">
     <div class="section-title">📥 WordPress予約CSV取込</div>
       <div style="background:#fff7e6;border:1px solid #e8c878;border-radius:8px;padding:9px 12px;margin-top:4px">
-        <label style="font-size:14px"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">①</span> 取込先の施設（このCSVの商品）　<span style="font-size:12.5px;color:#9a8050">▼タップで選択</span></label>
-        <select id="csv-fac" onchange="renderCsvImpLog()" style="font-size:14px;-webkit-appearance:menulist;appearance:menulist;border:1px solid #888;border-radius:6px;padding:8px;background:#fff"></select>
+        <!-- ① 施設を選ぶ：施設名タップで取込先を選択（兼🗓最終CSV取込日時） -->
+        <div id="csv-implog-col">
+          <div class="section-title" style="margin-top:0"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">①</span> 施設を選ぶ　<span style="font-size:12px;color:#9a8050;font-weight:normal">施設名をタップ（🗓最終CSV取込日時つき）</span></div>
+          <div id="csv-implog" style="font-size:12.5px;color:#555;background:#fff;border:1px solid #e8d8b0;border-radius:6px;padding:8px;line-height:1.7"></div>
+        </div>
+        <!-- 取込先(隠し)：上の施設名タップで設定。キャンセル分は常時ON(非表示) -->
+        <select id="csv-fac" onchange="renderCsvImpLog()" style="display:none"></select>
         <label style="display:none"><input type="checkbox" id="csv-include-cancel" checked> キャンセル分も取り込む（既定でON・非表示）</label>
-        <label style="display:block;margin-top:6px;font-size:14px;line-height:1.4"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span id="csv-file-name" style="color:#1a7a3a;font-weight:700;font-size:12.5px"></span><span id="csv-import-info" style="display:none;margin-left:8px;font-size:12px;padding:2px 8px;border-radius:6px;background:#eef6ee;border:1px solid #bcd9bf;white-space:nowrap"></span></label>
-        <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:8px;text-align:center;font-size:13px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<span style="font-size:11px;color:#9a8050">（タップ選択／Ctrl+V貼付）</span><div id="csv-drop-preview" style="display:none;margin:8px 0 0;font-size:11px;text-align:left"></div></div>
+        <label style="display:block;margin-top:8px;font-size:14px;line-height:1.4"><span style="font-size:20px;font-weight:800;color:#6b4f20;vertical-align:-1px">②</span> CSVファイル　<span id="csv-file-name" style="color:#1a7a3a;font-weight:700;font-size:12.5px"></span><span id="csv-import-info" style="display:none;margin-left:8px;font-size:12px;padding:2px 8px;border-radius:6px;background:#eef6ee;border:1px solid #bcd9bf;white-space:nowrap"></span></label>
+        <div id="csv-drop" onclick="document.getElementById('csv-file').click()" style="border:2px dashed #d9b676;border-radius:8px;padding:12px;text-align:center;font-size:13.5px;color:#6b4f20;background:#fffdf8;cursor:pointer;margin:4px 0">📁 ここにCSVをドラッグ＆ドロップ<br><span style="font-size:11px;color:#9a8050">（タップでファイル選択／Ctrl+V貼付）</span><div id="csv-drop-preview" style="display:none;margin:8px 0 0;font-size:11px;text-align:left"></div></div>
         <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="display:none">
         <textarea id="csv-text" style="display:none"></textarea>
         <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-          <span style="font-size:20px;font-weight:800;color:#6b4f20;flex-shrink:0">③</span>
-          <button class="btn-primary" style="background:#6b4f20;margin:0;flex:1" onclick="importCSV()">選択した施設を取り込む</button>
+          <span style="font-size:18px;font-weight:800;color:#6b4f20;flex-shrink:0">③</span>
+          <button class="btn-primary" style="background:#6b4f20;margin:0;flex:1;padding:8px;font-size:14px" onclick="importCSV()">取り込む</button>
         </div>
         <div id="csv-result" style="font-size:12px;color:#555;margin-top:4px;line-height:1.5"></div>
-        <!-- 🗓 最終CSV取込日時（③のすぐ下・横幅いっぱい） -->
-        <div id="csv-implog-col">
-          <div class="section-title" style="margin-top:8px">🗓 最終CSV取込日時</div>
-          <div id="csv-implog" style="font-size:12.5px;color:#555;background:#fff;border:1px solid #e8d8b0;border-radius:6px;padding:8px;line-height:1.7"></div>
-        </div>
         <!-- ▼説明・使い方（下へ移動＋④⑤を統合） -->
         <div style="border-top:1px dashed #ccc;margin-top:12px;padding-top:10px">
           <button type="button" id="csv-help-tog" onclick="(function(){var b=document.getElementById('csv-help-body');var t=document.getElementById('csv-help-tog');var o=(b.style.display==='none');b.style.display=o?'block':'none';t.textContent=(o?'▲ 説明・使い方を隠す':'▼ 説明・使い方を見る');})()" style="display:block;width:100%;text-align:left;cursor:pointer;user-select:none;font-size:14px;font-weight:600;color:#6b4f20;background:#fff;border:1px solid #d9b676;border-radius:8px;padding:9px 12px;font-family:inherit">▼ 説明・使い方を見る</button>
@@ -620,8 +620,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=366;
-const APP_BUILD_DATE='2026/07/30 17:40';
+const APP_VERSION=367;
+const APP_BUILD_DATE='2026/07/30 17:56';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2758,10 +2758,12 @@ function renderCsvImpLog(){
   // 今ドラッグ中（未取込）のファイル名を、選択中の施設の行に「→ 📄新しいファイル」として並べて出す。
   // 取り込む前に、施設が合っているか・前回と同じファイルを二重に入れようとしていないかを目視できる。
   var selKey=(document.getElementById('csv-fac')||{}).value||'';
+  var escK=function(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");};
   el.innerHTML=''
     +'<div style="display:grid;grid-template-columns:max-content 1fr;gap:5px 6px;line-height:1.7;">'
     +rows.map(function(r){
       var isSelRow=(r[4]===selKey);
+      var nameCell='<div onclick="selectCsvFac(\''+escK(r[4])+'\')" style="cursor:pointer;border-radius:5px;padding:1px 6px;font-weight:'+(isSelRow?'800':'600')+';color:'+(isSelRow?'#1a7a3a':'#6b4f20')+';'+(isSelRow?'background:#d7f0dd;border:1px solid #9ccfab':'border:1px solid transparent')+'">'+(isSelRow?'✅ ':'')+htmlEscape(r[0])+'</div>';
       var hasData=!!(dataMonths[r[4]] && Object.keys(dataMonths[r[4]]).length); // その施設に予約が実在するか
       // 「日時（○月分）📄ファイル名」を丸ごと1かたまり(改行禁止)にする＝途中で改行しない。折り返すならチップの後（この塊ごと）で改行。
       var _dtInner=(r[1]&&hasData)?'<span style="color:#1a7a3a;font-size:12.5px;font-weight:600">'+fmtDateTime(r[1])+'</span>':'<span style="color:#bbb;font-size:11px">未取込</span>';
@@ -2776,9 +2778,17 @@ function renderCsvImpLog(){
         next='<br><span style="color:'+(dup?'#c0392b':'#e67700')+';font-weight:700">→ '+(_pmL?'<span style="background:#ffe0b2;color:#b06000;border-radius:4px;padding:0 6px;margin-right:5px">'+_pmL+'を取込</span>':'')+'📄'+htmlEscape(lastCsvFileName)
           +(dup?'（⚠ 前回と同じファイル）':'（新規）')+'</span>';
       }
-      return '<div>'+r[0]+'</div><div>'+prev+next+'</div>';
+      return nameCell+'<div>'+prev+next+'</div>';
     }).join('')
     +'</div>';
+}
+// ①施設ピッカー：🗓ログの施設名タップで取込先(隠しselect)を設定＝旧①ドロップダウンの代替。
+function selectCsvFac(key){
+  var sel=document.getElementById('csv-fac'); if(!sel) return;
+  sel.value=key; lastCsvFacVal=key; sv('yv_csv_fac',key);
+  if(typeof updateCsvFacTitle==='function') updateCsvFacTitle();
+  updatePendingCsvMonths(_pendingCsvText); // 月チップ再計算＋🗓ログ＋②バッジを再描画
+  renderCsvFileName();
 }
 // 日帰り↔宿泊で同じ施設の対応（ツリーハウスは昼/夜の両方がある）
 var CSV_SIBLING={'day:tree':'staygroup:ツリーハウス','staygroup:ツリーハウス':'day:tree'};
