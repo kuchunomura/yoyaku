@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=379;
-const APP_BUILD_DATE='2026/07/30 20:30';
+const APP_VERSION=380;
+const APP_BUILD_DATE='2026/07/30 20:40';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2975,7 +2975,7 @@ function importCSV(){
         var sibL=csvOptLabel(sib);
         res.style.color='#c0392b';
         res.innerHTML='⚠ 選択は「'+selL+'」ですが、このCSVは<b>'+csvJa+'</b>予約のようです。確認ダイアログで取込先を切り替えてください。';
-        showConfirm('選択は「'+selL+'」ですが、\nこのCSVは「'+csvJa+'」予約のようです。\n\n「'+sibL+'」として取り込み直しますか？',function(){ document.getElementById('csv-fac').value=sib; importCSV(); });
+        showConfirm('選択は「'+selL+'」ですが、\nこのCSVは「'+csvJa+'」予約のようです。\n\n「'+sibL+'」として取り込み直しますか？',function(){ document.getElementById('csv-fac').value=sib; importCSV(); }, '「'+sibL+'」に切り替えて取り込む', '#6b4f20');
         return;
       }
       res.style.color='#c0392b';
@@ -2991,7 +2991,7 @@ function importCSV(){
         var _dL=csvOptLabel(_detFac), _sL=csvOptLabel(sel);
         res.style.color='#c0392b';
         res.innerHTML='⚠ 選択は「'+htmlEscape(_sL)+'」ですが、このCSVは<b>「'+htmlEscape(_dL)+'」</b>の予約です（値に入っている施設名で判定）。取込先が違います。';
-        showConfirm('選択は「'+_sL+'」ですが、\nこのCSVは「'+_dL+'」の予約です。\n（CSVの値に入っている施設名から判定）\n\n「'+_dL+'」に切り替えて取り込みますか？\n\n※キャンセルすると取り込みません（自分で選び直せます）。', function(){ document.getElementById('csv-fac').value=_detFac; _csvFacBypass=true; importCSV(); });
+        showConfirm('選択は「'+_sL+'」ですが、\nこのCSVは「'+_dL+'」の予約です。\n（CSVの値に入っている施設名から判定）\n\n「'+_dL+'」に切り替えて取り込みますか？\n\n※キャンセルすると取り込みません（自分で選び直せます）。', function(){ document.getElementById('csv-fac').value=_detFac; _csvFacBypass=true; importCSV(); }, '「'+_dL+'」に切り替えて取り込む', '#6b4f20');
         return;
       }
     }
@@ -3015,7 +3015,7 @@ function importCSV(){
         var _topL=csvOptLabel(_topKey), _selL=csvOptLabel(sel);
         res.style.color='#c0392b';
         res.innerHTML='⚠ このCSVの予約 '+_mMis+'件は、すでに別施設<b>「'+htmlEscape(_topL)+'」</b>に登録済みです。取込先「'+htmlEscape(_selL)+'」は施設違いかもしれません。確認ダイアログで進めてください。';
-        showConfirm('⚠ 施設違いの疑いがあります。\n\nこのCSVの予約 '+_mMis+'件は、すでに別施設「'+_topL+'」に入っています。\nこのまま「'+_selL+'」として取り込むと、それらが「'+_selL+'」へ移動してしまいます。\n\n本当にこの施設で取り込みますか？',function(){ _csvFacBypass=true; importCSV(); });
+        showConfirm('⚠ 施設違いの疑いがあります。\n\nこのCSVの予約 '+_mMis+'件は、すでに別施設「'+_topL+'」に入っています。\n\n・間違えて選んだ → 「キャンセル」して取込先を選び直す\n・これが正しい（前回の入れ間違いを直す等）→ 「このまま取り込む」を押すと '+_mMis+'件が「'+_selL+'」へ移動して直ります。',function(){ _csvFacBypass=true; importCSV(); }, 'このまま「'+_selL+'」に取り込む', '#6b4f20');
         return;
       }
     }
