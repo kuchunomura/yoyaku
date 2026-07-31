@@ -624,8 +624,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=371;
-const APP_BUILD_DATE='2026/07/30 19:04';
+const APP_VERSION=372;
+const APP_BUILD_DATE='2026/07/30 19:14';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3342,22 +3342,16 @@ function setCsvFileName(name){
   renderCsvFileName();
   renderCsvImpLog(); // 上の取込ログにも施設ごとの前回→今回を出す
 }
-// ドロップ/選択したCSVの中身プレビューを、ドラッグ＆ドロップした場所に表示（別の貼り付け欄を開かなくても確認できる）
+// ドロップ/選択したCSVの中身プレビュー＝1行だけ（枠を広げない）。件数・月・取込先は②バッジ/🗓ログにも出るので、ここは最小限。
 function showCsvDropPreview(name,text){
   var el=document.getElementById('csv-drop-preview'); if(!el) return;
   if(!text||!text.trim()){ el.style.display='none'; el.innerHTML=''; return; }
-  var lines=text.replace(/\r/g,'').split('\n').filter(function(l){return l.trim();});
   var rows=parseDelimited(text);
   var dataRows=rows.filter(function(f){return /^\d+$/.test(String(f[0]||'').trim());}).length;
   var mons=detectCsvMonths(text);
   var monL=mons.length?(mons.map(function(m){return (+m.split('-')[1])+'月';}).join('・')+'分'):'月不明';
-  var head=lines.slice(0,4).map(function(l){return htmlEscape(l.length>90?l.slice(0,90)+'…':l);}).join('<br>');
   el.style.display='block';
-  el.innerHTML='<div style="background:#f4f9f4;border:1px solid #bcd9bf;border-radius:6px;padding:7px 9px;line-height:1.6">'
-    +'<div style="font-weight:700;color:#1a7a3a;font-size:12px">✓ 読み込んだ中身'+(name?'（📄'+htmlEscape(name)+'）':'')+'</div>'
-    +'<div style="color:#555;font-size:11.5px">データ '+dataRows+' 件 ／ '+monL+'</div>'
-    +'<div style="margin-top:4px;font-family:monospace;font-size:10px;color:#777;white-space:pre-wrap;word-break:break-all;max-height:72px;overflow:auto">'+head+'</div>'
-    +'</div>';
+  el.innerHTML='<span style="color:#1a7a3a;font-weight:700">✓ 読み込み'+(name?'（📄'+htmlEscape(name)+'）':'')+'</span><span style="color:#555">　'+dataRows+'件 ／ '+monL+'</span>';
 }
 // 選択中の取込先が日帰りか宿泊か
 function _csvSelType(){ var v=(document.getElementById('csv-fac')||{}).value||''; return v.split(':')[0]==='day'?'day':'stay'; }
