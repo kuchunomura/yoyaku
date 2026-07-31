@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=376;
-const APP_BUILD_DATE='2026/07/30 19:56';
+const APP_VERSION=377;
+const APP_BUILD_DATE='2026/07/30 20:08';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3357,8 +3357,8 @@ function showCsvDropPreview(name,text){
   var lines=text.replace(/\r/g,'').split('\n').filter(function(l){return l.trim();});
   var head=lines.slice(0,3).map(function(l){return htmlEscape(l.length>70?l.slice(0,70)+'…':l);}).join('<br>');
   el.style.display='block';
-  el.innerHTML='<div style="color:#1a7a3a;font-weight:700">✓ 読み込み'+(name?'（📄'+htmlEscape(name)+'）':'')+'　<span style="color:#555;font-weight:400">'+dataRows+'件 ／ '+monL+'</span></div>'
-    +'<div style="margin-top:3px;font-family:monospace;font-size:9.5px;color:#888;line-height:1.5;white-space:nowrap;overflow-x:auto">'+head+'</div>';
+  el.innerHTML='<div style="color:#000;font-weight:700">読み込み'+(name?'（📄'+htmlEscape(name)+'）':'')+'　<span style="font-weight:400">'+dataRows+'件 ／ '+monL+'</span></div>'
+    +'<div style="margin-top:3px;font-family:monospace;font-size:9.5px;color:#666;line-height:1.5;white-space:nowrap;overflow-x:auto">'+head+'</div>';
 }
 // 選択中の取込先が日帰りか宿泊か
 function _csvSelType(){ var v=(document.getElementById('csv-fac')||{}).value||''; return v.split(':')[0]==='day'?'day':'stay'; }
@@ -3397,13 +3397,13 @@ function renderCsvImportInfo(){
   if(target){
     var tL=csvOptLabel(target);
     el.style.display='block'; el.style.whiteSpace='normal'; el.style.marginLeft='0'; el.style.marginTop='4px';
-    el.style.background='#fdecec'; el.style.borderColor='#e3b3b3';
+    el.style.background='transparent'; el.style.borderColor='transparent'; el.style.padding='0';
     el.innerHTML='<b style="color:#c0392b">⚠ 取込先違い？</b> 選択「'+htmlEscape(selL)+'」→ このCSVは<b>「'+htmlEscape(tL)+'」</b>かも（'+dCnt+'件／'+htmlEscape(mnL)+'）　'
       +'<a href="javascript:void(0)" onclick="switchCsvFacTo(\''+target.replace(/'/g,"\\'")+'\')" style="color:#1565c0;font-weight:700;text-decoration:underline">「'+htmlEscape(tL)+'」に切替</a>';
   } else {
     el.style.display='inline-block'; el.style.whiteSpace='nowrap'; el.style.marginLeft='8px'; el.style.marginTop='0';
-    el.style.background='#eef6ee'; el.style.borderColor='#bcd9bf';
-    el.innerHTML='取込先 <b style="color:#1a7a3a">'+htmlEscape(selL)+'</b>／'+dCnt+'件／'+htmlEscape(mnL);
+    el.style.background='transparent'; el.style.borderColor='transparent'; el.style.padding='0';
+    el.innerHTML='取込先 <b style="color:#000">'+htmlEscape(selL)+'</b>／'+dCnt+'件／'+htmlEscape(mnL);
   }
 }
 // 上の「◯◯に切替」リンク：取込先セレクタをワンタップで切り替える（ポップアップ無し）。
@@ -3468,7 +3468,7 @@ function setupCsvDrop(){
       setCsvFileName(''); // 直前のファイル名表示をクリア（この後で貼り付け内容を保持）
       updatePendingCsvMonths(txt); // 内容を _pendingCsvText に保持＋月判定
       showCsvDropPreview('貼り付け',txt);
-      var res=document.getElementById('csv-result'); if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 貼り付けを読み込みました。施設を選んで「取り込む」を押してください。'; }
+      var res=document.getElementById('csv-result'); if(res){ res.innerHTML=''; } // 読み込み表示はプレビュー/②バッジに任せる
     });
   }
   if(fi) fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]){ setCsvFileName(fi.files[0].name); var fr2=new FileReader(); fr2.onload=function(e2){ var _d2=decodeBytes(e2.target.result); updatePendingCsvMonths(_d2); showCsvDropPreview(fi.files[0].name,_d2); }; fr2.readAsArrayBuffer(fi.files[0]); } });
@@ -3486,7 +3486,7 @@ function setupCsvDrop(){
       updatePendingCsvMonths(_dec); // 内容は _pendingCsvText に保持（取込時に使用）＋何月分か判定して月チップに「取込予定▶」を出す
       showCsvDropPreview(files[0].name,_dec); // ドロップした場所に中身プレビューを表示（貼り付け欄を汚さない）
       var res=document.getElementById('csv-result');
-      if(res){ res.style.color='#1a7a3a'; res.textContent='✓ 「'+files[0].name+'」を読み込みました。施設を選んで「取り込む」を押してください。'; }
+      if(res){ res.innerHTML=''; } // 読み込み表示はプレビュー/②バッジに任せる（csv-resultは取込後の結果専用）
     };
     fr.readAsArrayBuffer(files[0]);
   });
