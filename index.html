@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=383;
-const APP_BUILD_DATE='2026/07/30 21:14';
+const APP_VERSION=384;
+const APP_BUILD_DATE='2026/07/30 21:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3455,7 +3455,7 @@ function detectCsvFacility(text){
   data.forEach(function(f){ var k=_facKeyFromText(f.join(' ')); if(k) tally[k]=(tally[k]||0)+1; });
   var best='',bn=0;
   Object.keys(tally).forEach(function(k){ if(tally[k]>bn){bn=tally[k];best=k;} });
-  if(best && bn>=Math.max(2, data.length*0.6)) return best; // 過半数の行に施設名 → 専用項目に入っているとみなす
+  if(best && bn>=Math.max(1, data.length*0.6)) return best; // 過半数の行に施設名 → 専用項目に入っているとみなす（1件だけのCSVでも確定）
   return '';
 }
 // このCSVのwpId(予約番号)が「既に別施設へ取り込み済み」かを調べる（見出し不要・施設名フィールドが無くても効く唯一の確実判定）。
