@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=377;
-const APP_BUILD_DATE='2026/07/30 20:08';
+const APP_VERSION=378;
+const APP_BUILD_DATE='2026/07/30 20:16';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3355,10 +3355,10 @@ function showCsvDropPreview(name,text){
   var mons=detectCsvMonths(text);
   var monL=mons.length?(mons.map(function(m){return (+m.split('-')[1])+'月';}).join('・')+'分'):'月不明';
   var lines=text.replace(/\r/g,'').split('\n').filter(function(l){return l.trim();});
-  var head=lines.slice(0,3).map(function(l){return htmlEscape(l.length>70?l.slice(0,70)+'…':l);}).join('<br>');
+  var head=lines.map(function(l){return htmlEscape(l);}).join('<br>'); // 全行（枠は広げず中でスクロール）
   el.style.display='block';
   el.innerHTML='<div style="color:#000;font-weight:700">読み込み'+(name?'（📄'+htmlEscape(name)+'）':'')+'　<span style="font-weight:400">'+dataRows+'件 ／ '+monL+'</span></div>'
-    +'<div style="margin-top:3px;font-family:monospace;font-size:9.5px;color:#666;line-height:1.5;white-space:nowrap;overflow-x:auto">'+head+'</div>';
+    +'<div style="margin-top:3px;font-family:monospace;font-size:9.5px;color:#666;line-height:1.5;white-space:nowrap;overflow:auto;max-height:46px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain">'+head+'</div>';
 }
 // 選択中の取込先が日帰りか宿泊か
 function _csvSelType(){ var v=(document.getElementById('csv-fac')||{}).value||''; return v.split(':')[0]==='day'?'day':'stay'; }
