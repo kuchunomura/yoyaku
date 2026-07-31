@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=384;
-const APP_BUILD_DATE='2026/07/30 21:30';
+const APP_VERSION=385;
+const APP_BUILD_DATE='2026/07/30 21:44';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3451,11 +3451,20 @@ function detectCsvFacility(text){
   }
   var data=rows.filter(function(f){return /^\d+$/.test(String(f[0]||'').trim());});
   if(!data.length) return '';
+  // 各行、まず「同意」セル（施設名を足した利用規約オプション）を優先的に見る＝メモの偶発一致を避ける。
+  // 無ければ行全体（隠しフィールド方式の保険）。古い予約（施設名なし＝「同意する」のみ）はカウントされない。
   var tally={};
-  data.forEach(function(f){ var k=_facKeyFromText(f.join(' ')); if(k) tally[k]=(tally[k]||0)+1; });
-  var best='',bn=0;
-  Object.keys(tally).forEach(function(k){ if(tally[k]>bn){bn=tally[k];best=k;} });
-  if(best && bn>=Math.max(1, data.length*0.6)) return best; // 過半数の行に施設名 → 専用項目に入っているとみなす（1件だけのCSVでも確定）
+  data.forEach(function(f){
+    var consentCell=''; for(var i=0;i<f.length;i++){ if(/同意/.test(String(f[i]||''))){ consentCell=String(f[i]); break; } }
+    var k=_facKeyFromText(consentCell) || _facKeyFromText(f.join(' '));
+    if(k) tally[k]=(tally[k]||0)+1;
+  });
+  var keys=Object.keys(tally); if(!keys.length) return '';
+  var best='',bn=0; keys.forEach(function(k){ if(tally[k]>bn){bn=tally[k];best=k;} });
+  // 施設名が入っている行が「1種類だけ」なら、たとえ古い予約(施設名なし)が混ざっていても1件から確定。
+  // 複数施設が混在する時だけ過半数を要求（安全側）。
+  if(keys.length===1) return best;
+  if(best && bn>=data.length*0.6) return best;
   return '';
 }
 // このCSVのwpId(予約番号)が「既に別施設へ取り込み済み」かを調べる（見出し不要・施設名フィールドが無くても効く唯一の確実判定）。
