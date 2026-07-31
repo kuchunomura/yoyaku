@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=387;
-const APP_BUILD_DATE='2026/07/30 22:16';
+const APP_VERSION=388;
+const APP_BUILD_DATE='2026/07/30 22:34';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2776,8 +2776,8 @@ function renderCsvImpLog(){
       // 取込予定の新ファイルは「▶◯月✓」チップのすぐ右に📄で表示（「→ ◯月分を取込」の文言は無し＝▶と色で分かる）
       var _pendNote='';
       if(isSelRow && lastCsvFileName){
-        var dup=r[3] && r[3]===lastCsvFileName;
-        _pendNote=' <span style="color:'+(dup?'#c0392b':'#e67700')+';font-weight:700;font-size:12px;white-space:nowrap">📄'+htmlEscape(lastCsvFileName)+(dup?'（⚠ 同じ）':'（新規）')+'</span>';
+        var dup=_isPendingSameAsLast(); // 中身が前回とまったく同じ時だけ⚠（ファイル名の再利用では出さない）
+        _pendNote=' <span style="color:'+(dup?'#c0392b':'#e67700')+';font-weight:700;font-size:12px;white-space:nowrap">📄'+htmlEscape(lastCsvFileName)+(dup?'（⚠ 前回と同じ内容）':'（新規）')+'</span>';
       }
       var prev=monChips(r[2], mts[r[4]], isSelRow, r[4], r[0])+_pendNote+_dtStr+_tail;
       return nameCell+'<div>'+prev+'</div>';
@@ -3176,6 +3176,7 @@ function importCSV(){
     autoLinkAll(); // 取込後に同名/同OTAを自動紐づけ
     // カテゴリ別の最終取込日時を記録
     var _imp=ld('yv_csvimp')||{}; _imp[sel]=Date.now(); sv('yv_csvimp',_imp);
+    var _ch=ld('yv_csvimp_hash')||{}; _ch[sel]=_csvContentHash(text); sv('yv_csvimp_hash',_ch); // 取り込んだ内容のハッシュ＝次回「前回と同じ内容か」を名前でなく中身で判定
     var _mon=ld('yv_csvimp_mon')||{}; var _pm=String(_mon[sel]||'').split(',').filter(Boolean); Object.keys(_impMonths).forEach(function(m){ if(_pm.indexOf(m)<0)_pm.push(m); }); _mon[sel]=_pm.sort().join(','); sv('yv_csvimp_mon',_mon); // 取込済みの月を累積(union)で記録＝月別チップに使う
     var _mts=ld('yv_csvimp_mts')||{}; var _cm2=_mts[sel]||{}; Object.keys(_impMonths).forEach(function(m){ _cm2[m]=Date.now(); }); _mts[sel]=_cm2; sv('yv_csvimp_mts',_mts); // 月ごとの取込時刻（チップをタップで表示・同期される）
     var _lm=ld('yv_csvimp_lastmon')||{}; _lm[sel]=Object.keys(_impMonths).sort().join(','); sv('yv_csvimp_lastmon',_lm); // 最後の取込が何月分か（右の日時に併記・同期される）
@@ -3322,6 +3323,15 @@ function delAllData(){
 // 「1個前に取り込んだCSV名」＝全施設で一番新しく取り込んだ1件のファイル名。
 // yv_csvimp（施設ごとの取込時刻）とyv_csvimp_file（施設ごとの取込ファイル名）はどちらも同期されるので、
 // ここから導出すれば別途の同期項目を足さずに全端末で共有される。施設は不問（DL番号は連番のため順番だけ見る）。
+// CSV内容の簡易ハッシュ（ファイル名ではなく“中身”で重複を判定するため）
+function _csvContentHash(t){ t=String(t||''); var h=5381; for(var i=0;i<t.length;i++){ h=((h*33)+t.charCodeAt(i))|0; } return h+'_'+t.length; }
+// いま待機中のCSVが「その施設に前回取り込んだ内容とまったく同じ」か（＝本当の二重取込）。ファイル名が同じでも中身が違えばfalse。
+function _isPendingSameAsLast(){
+  if(!_pendingCsvText || !_pendingCsvText.trim()) return false;
+  var sel=(document.getElementById('csv-fac')||{}).value||''; if(!sel) return false;
+  var h=ld('yv_csvimp_hash')||{};
+  return !!(h[sel] && h[sel]===_csvContentHash(_pendingCsvText));
+}
 function lastImportedCsvName(){
   var imp=ld('yv_csvimp')||{}, fnm=ld('yv_csvimp_file')||{};
   var bestK='', bestT=0;
@@ -3337,7 +3347,7 @@ function renderCsvFileName(){
   var cur='📄'+htmlEscape(lastCsvFileName);
   if(!prev){ el.innerHTML='今回 '+cur; return; }
   el.innerHTML='直前 📄'+htmlEscape(prev)+'　→　今回 '+cur
-    +(prev===lastCsvFileName?'<span style="color:#c0392b;font-weight:700">　⚠ 同じファイル</span>':'');
+    +(_isPendingSameAsLast()?'<span style="color:#c0392b;font-weight:700">　⚠ 前回と同じ内容</span>':''); // 中身が同じ時だけ警告（名前の再利用では出さない）
 }
 function setCsvFileName(name){
   name=(name||'').replace(/\.(csv|tsv|txt)$/i,'').trim();
