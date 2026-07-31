@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=369;
-const APP_BUILD_DATE='2026/07/30 18:14';
+const APP_VERSION=370;
+const APP_BUILD_DATE='2026/07/30 18:40';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2945,6 +2945,7 @@ function importCSV(){
     var rows=parseDelimited(text);
     var added=0,updated=0,cancelled=0,mismatch=0;
     var _impMonths={}; // 取り込んだ予約が何月分かを記録（'YYYY-MM'）
+    var _impMonthCnt={}; // 月ごとの取込件数（削除スコープを「CSVの主要月」に限定するため＝月またぎの数件で他月を巻き込まない）
     // ヘッダー行（1行目がデータIDでない＝列名行）があれば列名で対応付け（位置ズレ対策）
     var headerRow=(rows.length && !/^\d+$/.test(String(rows[0][0]||'').trim())) ? rows[0] : null;
     function hcol(re){ if(!headerRow) return -1; for(var i=0;i<headerRow.length;i++){ if(re.test(String(headerRow[i]||''))) return i; } return -1; }
@@ -3116,7 +3117,7 @@ function importCSV(){
       // メモ（客チェック方式＋自由記述）から備品を自動推定して初期セット。自動セットには rentalAuto フラグを付ける。
       // 'strict'＝自由記述は数量キュー（1つ/1台/×1等）がある品だけ拾う（OTA説明文の誤検出防止）。
       rec.rental=detectRentalFromMemo(rec.memo, 'strict'); rec.rentalAuto=true;
-      var _md=(type==='day'?rec.date:rec.checkin); if(_md&&/^\d{4}-\d{2}/.test(_md)) _impMonths[_md.slice(0,7)]=true; // 何月分か記録
+      var _md=(type==='day'?rec.date:rec.checkin); if(_md&&/^\d{4}-\d{2}/.test(_md)){ var _mk=_md.slice(0,7); _impMonths[_mk]=true; _impMonthCnt[_mk]=(_impMonthCnt[_mk]||0)+1; } // 何月分か記録＋件数カウント
       var arr = type==='day' ? reservations : stays;
       var exIdx = arr.findIndex(function(x){ return x.wpId===wpId; });
       if(exIdx>=0){
@@ -3141,22 +3142,30 @@ function importCSV(){
     // ── CSV通りに反映：このCSVに無い＝WordPressで削除/キャンセルされた予約をアプリからも削除 ──
     // 誤削除を防ぐ厳格スコープ（全条件を満たすものだけ消す）：
     //   ①同じ施設グループ ②wpId有り(=CSV由来のみ／手入力は絶対に消さない) ③今回のCSVに不在
-    //   ④★このCSVが扱った月だけ（_impMonths）。＝月ごとにCSVを取り込む運用なので、
+    //   ④★このCSVの「主要月」だけ（_domMonths）。月ごとにCSVを取り込む運用なので、
     //     7月のCSVを入れても8月・9月など「今回取り込んでいない月」の予約は絶対に消さない。
     //     （v357で「今日以降は月に関係なく」にしたら、7月CSVで未来の8月以降が全消えする重大バグ→v358で月スコープに戻す）
+    //   ⑤★楽天/じゃらん等の外部サイト・年間パス・支払い済み予約は絶対に消さない
+    //     ＝WordPressのCSVに載る保証がない（別ルート予約）。ここで消すと実在予約が消える重大事故になる（v370で追加）。
+    //   ⑥★月スコープは「主要月」に限定：7/31チェックイン等の月またぎ予約が数件混ざっても、
+    //     その月(7月)が全体の一定割合(40%)未満なら削除対象にしない＝隣月の予約を巻き込まない（v370で追加）。
     // 取込取消(undoImportBatch)で復活できるよう、消す前に丸ごと控える。
     (function(){
       var _fld=(type==='day')?'facility':'facGroup';
+      // ⑥ 主要月＝件数が全体の40%以上（かつ2件以上）の月だけを削除スコープにする。単独/少数の月またぎ行では他月を消さない。
+      var _totImp=0; Object.keys(_impMonthCnt).forEach(function(m){ _totImp+=_impMonthCnt[m]; });
+      var _domMonths={}; Object.keys(_impMonthCnt).forEach(function(m){ if(_impMonthCnt[m]>=Math.max(2, _totImp*0.4)) _domMonths[m]=true; });
       var _keep=[], _del=[];
       var _src=(type==='day')?reservations:stays;
       _src.forEach(function(x){
         if(!x || !x.wpId){ _keep.push(x); return; }                     // 手入力(wpIdなし)は絶対に消さない
         if((x[_fld]||'')!==facId){ _keep.push(x); return; }             // 別施設は対象外
         if(_csvWpIds[String(x.wpId)]){ _keep.push(x); return; }         // CSVに居る＝正常
+        if(x.source || otaPaid(x)){ _keep.push(x); return; }            // ⑤外部サイト/年パス/支払い済みは絶対に消さない（別ルート予約でCSVに載らない）
         var md=(type==='day')?(x.date||''):(x.checkin||'');
         var mo=(md&&/^\d{4}-\d{2}/.test(md))?md.slice(0,7):'';
-        if(!mo || !_impMonths[mo]){ _keep.push(x); return; }            // ★このCSVが扱った月以外は絶対に消さない（他月保護）
-        _del.push(x);                                                   // 同月・CSVに無い＝WordPressで削除/キャンセル → 消す
+        if(!mo || !_domMonths[mo]){ _keep.push(x); return; }            // ★このCSVの主要月以外は絶対に消さない（他月・月またぎ巻き込み防止）
+        _del.push(x);                                                   // 主要月・CSVに無い＝WordPressで削除/キャンセル → 消す
       });
       if(_del.length){
         _del.forEach(function(x){ _batchDeleted.push(JSON.parse(JSON.stringify(x))); }); // undo用に控える
