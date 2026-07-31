@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=382;
-const APP_BUILD_DATE='2026/07/30 21:02';
+const APP_VERSION=383;
+const APP_BUILD_DATE='2026/07/30 21:14';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3438,11 +3438,17 @@ function _facKeyFromText(s){
   if(/ツリーハウス/.test(s)) return 'day:tree'; // 宿泊表記が無い＝日帰りツリーハウス昼
   return '';
 }
-// CSVの「値」から施設を自動判定（''=判定不可）。データ行の過半数に同じ施設名が入っていれば確定（メモ等の偶発一致を排除）。
-// ★見出しの列名ではなく“各行の値”を見る＝見出し無しList CSVでも効く。フォームに施設名フィールドを足せば発動。
+// CSVから施設を自動判定（''=判定不可）。
+// (a) 見出し行があれば「◯◯利用規約」列名から判定＝フォーム変更不要（ヘッダー付きエクスポート時）。
+// (b) 見出し無しList CSVは“各行の値”に施設名があれば過半数判定（フォームに施設名フィールドを足した場合）。
 function detectCsvFacility(text){
   if(!text||!text.trim()) return '';
   var rows=parseDelimited(text);
+  // (a) 見出しの利用規約ラベル（例「空中ハンモック（宿泊）の利用規約」）から施設名を読む
+  var headerRow=(rows.length && !/^\d+$/.test(String(rows[0][0]||'').trim())) ? rows[0] : null;
+  if(headerRow){
+    for(var _hi=0;_hi<headerRow.length;_hi++){ if(/利用規約|Terms of Use/i.test(String(headerRow[_hi]||''))){ var _hk=_facKeyFromText(String(headerRow[_hi])); if(_hk) return _hk; } }
+  }
   var data=rows.filter(function(f){return /^\d+$/.test(String(f[0]||'').trim());});
   if(!data.length) return '';
   var tally={};
