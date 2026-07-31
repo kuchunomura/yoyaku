@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=385;
-const APP_BUILD_DATE='2026/07/30 21:44';
+const APP_VERSION=386;
+const APP_BUILD_DATE='2026/07/30 22:02';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3411,9 +3411,19 @@ function renderCsvImportInfo(){
     el.innerHTML='<b style="color:#c0392b">⚠ 取込先違い？</b> 選択「'+htmlEscape(selL)+'」→ このCSVは<b>「'+htmlEscape(tL)+'」</b>かも（'+dCnt+'件／'+htmlEscape(mnL)+'）　'
       +'<a href="javascript:void(0)" onclick="switchCsvFacTo(\''+target.replace(/'/g,"\\'")+'\')" style="color:#1565c0;font-weight:700;text-decoration:underline">「'+htmlEscape(tL)+'」に切替</a>';
   } else {
-    el.style.display='inline-block'; el.style.whiteSpace='nowrap'; el.style.marginLeft='8px'; el.style.marginTop='0';
+    // 取込先が「確認できた」か判定：施設名で一致 or このCSVのwpIdが選択施設に既に入っている → 安心（緑）。
+    // どちらも無い＝施設名なしCSVで初取込＝自動判定できない → 黄色で「施設が合っているか確認を」（取り違え防止）。
+    var _p=sel.split(':'), _st=_p[0], _sf=_p[1];
+    var _arr=(_st==='day')?reservations:stays, _fld=(_st==='day')?'facility':'facGroup', _matchSame=0;
+    rows.forEach(function(f){ var wid=String(f[0]||'').trim(); if(!/^\d+$/.test(wid))return; var ex=_arr.find(function(x){return String(x.wpId)===wid;}); if(ex && (ex[_fld]||'')===_sf) _matchSame++; });
+    var _verified=(det===sel)||_matchSame>0;
+    el.style.display='inline-block'; el.style.whiteSpace='normal'; el.style.marginLeft='8px'; el.style.marginTop='0';
     el.style.background='transparent'; el.style.borderColor='transparent'; el.style.padding='0';
-    el.innerHTML='取込先 <b style="color:#000">'+htmlEscape(selL)+'</b>／'+dCnt+'件／'+htmlEscape(mnL);
+    if(_verified){
+      el.innerHTML='取込先 <b style="color:#000">'+htmlEscape(selL)+'</b>／'+dCnt+'件／'+htmlEscape(mnL)+(det===sel?' <span style="color:#1a7a3a">✓施設名一致</span>':'');
+    } else {
+      el.innerHTML='取込先 <b style="color:#b06000">'+htmlEscape(selL)+'</b>／'+dCnt+'件／'+htmlEscape(mnL)+' <b style="color:#b06000">⚠ 施設は自動判定できないCSV。取込先が合っているか確認を</b>';
+    }
   }
 }
 // 上の「◯◯に切替」リンク：取込先セレクタをワンタップで切り替える（ポップアップ無し）。
