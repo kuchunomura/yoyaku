@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=397;
-const APP_BUILD_DATE='2026/08/01 16:28';
+const APP_VERSION=398;
+const APP_BUILD_DATE='2026/08/01 16:44';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2425,7 +2425,6 @@ function _mergeById(baseMap, localArr, remoteArr){
 // 直前のローカル変更（会計✅など）が"remoteが変更した"と誤判定されて巻き戻る（＝リロードで消える）。
 // そこで全同期処理を1本のPromiseチェーンで直列化し、GETとマージの間に別の同期がbaseを触らないようにする。
 let _syncChain=Promise.resolve();
-let _pushQueued=false; // 未実行のsilent pushが待機中か（連続操作のバーストを1つに合体）
 function _runExclusive(task){
   var run=function(){ return Promise.resolve().then(task).catch(function(e){ if(window.console&&console.warn)console.warn('sync error',e); }); };
   _syncChain=_syncChain.then(run,run); // 前の同期の成否に関わらず必ず次を実行
@@ -2434,19 +2433,19 @@ function _runExclusive(task){
 // GETがブラウザ/iOS Safariにキャッシュされると、取りに行っても古いJSONが返り「一回空回り→次で反映」になる。
 // 毎回URLにタイムスタンプを付けてキャッシュを確実に外す（GASは未知パラメータを無視するので影響なし）。
 function _noCacheUrl(u){ return u + (u.indexOf('?')>=0?'&':'?') + '_cb=' + Date.now(); }
-// 公開名は据え置き。silent push はバーストを合体（最新状態は実行時にlocalStorageから読む）、
-// 読込・手動同期は必ず直列で実行する。
-function syncToSheet(silent){
-  if(silent){
-    if(_pushQueued) return _syncChain; // 既に未実行pushが待機中＝合体
-    _pushQueued=true;
-    return _runExclusive(function(){ _pushQueued=false; return _syncToSheetImpl(true); });
-  }
-  return _runExclusive(function(){ return _syncToSheetImpl(silent); });
+// 通信が返らないと直列チェーンが詰まり以降の同期が全部止まる→必ずタイムアウトで打ち切って次へ進む。
+// （詰まって送れなかったpushは、ローカルに変更が残るので次のloadの末尾autoPushで自然に再送される）
+function _fetchTimeout(u,opts,ms){
+  opts=opts||{};
+  var ac=(typeof AbortController!=='undefined')?new AbortController():null;
+  if(ac){ var o={}; for(var k in opts)o[k]=opts[k]; o.signal=ac.signal; opts=o; }
+  var t=setTimeout(function(){ try{ if(ac)ac.abort(); }catch(e){} }, ms||18000);
+  return fetch(u,opts).then(function(r){ clearTimeout(t); return r; }, function(e){ clearTimeout(t); throw e; });
 }
-function loadFromSheet(silent){
-  return _runExclusive(function(){ return _loadFromSheetImpl(silent); });
-}
+// 公開名は据え置き。すべての同期を1本のキューで直列実行（割り込み由来の巻き戻り防止）。
+// ★合体（コアレッシング）はしない＝pushを1つも取りこぼさない（合体フラグが詰まりで立ちっぱなしになる不具合を廃止）。
+function syncToSheet(silent){ return _runExclusive(function(){ return _syncToSheetImpl(silent); }); }
+function loadFromSheet(silent){ return _runExclusive(function(){ return _loadFromSheetImpl(silent); }); }
 async function _syncToSheetImpl(silent){
   const url=(ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value:'')||'').trim();
   if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
@@ -2464,7 +2463,7 @@ async function _syncToSheetImpl(silent){
   if(st)st.textContent='同期中...';
   try{
     // ① まずシートの現在値を取得（マージの remote）
-    var _gres=await fetch(_noCacheUrl(url),{method:'GET',redirect:'follow'});
+    var _gres=await _fetchTimeout(_noCacheUrl(url),{method:'GET',redirect:'follow'});
     var _gjson=await gasReadJson(_gres);
     if(_gjson.status!=='ok'){ if(st)st.textContent='⚠ エラー: '+(_gjson.message||'読取失敗'); if(!silent)showToast('⚠ 同期失敗（シート読取）','#c00'); return; }
     var remoteR=Array.isArray(_gjson.reservations)?_gjson.reservations:[];
@@ -2482,7 +2481,7 @@ async function _syncToSheetImpl(silent){
     }
     reservations=mergedR; stays=mergedS; sv(RKEY,reservations); sv(STKEY,stays);
     // ③ マージ結果でシートを更新
-    const res=await fetch(url,{
+    const res=await _fetchTimeout(url,{
       method:'POST',
       redirect:'follow',
       headers:{'Content-Type':'text/plain'},
@@ -2513,7 +2512,7 @@ async function _loadFromSheetImpl(silent){
   if(!gasUrlOk(url)){ if(st)st.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
   if(st)st.textContent='読み込み中...';
   try{
-    const res=await fetch(_noCacheUrl(url),{method:'GET',redirect:'follow'});
+    const res=await _fetchTimeout(_noCacheUrl(url),{method:'GET',redirect:'follow'});
     const json=await gasReadJson(res);
     if(json.status==='ok'){
       // ★空のシートでローカルを消さない安全装置（2026/07/16の事故対策）
