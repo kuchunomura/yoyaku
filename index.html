@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=389;
-const APP_BUILD_DATE='2026/08/01 10:02';
+const APP_VERSION=390;
+const APP_BUILD_DATE='2026/08/01 10:10';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3432,7 +3432,7 @@ function renderCsvImportInfo(){
     if(_verified){
       el.innerHTML='取込先 <b style="color:#000">'+htmlEscape(selL)+'</b>／'+dCnt+'件／'+htmlEscape(mnL)+(det===sel?' <span style="color:#1a7a3a">✓施設名一致</span>':'');
     } else {
-      el.innerHTML='取込先 <b style="color:#b06000">'+htmlEscape(selL)+'</b>／'+dCnt+'件／'+htmlEscape(mnL)+' <b style="color:#b06000">⚠ 施設は自動判定できないCSV。取込先が合っているか確認を</b>';
+      el.innerHTML='取込先 <b style="color:#b06000">'+htmlEscape(selL)+'</b>／'+dCnt+'件／'+htmlEscape(mnL)+' <b style="color:#b06000">⚠ 取込先が「'+htmlEscape(selL)+'」で合っているか確認して下さい</b>';
     }
   }
 }
