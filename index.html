@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=390;
-const APP_BUILD_DATE='2026/08/01 10:10';
+const APP_VERSION=391;
+const APP_BUILD_DATE='2026/08/01 12:31';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3418,8 +3418,8 @@ function renderCsvImportInfo(){
     var tL=csvOptLabel(target);
     el.style.display='block'; el.style.whiteSpace='normal'; el.style.marginLeft='0'; el.style.marginTop='4px';
     el.style.background='transparent'; el.style.borderColor='transparent'; el.style.padding='0';
-    el.innerHTML='<b style="color:#c0392b">⚠ 取込先違い？</b> 選択「'+htmlEscape(selL)+'」→ このCSVは<b>「'+htmlEscape(tL)+'」</b>かも（'+dCnt+'件／'+htmlEscape(mnL)+'）　'
-      +'<a href="javascript:void(0)" onclick="switchCsvFacTo(\''+target.replace(/'/g,"\\'")+'\')" style="color:#1565c0;font-weight:700;text-decoration:underline">「'+htmlEscape(tL)+'」に切替</a>';
+    el.innerHTML='<a href="javascript:void(0)" onclick="switchCsvFacTo(\''+target.replace(/'/g,"\\'")+'\')" style="display:inline-block;background:#e3f0fb;border:1px solid #8bbce6;color:#1565c0;border-radius:6px;padding:3px 12px;font-weight:700;text-decoration:none">「'+htmlEscape(tL)+'」に切替</a>'
+      +' <b style="color:#c0392b">⚠ 取込先違い？</b> 選択「'+htmlEscape(selL)+'」→ このCSVは<b>「'+htmlEscape(tL)+'」</b>かも（'+dCnt+'件／'+htmlEscape(mnL)+'）';
   } else {
     // 取込先が「確認できた」か判定：施設名で一致 or このCSVのwpIdが選択施設に既に入っている → 安心（緑）。
     // どちらも無い＝施設名なしCSVで初取込＝自動判定できない → 黄色で「施設が合っているか確認を」（取り違え防止）。
