@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=388;
-const APP_BUILD_DATE='2026/07/30 22:34';
+const APP_VERSION=389;
+const APP_BUILD_DATE='2026/08/01 10:02';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3471,12 +3471,13 @@ function detectCsvFacility(text){
   }
   var data=rows.filter(function(f){return /^\d+$/.test(String(f[0]||'').trim());});
   if(!data.length) return '';
-  // 各行、まず「同意」セル（施設名を足した利用規約オプション）を優先的に見る＝メモの偶発一致を避ける。
-  // 無ければ行全体（隠しフィールド方式の保険）。古い予約（施設名なし＝「同意する」のみ）はカウントされない。
+  // ★施設名は「同意」セル（利用規約オプションに足した施設名）だけを見る。
+  //   行全体を見るとレンタルメモ等（例「焚き火台セット BBQ set」の"BBQ"）を誤検知するため見ない。
+  //   古い予約（施設名なし＝「同意する」のみ）はカウントされない＝安全側。
   var tally={};
   data.forEach(function(f){
     var consentCell=''; for(var i=0;i<f.length;i++){ if(/同意/.test(String(f[i]||''))){ consentCell=String(f[i]); break; } }
-    var k=_facKeyFromText(consentCell) || _facKeyFromText(f.join(' '));
+    var k=_facKeyFromText(consentCell);
     if(k) tally[k]=(tally[k]||0)+1;
   });
   var keys=Object.keys(tally); if(!keys.length) return '';
