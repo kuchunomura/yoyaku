@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=392;
-const APP_BUILD_DATE='2026/08/01 13:05';
+const APP_VERSION=393;
+const APP_BUILD_DATE='2026/08/01 15:37';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2419,7 +2419,32 @@ function _mergeById(baseMap, localArr, remoteArr){
   });
   return out;
 }
-async function syncToSheet(silent){
+// ===== 同期の直列化（割り込み由来のロールバック防止）=====
+// loadFromSheet と syncToSheet は「GET→3方向マージ→base保存」を行う。これらが割り込むと、
+// 取得済みの古いremoteスナップショットが、途中で更新された新しいbaseと比較され、
+// 直前のローカル変更（会計✅など）が"remoteが変更した"と誤判定されて巻き戻る（＝リロードで消える）。
+// そこで全同期処理を1本のPromiseチェーンで直列化し、GETとマージの間に別の同期がbaseを触らないようにする。
+let _syncChain=Promise.resolve();
+let _pushQueued=false; // 未実行のsilent pushが待機中か（連続操作のバーストを1つに合体）
+function _runExclusive(task){
+  var run=function(){ return Promise.resolve().then(task).catch(function(e){ if(window.console&&console.warn)console.warn('sync error',e); }); };
+  _syncChain=_syncChain.then(run,run); // 前の同期の成否に関わらず必ず次を実行
+  return _syncChain;
+}
+// 公開名は据え置き。silent push はバーストを合体（最新状態は実行時にlocalStorageから読む）、
+// 読込・手動同期は必ず直列で実行する。
+function syncToSheet(silent){
+  if(silent){
+    if(_pushQueued) return _syncChain; // 既に未実行pushが待機中＝合体
+    _pushQueued=true;
+    return _runExclusive(function(){ _pushQueued=false; return _syncToSheetImpl(true); });
+  }
+  return _runExclusive(function(){ return _syncToSheetImpl(silent); });
+}
+function loadFromSheet(silent){
+  return _runExclusive(function(){ return _loadFromSheetImpl(silent); });
+}
+async function _syncToSheetImpl(silent){
   const url=(ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value:'')||'').trim();
   if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
   if(!gasUrlOk(url)){ var _st0=document.getElementById('sync-status'); if(_st0)_st0.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
@@ -2477,8 +2502,8 @@ async function syncToSheet(silent){
     if(!silent)showToast('⚠ 通信エラー: '+e.message,'#c00',9000);
   }
 }
-// シートから読込（端末間同期）。silent=trueで通知控えめ
-async function loadFromSheet(silent){
+// シートから読込（端末間同期）。silent=trueで通知控えめ ※公開名 loadFromSheet は上のラッパー（直列化）経由
+async function _loadFromSheetImpl(silent){
   const url=(ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value:'')||'').trim();
   if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
   const st=document.getElementById('sync-status');
