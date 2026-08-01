@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=398;
-const APP_BUILD_DATE='2026/08/01 16:44';
+const APP_VERSION=399;
+const APP_BUILD_DATE='2026/08/01 16:58';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2419,34 +2419,7 @@ function _mergeById(baseMap, localArr, remoteArr){
   });
   return out;
 }
-// ===== 同期の直列化（割り込み由来のロールバック防止）=====
-// loadFromSheet と syncToSheet は「GET→3方向マージ→base保存」を行う。これらが割り込むと、
-// 取得済みの古いremoteスナップショットが、途中で更新された新しいbaseと比較され、
-// 直前のローカル変更（会計✅など）が"remoteが変更した"と誤判定されて巻き戻る（＝リロードで消える）。
-// そこで全同期処理を1本のPromiseチェーンで直列化し、GETとマージの間に別の同期がbaseを触らないようにする。
-let _syncChain=Promise.resolve();
-function _runExclusive(task){
-  var run=function(){ return Promise.resolve().then(task).catch(function(e){ if(window.console&&console.warn)console.warn('sync error',e); }); };
-  _syncChain=_syncChain.then(run,run); // 前の同期の成否に関わらず必ず次を実行
-  return _syncChain;
-}
-// GETがブラウザ/iOS Safariにキャッシュされると、取りに行っても古いJSONが返り「一回空回り→次で反映」になる。
-// 毎回URLにタイムスタンプを付けてキャッシュを確実に外す（GASは未知パラメータを無視するので影響なし）。
-function _noCacheUrl(u){ return u + (u.indexOf('?')>=0?'&':'?') + '_cb=' + Date.now(); }
-// 通信が返らないと直列チェーンが詰まり以降の同期が全部止まる→必ずタイムアウトで打ち切って次へ進む。
-// （詰まって送れなかったpushは、ローカルに変更が残るので次のloadの末尾autoPushで自然に再送される）
-function _fetchTimeout(u,opts,ms){
-  opts=opts||{};
-  var ac=(typeof AbortController!=='undefined')?new AbortController():null;
-  if(ac){ var o={}; for(var k in opts)o[k]=opts[k]; o.signal=ac.signal; opts=o; }
-  var t=setTimeout(function(){ try{ if(ac)ac.abort(); }catch(e){} }, ms||18000);
-  return fetch(u,opts).then(function(r){ clearTimeout(t); return r; }, function(e){ clearTimeout(t); throw e; });
-}
-// 公開名は据え置き。すべての同期を1本のキューで直列実行（割り込み由来の巻き戻り防止）。
-// ★合体（コアレッシング）はしない＝pushを1つも取りこぼさない（合体フラグが詰まりで立ちっぱなしになる不具合を廃止）。
-function syncToSheet(silent){ return _runExclusive(function(){ return _syncToSheetImpl(silent); }); }
-function loadFromSheet(silent){ return _runExclusive(function(){ return _loadFromSheetImpl(silent); }); }
-async function _syncToSheetImpl(silent){
+async function syncToSheet(silent){
   const url=(ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value:'')||'').trim();
   if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
   if(!gasUrlOk(url)){ var _st0=document.getElementById('sync-status'); if(_st0)_st0.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
@@ -2463,7 +2436,7 @@ async function _syncToSheetImpl(silent){
   if(st)st.textContent='同期中...';
   try{
     // ① まずシートの現在値を取得（マージの remote）
-    var _gres=await _fetchTimeout(_noCacheUrl(url),{method:'GET',redirect:'follow'});
+    var _gres=await fetch(url,{method:'GET',redirect:'follow'});
     var _gjson=await gasReadJson(_gres);
     if(_gjson.status!=='ok'){ if(st)st.textContent='⚠ エラー: '+(_gjson.message||'読取失敗'); if(!silent)showToast('⚠ 同期失敗（シート読取）','#c00'); return; }
     var remoteR=Array.isArray(_gjson.reservations)?_gjson.reservations:[];
@@ -2481,7 +2454,7 @@ async function _syncToSheetImpl(silent){
     }
     reservations=mergedR; stays=mergedS; sv(RKEY,reservations); sv(STKEY,stays);
     // ③ マージ結果でシートを更新
-    const res=await _fetchTimeout(url,{
+    const res=await fetch(url,{
       method:'POST',
       redirect:'follow',
       headers:{'Content-Type':'text/plain'},
@@ -2504,15 +2477,15 @@ async function _syncToSheetImpl(silent){
     if(!silent)showToast('⚠ 通信エラー: '+e.message,'#c00',9000);
   }
 }
-// シートから読込（端末間同期）。silent=trueで通知控えめ ※公開名 loadFromSheet は上のラッパー（直列化）経由
-async function _loadFromSheetImpl(silent){
+// シートから読込（端末間同期）。silent=trueで通知控えめ
+async function loadFromSheet(silent){
   const url=(ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value:'')||'').trim();
   if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
   const st=document.getElementById('sync-status');
   if(!gasUrlOk(url)){ if(st)st.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
   if(st)st.textContent='読み込み中...';
   try{
-    const res=await _fetchTimeout(_noCacheUrl(url),{method:'GET',redirect:'follow'});
+    const res=await fetch(url,{method:'GET',redirect:'follow'});
     const json=await gasReadJson(res);
     if(json.status==='ok'){
       // ★空のシートでローカルを消さない安全装置（2026/07/16の事故対策）
@@ -4101,27 +4074,9 @@ renderFltTabs();renderList();showLastSync();setupCsvDrop();
 (function(){var _av=document.getElementById('app-version');if(_av)_av.textContent='yoyaku v'+APP_VERSION+'　更新 '+APP_BUILD_DATE;})();
 // GAS URL設定済みなら、起動時に最新をシートから取得（端末間同期）
 if(ld(GAS_KEY)) loadFromSheet(true);
-// 自動同期：受信を速くする。(1)可視時は20秒ごとにポーリング (2)画面復帰/フォーカス/オンライン復帰/戻る操作で即時
-// (3)一覧をタップ/スクロールした瞬間にも取得（最短8秒間隔）＝相手デバイスを手に取って触ればほぼ即同期。
-// GASの負荷を抑えるため、非表示タブ・印刷中はポーリングしない＋各トリガーは_lastPullで間引き。
-var _lastPull=0,_pullTimer=null;
-function _pullNow(){
-  if(_pullTimer){clearTimeout(_pullTimer);_pullTimer=null;}
-  _lastPull=Date.now();
-  if(ld(GAS_KEY)&&!document.hidden&&!window._printing){
-    var _si=document.getElementById('sync-indicator'); if(_si)_si.textContent='🔄 同期中…'; // タップで発火しているのを目視できるように
-    loadFromSheet(true);
-  }
-}
-function _pullSoon(minGap){ if(!ld(GAS_KEY)||document.hidden||window._printing)return; var wait=(minGap||3000)-(Date.now()-_lastPull); if(wait<=0){ _pullNow(); } else if(!_pullTimer){ _pullTimer=setTimeout(function(){ _pullTimer=null; _pullNow(); }, wait); } }
-setInterval(function(){ _pullSoon(0); }, 20000);
-document.addEventListener('visibilitychange', function(){ if(!document.hidden) _pullNow(); });
-window.addEventListener('focus', function(){ _pullNow(); });
-window.addEventListener('online', function(){ _pullNow(); });
-window.addEventListener('pageshow', function(){ _pullNow(); });
-// 画面に触れたら最新を取りに行く（最短2.5秒間隔）。pointerdown/touchstart 両方拾って取りこぼしを防ぐ
-document.addEventListener('pointerdown', function(){ _pullSoon(2500); }, {passive:true});
-document.addEventListener('touchstart', function(){ _pullSoon(2500); }, {passive:true});
+// 自動同期：60秒ごと＋画面に戻ったときにシートから読込（手動編集も自動で反映）
+setInterval(function(){ if(ld(GAS_KEY) && !document.hidden && !window._printing) loadFromSheet(true); }, 60000);
+document.addEventListener('visibilitychange', function(){ if(!document.hidden && ld(GAS_KEY) && !window._printing) loadFromSheet(true); });
 
 // ===== 新バージョン検知（他端末に「新版あり→更新してください」を通知）=====
 // 自分自身のindex.htmlを定期取得し、中の APP_VERSION が実行中より新しければ通知バナーを出す。
