@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=395;
-const APP_BUILD_DATE='2026/08/01 16:02';
+const APP_VERSION=396;
+const APP_BUILD_DATE='2026/08/01 16:12';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2431,6 +2431,9 @@ function _runExclusive(task){
   _syncChain=_syncChain.then(run,run); // 前の同期の成否に関わらず必ず次を実行
   return _syncChain;
 }
+// GETがブラウザ/iOS Safariにキャッシュされると、取りに行っても古いJSONが返り「一回空回り→次で反映」になる。
+// 毎回URLにタイムスタンプを付けてキャッシュを確実に外す（GASは未知パラメータを無視するので影響なし）。
+function _noCacheUrl(u){ return u + (u.indexOf('?')>=0?'&':'?') + '_cb=' + Date.now(); }
 // 公開名は据え置き。silent push はバーストを合体（最新状態は実行時にlocalStorageから読む）、
 // 読込・手動同期は必ず直列で実行する。
 function syncToSheet(silent){
@@ -2461,7 +2464,7 @@ async function _syncToSheetImpl(silent){
   if(st)st.textContent='同期中...';
   try{
     // ① まずシートの現在値を取得（マージの remote）
-    var _gres=await fetch(url,{method:'GET',redirect:'follow'});
+    var _gres=await fetch(_noCacheUrl(url),{method:'GET',redirect:'follow',cache:'no-store'});
     var _gjson=await gasReadJson(_gres);
     if(_gjson.status!=='ok'){ if(st)st.textContent='⚠ エラー: '+(_gjson.message||'読取失敗'); if(!silent)showToast('⚠ 同期失敗（シート読取）','#c00'); return; }
     var remoteR=Array.isArray(_gjson.reservations)?_gjson.reservations:[];
@@ -2510,7 +2513,7 @@ async function _loadFromSheetImpl(silent){
   if(!gasUrlOk(url)){ if(st)st.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
   if(st)st.textContent='読み込み中...';
   try{
-    const res=await fetch(url,{method:'GET',redirect:'follow'});
+    const res=await fetch(_noCacheUrl(url),{method:'GET',redirect:'follow',cache:'no-store'});
     const json=await gasReadJson(res);
     if(json.status==='ok'){
       // ★空のシートでローカルを消さない安全装置（2026/07/16の事故対策）
