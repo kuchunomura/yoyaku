@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=394;
-const APP_BUILD_DATE='2026/08/01 15:44';
+const APP_VERSION=395;
+const APP_BUILD_DATE='2026/08/01 16:02';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -4103,14 +4103,23 @@ if(ld(GAS_KEY)) loadFromSheet(true);
 // (3)一覧をタップ/スクロールした瞬間にも取得（最短8秒間隔）＝相手デバイスを手に取って触ればほぼ即同期。
 // GASの負荷を抑えるため、非表示タブ・印刷中はポーリングしない＋各トリガーは_lastPullで間引き。
 var _lastPull=0,_pullTimer=null;
-function _pullNow(){ if(_pullTimer){clearTimeout(_pullTimer);_pullTimer=null;} _lastPull=Date.now(); if(ld(GAS_KEY)&&!document.hidden&&!window._printing) loadFromSheet(true); }
-function _pullSoon(minGap){ if(!ld(GAS_KEY)||document.hidden||window._printing)return; var wait=(minGap||6000)-(Date.now()-_lastPull); if(wait<=0){ _pullNow(); } else if(!_pullTimer){ _pullTimer=setTimeout(function(){ _pullTimer=null; _pullNow(); }, wait); } }
+function _pullNow(){
+  if(_pullTimer){clearTimeout(_pullTimer);_pullTimer=null;}
+  _lastPull=Date.now();
+  if(ld(GAS_KEY)&&!document.hidden&&!window._printing){
+    var _si=document.getElementById('sync-indicator'); if(_si)_si.textContent='🔄 同期中…'; // タップで発火しているのを目視できるように
+    loadFromSheet(true);
+  }
+}
+function _pullSoon(minGap){ if(!ld(GAS_KEY)||document.hidden||window._printing)return; var wait=(minGap||3000)-(Date.now()-_lastPull); if(wait<=0){ _pullNow(); } else if(!_pullTimer){ _pullTimer=setTimeout(function(){ _pullTimer=null; _pullNow(); }, wait); } }
 setInterval(function(){ _pullSoon(0); }, 20000);
 document.addEventListener('visibilitychange', function(){ if(!document.hidden) _pullNow(); });
-window.addEventListener('focus', function(){ _pullSoon(3000); });
+window.addEventListener('focus', function(){ _pullNow(); });
 window.addEventListener('online', function(){ _pullNow(); });
 window.addEventListener('pageshow', function(){ _pullNow(); });
-document.addEventListener('pointerdown', function(){ _pullSoon(8000); }, {passive:true});
+// 画面に触れたら最新を取りに行く（最短2.5秒間隔）。pointerdown/touchstart 両方拾って取りこぼしを防ぐ
+document.addEventListener('pointerdown', function(){ _pullSoon(2500); }, {passive:true});
+document.addEventListener('touchstart', function(){ _pullSoon(2500); }, {passive:true});
 
 // ===== 新バージョン検知（他端末に「新版あり→更新してください」を通知）=====
 // 自分自身のindex.htmlを定期取得し、中の APP_VERSION が実行中より新しければ通知バナーを出す。
