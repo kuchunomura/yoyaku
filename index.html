@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=396;
-const APP_BUILD_DATE='2026/08/01 16:12';
+const APP_VERSION=397;
+const APP_BUILD_DATE='2026/08/01 16:28';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2464,7 +2464,7 @@ async function _syncToSheetImpl(silent){
   if(st)st.textContent='同期中...';
   try{
     // ① まずシートの現在値を取得（マージの remote）
-    var _gres=await fetch(_noCacheUrl(url),{method:'GET',redirect:'follow',cache:'no-store'});
+    var _gres=await fetch(_noCacheUrl(url),{method:'GET',redirect:'follow'});
     var _gjson=await gasReadJson(_gres);
     if(_gjson.status!=='ok'){ if(st)st.textContent='⚠ エラー: '+(_gjson.message||'読取失敗'); if(!silent)showToast('⚠ 同期失敗（シート読取）','#c00'); return; }
     var remoteR=Array.isArray(_gjson.reservations)?_gjson.reservations:[];
@@ -2513,7 +2513,7 @@ async function _loadFromSheetImpl(silent){
   if(!gasUrlOk(url)){ if(st)st.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
   if(st)st.textContent='読み込み中...';
   try{
-    const res=await fetch(_noCacheUrl(url),{method:'GET',redirect:'follow',cache:'no-store'});
+    const res=await fetch(_noCacheUrl(url),{method:'GET',redirect:'follow'});
     const json=await gasReadJson(res);
     if(json.status==='ok'){
       // ★空のシートでローカルを消さない安全装置（2026/07/16の事故対策）
