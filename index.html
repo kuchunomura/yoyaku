@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=393;
-const APP_BUILD_DATE='2026/08/01 15:37';
+const APP_VERSION=394;
+const APP_BUILD_DATE='2026/08/01 15:44';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -4099,9 +4099,18 @@ renderFltTabs();renderList();showLastSync();setupCsvDrop();
 (function(){var _av=document.getElementById('app-version');if(_av)_av.textContent='yoyaku v'+APP_VERSION+'　更新 '+APP_BUILD_DATE;})();
 // GAS URL設定済みなら、起動時に最新をシートから取得（端末間同期）
 if(ld(GAS_KEY)) loadFromSheet(true);
-// 自動同期：60秒ごと＋画面に戻ったときにシートから読込（手動編集も自動で反映）
-setInterval(function(){ if(ld(GAS_KEY) && !document.hidden && !window._printing) loadFromSheet(true); }, 60000);
-document.addEventListener('visibilitychange', function(){ if(!document.hidden && ld(GAS_KEY) && !window._printing) loadFromSheet(true); });
+// 自動同期：受信を速くする。(1)可視時は20秒ごとにポーリング (2)画面復帰/フォーカス/オンライン復帰/戻る操作で即時
+// (3)一覧をタップ/スクロールした瞬間にも取得（最短8秒間隔）＝相手デバイスを手に取って触ればほぼ即同期。
+// GASの負荷を抑えるため、非表示タブ・印刷中はポーリングしない＋各トリガーは_lastPullで間引き。
+var _lastPull=0,_pullTimer=null;
+function _pullNow(){ if(_pullTimer){clearTimeout(_pullTimer);_pullTimer=null;} _lastPull=Date.now(); if(ld(GAS_KEY)&&!document.hidden&&!window._printing) loadFromSheet(true); }
+function _pullSoon(minGap){ if(!ld(GAS_KEY)||document.hidden||window._printing)return; var wait=(minGap||6000)-(Date.now()-_lastPull); if(wait<=0){ _pullNow(); } else if(!_pullTimer){ _pullTimer=setTimeout(function(){ _pullTimer=null; _pullNow(); }, wait); } }
+setInterval(function(){ _pullSoon(0); }, 20000);
+document.addEventListener('visibilitychange', function(){ if(!document.hidden) _pullNow(); });
+window.addEventListener('focus', function(){ _pullSoon(3000); });
+window.addEventListener('online', function(){ _pullNow(); });
+window.addEventListener('pageshow', function(){ _pullNow(); });
+document.addEventListener('pointerdown', function(){ _pullSoon(8000); }, {passive:true});
 
 // ===== 新バージョン検知（他端末に「新版あり→更新してください」を通知）=====
 // 自分自身のindex.htmlを定期取得し、中の APP_VERSION が実行中より新しければ通知バナーを出す。
