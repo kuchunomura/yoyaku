@@ -99,6 +99,17 @@ function doPost(e){
   try{
     var data = JSON.parse(e.postData.contents);
     if(data.type === 'sync_all'){
+      // 端末間の同時書込み対策（CAS）。書込みはスクリプトロックで直列化し、
+      // クライアントが読んだリビジョン(baseRev)と現在revが違えば拒否＝取り直して再送させる。
+      // baseRev未指定の旧クライアントは従来どおり無条件書込（後方互換）。
+      var _lock=LockService.getScriptLock();
+      try{ _lock.waitLock(20000); }catch(_le){ return jsonOut({status:'error', message:'busy'}); }
+      try{
+      var _props=PropertiesService.getScriptProperties();
+      var _curRev=Number(_props.getProperty('syncrev')||'0');
+      if(data.baseRev!==undefined && data.baseRev!==null && Number(data.baseRev)!==_curRev){
+        return jsonOut({status:'conflict', rev:_curRev});
+      }
       writeAll(data.reservations || [], data.stays || []);
       if(data.otaack && typeof data.otaack === 'object'){
         PropertiesService.getScriptProperties().setProperty('otaack', JSON.stringify(data.otaack));
@@ -136,7 +147,9 @@ function doPost(e){
         for(var _fk in data.csvimpmts){ var _mm=data.csvimpmts[_fk]; if(!_mm||typeof _mm!=='object')continue; if(!_curMTS[_fk])_curMTS[_fk]={}; for(var _mk in _mm){ var _mv=Number(_mm[_mk])||0; if(_mv>(Number(_curMTS[_fk][_mk])||0))_curMTS[_fk][_mk]=_mv; } }
         PropertiesService.getScriptProperties().setProperty('csvimpmts', JSON.stringify(_curMTS));
       }
-      return jsonOut({status:'ok', saved:{reservations:(data.reservations||[]).length, stays:(data.stays||[]).length}});
+      var _newRev=_curRev+1; _props.setProperty('syncrev', String(_newRev)); // 書込み成功＝revを+1（次回のCAS基準）
+      return jsonOut({status:'ok', rev:_newRev, saved:{reservations:(data.reservations||[]).length, stays:(data.stays||[]).length}});
+      } finally { _lock.releaseLock(); }
     }
     return jsonOut({status:'error', message:'unknown type'});
   }catch(err){
@@ -155,7 +168,9 @@ function doGet(e){
     var cimts={}; try{ cimts=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimpmts')||'{}'); }catch(e10){}
     var sn=PropertiesService.getScriptProperties().getProperty('sharednote')||'';
     var de={}; try{ de=JSON.parse(PropertiesService.getScriptProperties().getProperty('dayevents')||'{}'); }catch(e7){}
-    return jsonOut({status:'ok', reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, csvimplastmon:cilm, csvimpmts:cimts, sharednote:sn, dayevents:de});
+    // 現在リビジョン（sheet読取より前に取得＝revがsheetより先行しない＝古いrevで競合→再送となり安全）
+    var _rev=Number(PropertiesService.getScriptProperties().getProperty('syncrev')||'0');
+    return jsonOut({status:'ok', rev:_rev, reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, csvimplastmon:cilm, csvimpmts:cimts, sharednote:sn, dayevents:de});
   }catch(err){
     return jsonOut({status:'error', message:String(err)});
   }

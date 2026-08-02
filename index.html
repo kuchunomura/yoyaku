@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=401;
-const APP_BUILD_DATE='2026/08/02 12:38';
+const APP_VERSION=402;
+const APP_BUILD_DATE='2026/08/02 16:10';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1427,6 +1427,7 @@ function saveStay(){
     bed:getBedValue(),
     memo:memoVal,
     done:false,changed:false,createdAt:Date.now()});
+  _markPendingAdd(sid); // 新規作成＝サーバ未確認として保護（同期の割り込みで消えないように）
   // 双方向同期：紐づけた日帰りにこの宿泊IDを追記
   linked.forEach(rid=>{
     const r=reservations.find(x=>x.id===rid);
@@ -1901,6 +1902,7 @@ function saveReservation(){
     source:src,linkedStayIds,linkedDayIds,mura,discountedPrice,
     memo:memoBase,
     rental:addFacId==='bbq'?getRD(rentalSt):[],customValues:getCFV(),done:false,changed:false,createdAt:Date.now()});
+  _markPendingAdd(rid); // 新規作成＝サーバ未確認として保護（同期の割り込みで消えないように）
   // 双方向同期：宿泊
   linkedStayIds.forEach(sid=>{
     const s=stays.find(x=>x.id===sid);
@@ -2379,6 +2381,13 @@ async function gasReadJson(res){
 // GAS側は不変（＝再デプロイ不要）。base は yv_syncbase（id→内容ハッシュ）に端末ごとに保存。
 var _syncTsLast=0;
 function nowTs(){ var t=Date.now(); if(t<=_syncTsLast)t=_syncTsLast+1; _syncTsLast=t; return t; }
+// ★取込/新規作成した直後で「まだサーバに載ったのを確認できていない」IDの集合（id→登録時刻）。
+// この端末で今追加したばかりの予約は、他端末がまだ見てすらいないので"削除"されるはずがない＝
+// マージで remote に無くても絶対に消さない。サーバ側に載ったのを確認(=remoteに出現)したら解除。
+// 保険で10分経過したものは通常判定に戻す（万一の取り残しで永久復活を防ぐ）。
+var _pendingLocalAdds={};
+function _markPendingAdd(id){ if(id!=null) _pendingLocalAdds[String(id)]=Date.now(); }
+function _isPendingAdd(k){ var t=_pendingLocalAdds[k]; if(t==null) return false; if(Date.now()-t>600000){ delete _pendingLocalAdds[k]; return false; } return true; }
 function _stableStr(o){
   if(o===null||typeof o!=='object') return JSON.stringify(o===undefined?null:o);
   if(Array.isArray(o)) return '['+o.map(_stableStr).join(',')+']';
@@ -2399,6 +2408,7 @@ function _mergeById(baseMap, localArr, remoteArr){
   var out=[];
   ids.forEach(function(k){
     var lo=L[k], ro=R[k], hasB=Object.prototype.hasOwnProperty.call(baseMap,k), bh=hasB?baseMap[k]:null;
+    if(ro && _pendingLocalAdds[k]!==undefined) delete _pendingLocalAdds[k]; // サーバに載ったのを確認＝保護解除
     var lChg=!!(lo && hasB && _recHash(lo)!==bh);
     var rChg=!!(ro && hasB && _recHash(ro)!==bh);
     if(lo && ro){
@@ -2410,6 +2420,7 @@ function _mergeById(baseMap, localArr, remoteArr){
     } else if(lo && !ro){
       if(!hasB){ lo.updatedAt=nowTs(); out.push(lo); }                    // この端末で新規追加＝残す
       else if(lChg){ lo.updatedAt=nowTs(); out.push(lo); }               // remote削除でもこちらが編集＝残す
+      else if(_isPendingAdd(k)){ lo.updatedAt=nowTs(); out.push(lo); }   // ★取込直後・サーバ未確認＝削除ではなく未反映。絶対に残す（他端末はまだ知らない＝消せるはずがない）
       // else remote削除・こちら無変更＝削除を尊重（出さない）
     } else if(!lo && ro){
       if(!hasB){ out.push(ro); }                                         // 他端末で新規追加＝残す
@@ -2945,6 +2956,18 @@ function checkFacilityMismatch(){
 }
 var _csvFacBypass=false; // 施設取り違えチェックを確認ダイアログ後の再取込で一度だけスキップするフラグ
 var _csvResultTimer=null; // 取込結果メッセージの自動消去タイマー（いつまでも残さない）
+// 取込整合チェック：CSVに在った予約が、取込後にちゃんとアプリに出ているか検証する安全網。
+// miss=どこにも見当たらない（＝取りこぼし/同期で消えた疑い）、hidden=在るがキャンセル状態で一覧に出ない。
+function _verifyImportLanded(landed, type){
+  var arr=(type==='day')?reservations:stays;
+  var miss=[], hidden=[];
+  Object.keys(landed||{}).forEach(function(wid){
+    var r=arr.find(function(x){ return String(x.wpId)===wid; });
+    if(!r){ miss.push(landed[wid].name||('予約'+wid)); }
+    else if(!landed[wid].csvCancel && isCancelled(r)){ hidden.push(landed[wid].name||('予約'+wid)); }
+  });
+  return {miss:miss, hidden:hidden};
+}
 function importCSV(){
   var res=document.getElementById('csv-result');
   var sel=document.getElementById('csv-fac').value;
@@ -3058,6 +3081,7 @@ function importCSV(){
     _csvFacBypass=false;
     // ── 取消(アンドゥ)用：この取込で「追加した予約id」と「更新前の予約内容」だけ控える（後からでも取り消せるよう履歴に保存） ──
     var _batchAdded=[], _batchPrevUpdated=[], _batchDeleted=[];
+    var _landed={};   // 取込整合チェック用：本来アプリに出るべき予約(wpId→{name,csvCancel})。取込後に全部出ているか検証する安全網
     var _csvWpIds={}; // このCSVに含まれる予約番号（取込後の「はみ出し予約」検知に使う）
     var _undoFileName=lastCsvFileName;
     var _dtDbg=[]; // 診断：日帰りの「日時セルの生値」を控える（時刻ズレ原因の特定用。個人情報は含めない＝名前と日時のみ）
@@ -3155,6 +3179,7 @@ function importCSV(){
       rec.rental=detectRentalFromMemo(rec.memo, 'strict'); rec.rentalAuto=true;
       var _md=(type==='day'?rec.date:rec.checkin); if(_md&&/^\d{4}-\d{2}/.test(_md)){ var _mk=_md.slice(0,7); _impMonths[_mk]=true; _impMonthCnt[_mk]=(_impMonthCnt[_mk]||0)+1; } // 何月分か記録＋件数カウント
       var arr = type==='day' ? reservations : stays;
+      _landed[wpId]={name:name, csvCancel:/cancel/.test(status)}; // このwpIdは取込後アプリに出ているべき（後で検証）
       var exIdx = arr.findIndex(function(x){ return x.wpId===wpId; });
       if(exIdx>=0){
         // 再取込時はアプリ側の手動状態を保持（会計/状況・紐づけ・変更フラグ）。予約内容(日付/人数/ベッド/メモ等)はCSVで更新
@@ -3173,7 +3198,7 @@ function importCSV(){
         if(type==='day') rec.linkedStayIds=(old.linkedStayIds&&old.linkedStayIds.length)?old.linkedStayIds:(rec.linkedStayIds||[]);
         arr[exIdx]=rec; updated++;
       }
-      else { arr.push(rec); added++; _batchAdded.push(rec.id); }
+      else { arr.push(rec); added++; _batchAdded.push(rec.id); _markPendingAdd(rec.id); } // ★新規追加＝サーバ未確認として保護（同期の割り込みで消えないように）
     });
     // ── CSV通りに反映：このCSVに無い＝WordPressで削除/キャンセルされた予約をアプリからも削除 ──
     // 誤削除を防ぐ厳格スコープ（全条件を満たすものだけ消す）：
@@ -3230,6 +3255,8 @@ function importCSV(){
       renderCsvImpHist();
     }
     // CSV通り反映：上で「このCSVに無いwpId予約」は既に自動削除済み（_batchDeleted）。ここではその結果を報告する。
+    // ★取込整合チェック（安全網）：CSVに在ったのにアプリに出ていない予約を洗い出す
+    var _vf=_verifyImportLanded(_landed,type);
     res.style.color='#1a7a3a';
     res.innerHTML=
       '<div style="font-size:14px;font-weight:800;color:#1a4a30;background:#eafaf0;border:1px solid #a8d8bd;border-radius:8px;padding:8px 10px;margin-bottom:6px">✓ 【'+csvOptLabel(sel)+'】に取り込みました'+(_undoFileName?'（📄'+htmlEscape(_undoFileName)+'）':'')+'<br><span style="font-weight:700;font-size:13px">追加 '+added+' 件 / 更新 '+updated+' 件'+(cancelled?(' ／ キャンセル除外 '+cancelled+' 件'):'')+'</span></div>'
@@ -3238,15 +3265,28 @@ function importCSV(){
         +'</div>'
         +'<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e0b4b4;color:#9a6070">※対象は<b>この施設・このCSVの主要月・CSV取込由来</b>の予約だけ（手入力・他施設・楽天等の外部/支払済み・<b>今回取り込んでいない月は消えません</b>）。誤って消えた場合は下の「🕘 取込履歴」で<b>月を選んで取消</b>で戻せます。</div></div>'):'')
       +(mismatch?('<div style="color:#c0392b;margin-top:2px;font-weight:600">⚠ '+mismatch+' 件は取込先の種別と一致しないため取り込みませんでした。<br>このCSVは'+(type==='day'?'<b>宿泊</b>予約のようです（ベッド情報・連泊あり）。上の選択を<b>「〇〇（宿泊）」</b>に変えて取り込み直してください。':'<b>日帰り</b>予約のようです（利用時間あり）。上の選択を<b>「☀ 日帰り」</b>の施設に変えてください。')+'</div>'):'')
+      +(_vf.miss.length?('<div style="margin-top:8px;padding:9px 11px;background:#fdecec;border:2px solid #c0392b;border-radius:8px;font-size:13px;color:#7a1030;font-weight:700;line-height:1.6">⛔ 重大：CSVに在ったのにアプリに出ていない予約が <b>'+_vf.miss.length+'件</b> あります。もう一度取り込むか、手入力で追加してください：<br>'+_vf.miss.map(htmlEscape).join('、')+'<div style="font-weight:400;font-size:11px;color:#9a6070;margin-top:4px">※これが出たら開発者に知らせてください（同期の不具合の可能性）。</div></div>'):'')
+      +(_vf.hidden.length?('<div style="margin-top:8px;padding:9px 11px;background:#fff8e6;border:1px solid #e0c060;border-radius:8px;font-size:12px;color:#7a5a10;line-height:1.6">⚠ 次の予約はWordPressでは有効ですが、アプリ側で<b>「キャンセル」状態</b>のため一覧に出ません。各カードの<b>「↩ キャンセルを取り消し」</b>で表示できます：<br>'+_vf.hidden.map(htmlEscape).join('、')+'</div>'):'')
       +((_batchAdded.length||_batchPrevUpdated.length||_batchDeleted.length)?('<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px;color:#9a6070">間違えた時の戻し方</summary><div style="font-size:11px;color:#9a6070;line-height:1.5;margin-top:4px;padding:6px 8px;background:#fff7f2;border:1px solid #e0c0b0;border-radius:8px">施設違い・削除しすぎ等があれば、下の「🕘 取込履歴」で<b>月を選んで「選択した取込を取り消す」</b>を押すと、この取込（追加・更新・削除すべて）を元に戻せます（後日でも可）。</div></details>'):'')
       +((type==='day'&&_dtDbg.length)?('<div style="margin-top:8px;padding:6px 8px;background:#fffbea;border:1px solid #e0cf90;border-radius:6px;font-size:11px;line-height:1.6">🔎 時刻の元データは、設定タブ →「🔎 時刻の元データを表示・コピー」で確認できます（同期後は他端末でも見られます）。</div>'):'');
-    if(_batchDeleted.length){ showToast('🗑 CSVに無い予約 '+_batchDeleted.length+'件を削除（追加'+added+'・更新'+updated+'）','#c0392b'); } // 削除は目立つ赤トーストで必ず知らせる
+    if(_vf.miss.length){ showToast('⛔ CSVに在ったのに出ていない予約が'+_vf.miss.length+'件あります（'+_vf.miss.map(function(x){return x;}).join('、')+'）','#c0392b',12000); } // 取りこぼしは最優先で赤く長く知らせる
+    else if(_batchDeleted.length){ showToast('🗑 CSVに無い予約 '+_batchDeleted.length+'件を削除（追加'+added+'・更新'+updated+'）','#c0392b'); } // 削除は目立つ赤トーストで必ず知らせる
     else showToast('✓ CSV取込：追加'+added+'・更新'+updated+(mismatch?'（種別不一致'+mismatch+'件除外）':''));
-    // 取込結果は数秒で自動的に消す（いつまでも残さない）。ただし削除/不一致があった時は確認できるよう残す。
+    // 取込結果は数秒で自動的に消す（いつまでも残さない）。ただし削除/不一致/取りこぼし/非表示があった時は確認できるよう残す。
     if(_csvResultTimer){ clearTimeout(_csvResultTimer); _csvResultTimer=null; }
-    if(!_batchDeleted.length && !mismatch){ _csvResultTimer=setTimeout(function(){ var _r=document.getElementById('csv-result'); if(_r){ _r.innerHTML=''; _r.style.color='#555'; } }, 6000); }
+    if(!_batchDeleted.length && !mismatch && !_vf.miss.length && !_vf.hidden.length){ _csvResultTimer=setTimeout(function(){ var _r=document.getElementById('csv-result'); if(_r){ _r.innerHTML=''; _r.style.color='#555'; } }, 6000); }
     document.getElementById('csv-text').value=''; document.getElementById('csv-file').value='';
     renderList();
+    // ★数秒後（同期が一巡した後）にもう一度検証：非同期の同期割り込みで後から消えた取りこぼしを捕まえる安全網
+    (function(_landedSnap,_type){ setTimeout(function(){
+      var v2=_verifyImportLanded(_landedSnap,_type);
+      if(v2.miss.length){
+        if(window.console&&console.error)console.error('取込後に消えた予約',v2.miss);
+        var _r=document.getElementById('csv-result');
+        if(_r){ _r.style.color='#7a1030'; _r.innerHTML='<div style="padding:9px 11px;background:#fdecec;border:2px solid #c0392b;border-radius:8px;font-size:13px;font-weight:700;line-height:1.6">⛔ 取込後の同期で消えた予約が <b>'+v2.miss.length+'件</b> あります：<br>'+v2.miss.map(htmlEscape).join('、')+'<div style="font-weight:400;font-size:11px;margin-top:4px">もう一度取り込むか手入力で追加し、開発者に知らせてください。</div></div>'; }
+        showToast('⛔ 取込後の同期で予約が'+v2.miss.length+'件消えました（'+v2.miss.join('、')+'）','#c0392b',15000);
+      }
+    }, 12000); })(JSON.parse(JSON.stringify(_landed)), type);
   }
   if(fileInput.files&&fileInput.files[0]){
     var fr=new FileReader();
