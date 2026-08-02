@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=402;
-const APP_BUILD_DATE='2026/08/02 16:10';
+const APP_VERSION=403;
+const APP_BUILD_DATE='2026/08/02 19:14';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3265,11 +3265,11 @@ function importCSV(){
         +'</div>'
         +'<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e0b4b4;color:#9a6070">※対象は<b>この施設・このCSVの主要月・CSV取込由来</b>の予約だけ（手入力・他施設・楽天等の外部/支払済み・<b>今回取り込んでいない月は消えません</b>）。誤って消えた場合は下の「🕘 取込履歴」で<b>月を選んで取消</b>で戻せます。</div></div>'):'')
       +(mismatch?('<div style="color:#c0392b;margin-top:2px;font-weight:600">⚠ '+mismatch+' 件は取込先の種別と一致しないため取り込みませんでした。<br>このCSVは'+(type==='day'?'<b>宿泊</b>予約のようです（ベッド情報・連泊あり）。上の選択を<b>「〇〇（宿泊）」</b>に変えて取り込み直してください。':'<b>日帰り</b>予約のようです（利用時間あり）。上の選択を<b>「☀ 日帰り」</b>の施設に変えてください。')+'</div>'):'')
-      +(_vf.miss.length?('<div style="margin-top:8px;padding:9px 11px;background:#fdecec;border:2px solid #c0392b;border-radius:8px;font-size:13px;color:#7a1030;font-weight:700;line-height:1.6">⛔ 重大：CSVに在ったのにアプリに出ていない予約が <b>'+_vf.miss.length+'件</b> あります。もう一度取り込むか、手入力で追加してください：<br>'+_vf.miss.map(htmlEscape).join('、')+'<div style="font-weight:400;font-size:11px;color:#9a6070;margin-top:4px">※これが出たら開発者に知らせてください（同期の不具合の可能性）。</div></div>'):'')
-      +(_vf.hidden.length?('<div style="margin-top:8px;padding:9px 11px;background:#fff8e6;border:1px solid #e0c060;border-radius:8px;font-size:12px;color:#7a5a10;line-height:1.6">⚠ 次の予約はWordPressでは有効ですが、アプリ側で<b>「キャンセル」状態</b>のため一覧に出ません。各カードの<b>「↩ キャンセルを取り消し」</b>で表示できます：<br>'+_vf.hidden.map(htmlEscape).join('、')+'</div>'):'')
+      +(_vf.miss.length?('<div style="margin-top:8px;padding:9px 11px;background:#fdecec;border:2px solid #c0392b;border-radius:8px;font-size:13px;color:#7a1030;font-weight:700;line-height:1.6">⛔ 重大：CSVにあったのにアプリに読み取れていない予約が <b>'+_vf.miss.length+'件</b> あります。再度取込みしてください（直らなければ手入力で追加）：<br>'+_vf.miss.map(htmlEscape).join('、')+'<div style="font-weight:400;font-size:11px;color:#9a6070;margin-top:4px">※これが出たら開発者に知らせてください（同期の不具合の可能性）。</div></div>'):'')
+      +(_vf.hidden.length?('<div style="margin-top:8px;padding:9px 11px;background:#fff8e6;border:1px solid #e0c060;border-radius:8px;font-size:12px;color:#7a5a10;line-height:1.6">⚠ 次の予約はWordPressでは有効ですが、手動で<b>「キャンセル」</b>されたため一覧に出ません。各カードの<b>「↩ キャンセルを取り消し」</b>で表示できます：<br>'+_vf.hidden.map(htmlEscape).join('、')+'</div>'):'')
       +((_batchAdded.length||_batchPrevUpdated.length||_batchDeleted.length)?('<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px;color:#9a6070">間違えた時の戻し方</summary><div style="font-size:11px;color:#9a6070;line-height:1.5;margin-top:4px;padding:6px 8px;background:#fff7f2;border:1px solid #e0c0b0;border-radius:8px">施設違い・削除しすぎ等があれば、下の「🕘 取込履歴」で<b>月を選んで「選択した取込を取り消す」</b>を押すと、この取込（追加・更新・削除すべて）を元に戻せます（後日でも可）。</div></details>'):'')
       +((type==='day'&&_dtDbg.length)?('<div style="margin-top:8px;padding:6px 8px;background:#fffbea;border:1px solid #e0cf90;border-radius:6px;font-size:11px;line-height:1.6">🔎 時刻の元データは、設定タブ →「🔎 時刻の元データを表示・コピー」で確認できます（同期後は他端末でも見られます）。</div>'):'');
-    if(_vf.miss.length){ showToast('⛔ CSVに在ったのに出ていない予約が'+_vf.miss.length+'件あります（'+_vf.miss.map(function(x){return x;}).join('、')+'）','#c0392b',12000); } // 取りこぼしは最優先で赤く長く知らせる
+    if(_vf.miss.length){ showToast('⛔ CSVにあったのにアプリに読み取れていない予約が'+_vf.miss.length+'件あります（'+_vf.miss.map(function(x){return x;}).join('、')+'）。再度取込みしてください','#c0392b',12000); } // 取りこぼしは最優先で赤く長く知らせる
     else if(_batchDeleted.length){ showToast('🗑 CSVに無い予約 '+_batchDeleted.length+'件を削除（追加'+added+'・更新'+updated+'）','#c0392b'); } // 削除は目立つ赤トーストで必ず知らせる
     else showToast('✓ CSV取込：追加'+added+'・更新'+updated+(mismatch?'（種別不一致'+mismatch+'件除外）':''));
     // 取込結果は数秒で自動的に消す（いつまでも残さない）。ただし削除/不一致/取りこぼし/非表示があった時は確認できるよう残す。
@@ -3283,8 +3283,8 @@ function importCSV(){
       if(v2.miss.length){
         if(window.console&&console.error)console.error('取込後に消えた予約',v2.miss);
         var _r=document.getElementById('csv-result');
-        if(_r){ _r.style.color='#7a1030'; _r.innerHTML='<div style="padding:9px 11px;background:#fdecec;border:2px solid #c0392b;border-radius:8px;font-size:13px;font-weight:700;line-height:1.6">⛔ 取込後の同期で消えた予約が <b>'+v2.miss.length+'件</b> あります：<br>'+v2.miss.map(htmlEscape).join('、')+'<div style="font-weight:400;font-size:11px;margin-top:4px">もう一度取り込むか手入力で追加し、開発者に知らせてください。</div></div>'; }
-        showToast('⛔ 取込後の同期で予約が'+v2.miss.length+'件消えました（'+v2.miss.join('、')+'）','#c0392b',15000);
+        if(_r){ _r.style.color='#7a1030'; _r.innerHTML='<div style="padding:9px 11px;background:#fdecec;border:2px solid #c0392b;border-radius:8px;font-size:13px;font-weight:700;line-height:1.6">⛔ 取込後の同期で消えた予約が <b>'+v2.miss.length+'件</b> あります：<br>'+v2.miss.map(htmlEscape).join('、')+'<div style="font-weight:400;font-size:11px;margin-top:4px">再度取込みしてください（直らなければ手入力で追加し、開発者に知らせてください）。</div></div>'; }
+        showToast('⛔ 取込後の同期で予約が'+v2.miss.length+'件消えました（'+v2.miss.join('、')+'）。再度取込みしてください','#c0392b',15000);
       }
     }, 12000); })(JSON.parse(JSON.stringify(_landed)), type);
   }
