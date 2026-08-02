@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=399;
-const APP_BUILD_DATE='2026/08/01 16:58';
+const APP_VERSION=400;
+const APP_BUILD_DATE='2026/08/02 12:24';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2419,7 +2419,33 @@ function _mergeById(baseMap, localArr, remoteArr){
   });
   return out;
 }
-async function syncToSheet(silent){
+// ===== 同期の直列化＋タイムアウト＋キャッシュ回避（レース由来の巻き戻り防止）=====
+// 保存(syncToSheet)も読込(loadFromSheet)も「GET→3方向マージ→base保存/POST」を行う。これらが割り込むと
+// 取得済みの古いスナップショットが更新済みのbaseと突合され、直前のローカル変更が"相手が変えた"と誤判定されて
+// 巻き戻る（全端末・全ブラウザで起こる）。全同期を1本のPromiseチェーンで直列実行し割り込みを防ぐ。
+// さらに端末間の同時書き込み対策として、送信時にサーバのリビジョン(rev)を添え、GASが不一致なら拒否→取り直して再送(CAS)。
+// ★合体（コアレッシング）はしない＝pushを取りこぼさない。
+let _syncChain=Promise.resolve();
+function _runExclusive(task){
+  var run=function(){ return Promise.resolve().then(task).catch(function(e){ if(window.console&&console.warn)console.warn('sync error',e); }); };
+  _syncChain=_syncChain.then(run,run); // 前の成否に関わらず必ず次へ
+  return _syncChain;
+}
+// GETがブラウザにキャッシュされると古いJSONが返る（Safari/Chrome問わず）。毎回URLにタイムスタンプを付けて回避。
+// ※no-storeはSafariでクロスオリジンGETが固まるため使わない。
+function _noCacheUrl(u){ return u + (u.indexOf('?')>=0?'&':'?') + '_cb=' + Date.now(); }
+// 通信が返らないと直列チェーンが詰まって全停止するため必ずタイムアウトで打ち切る（送れなかった変更は次の同期で再送）。
+function _fetchTimeout(u,opts,ms){
+  opts=opts||{};
+  var ac=(typeof AbortController!=='undefined')?new AbortController():null;
+  if(ac){ var o={}; for(var k in opts)o[k]=opts[k]; o.signal=ac.signal; opts=o; }
+  var t=setTimeout(function(){ try{ if(ac)ac.abort(); }catch(e){} }, ms||18000);
+  return fetch(u,opts).then(function(r){ clearTimeout(t); return r; }, function(e){ clearTimeout(t); throw e; });
+}
+// 公開名は据え置き。すべて直列キュー経由。
+function syncToSheet(silent){ return _runExclusive(function(){ return _syncToSheetImpl(silent); }); }
+function loadFromSheet(silent){ return _runExclusive(function(){ return _loadFromSheetImpl(silent); }); }
+async function _syncToSheetImpl(silent){
   const url=(ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value:'')||'').trim();
   if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
   if(!gasUrlOk(url)){ var _st0=document.getElementById('sync-status'); if(_st0)_st0.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
@@ -2435,57 +2461,64 @@ async function syncToSheet(silent){
   const st=document.getElementById('sync-status');
   if(st)st.textContent='同期中...';
   try{
-    // ① まずシートの現在値を取得（マージの remote）
-    var _gres=await fetch(url,{method:'GET',redirect:'follow'});
-    var _gjson=await gasReadJson(_gres);
-    if(_gjson.status!=='ok'){ if(st)st.textContent='⚠ エラー: '+(_gjson.message||'読取失敗'); if(!silent)showToast('⚠ 同期失敗（シート読取）','#c00'); return; }
-    var remoteR=Array.isArray(_gjson.reservations)?_gjson.reservations:[];
-    var remoteS=Array.isArray(_gjson.stays)?_gjson.stays:[];
-    // ② 3方向マージ（base=前回サーバ状態）。古いローカルが他端末のキャンセル/削除を踏み潰さない
-    var base=_loadSyncBase();
-    var mergedR=_mergeById(base.r, reservations, remoteR);
-    var mergedS=_mergeById(base.s, stays, remoteS);
-    // 大量消失ガード：シートにある予約の半分以上が消える結果は異常とみなし中止（誤爆防止）
-    var _remCnt=remoteR.length+remoteS.length, _mrgCnt=mergedR.length+mergedS.length;
-    if(_remCnt>=8 && _mrgCnt < _remCnt*0.5){
-      if(st)st.textContent='⚠ 安全のため同期を保留（大量消失を検知）';
-      if(!silent)showToast('⚠ 多数の予約が消える結果になったため保留しました。「📥 シートから読込」で最新を取得してください','#c00',9000);
-      return;
+    var _saved=false;
+    for(var _try=0; _try<5 && !_saved; _try++){
+      // ① シート取得（キャッシュ回避＋タイムアウト）＝マージの remote と現在リビジョン
+      var _gres=await _fetchTimeout(_noCacheUrl(url),{method:'GET',redirect:'follow'});
+      var _gjson=await gasReadJson(_gres);
+      if(_gjson.status!=='ok'){ if(st)st.textContent='⚠ エラー: '+(_gjson.message||'読取失敗'); if(!silent)showToast('⚠ 同期失敗（シート読取）','#c00'); return; }
+      var remoteR=Array.isArray(_gjson.reservations)?_gjson.reservations:[];
+      var remoteS=Array.isArray(_gjson.stays)?_gjson.stays:[];
+      var _srvRev=_gjson.rev; // 旧GASではundefined→CASなしで従来動作（後方互換）
+      // ② 3方向マージ（base=前回サーバ状態）。古いローカルが他端末のキャンセル/削除を踏み潰さない
+      var base=_loadSyncBase();
+      var mergedR=_mergeById(base.r, reservations, remoteR);
+      var mergedS=_mergeById(base.s, stays, remoteS);
+      // 大量消失ガード：シートにある予約の半分以上が消える結果は異常とみなし中止（誤爆防止）
+      var _remCnt=remoteR.length+remoteS.length, _mrgCnt=mergedR.length+mergedS.length;
+      if(_remCnt>=8 && _mrgCnt < _remCnt*0.5){
+        if(st)st.textContent='⚠ 安全のため同期を保留（大量消失を検知）';
+        if(!silent)showToast('⚠ 多数の予約が消える結果になったため保留しました。「📥 シートから読込」で最新を取得してください','#c00',9000);
+        return;
+      }
+      reservations=mergedR; stays=mergedS; sv(RKEY,reservations); sv(STKEY,stays);
+      // ③ マージ結果でシート更新（baseRev添付＝CAS：サーバが不一致なら拒否）
+      var res=await _fetchTimeout(url,{
+        method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({type:'sync_all',baseRev:_srvRev,stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),csvimpmon:(ld('yv_csvimp_mon')||{}),csvimpfile:(ld('yv_csvimp_file')||{}),csvimplastmon:(ld('yv_csvimp_lastmon')||{}),csvimpmts:(ld('yv_csvimp_mts')||{}),sharednote:(ld('yv_sharednote')||''),dayevents:(ld('yv_dayevents')||{})})
+      });
+      var json=await gasReadJson(res);
+      if(json.status==='conflict'){ continue; } // 他端末が先に書込＝取り直して再マージ・再送（相手の変更も自分の変更も保持）
+      if(json.status==='ok'){
+        _saveSyncBase(reservations,stays); // 書き込んだ内容＝新しいサーバ状態を base に
+        if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 同期完了';
+        markSync('保存'); renderList();
+        if(!silent)showToast('✓ スプレッドシートに同期しました','#1a7a3a');
+        _saved=true;
+      } else {
+        if(st)st.textContent='⚠ エラー: '+json.message;
+        if(!silent)showToast('⚠ 同期失敗','#c00');
+        return;
+      }
     }
-    reservations=mergedR; stays=mergedS; sv(RKEY,reservations); sv(STKEY,stays);
-    // ③ マージ結果でシートを更新
-    const res=await fetch(url,{
-      method:'POST',
-      redirect:'follow',
-      headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({type:'sync_all',stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),csvimpmon:(ld('yv_csvimp_mon')||{}),csvimpfile:(ld('yv_csvimp_file')||{}),csvimplastmon:(ld('yv_csvimp_lastmon')||{}),csvimpmts:(ld('yv_csvimp_mts')||{}),sharednote:(ld('yv_sharednote')||''),dayevents:(ld('yv_dayevents')||{})})
-    });
-    const json=await gasReadJson(res);
-    if(json.status==='ok'){
-      _saveSyncBase(reservations,stays); // 書き込んだ内容＝新しいサーバ状態を base に
-      if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 同期完了';
-      markSync('保存');
-      renderList(); // マージで remote の変更（他端末のキャンセル等）が入っている場合があるので反映
-      if(!silent)showToast('✓ スプレッドシートに同期しました','#1a7a3a');
-    }else{
-      if(st)st.textContent='⚠ エラー: '+json.message;
-      if(!silent)showToast('⚠ 同期失敗','#c00');
+    if(!_saved){ // 競合が続いて保存しきれず→ローカルは保持され次の同期で自動再送（消えない）
+      if(st)st.textContent='⚠ 同期が混み合っています（自動で再送します）';
     }
   }catch(e){
-    // GET/POST失敗時：ローカルは保持され、次の自動同期（60秒/操作時）で再度マージ送信される
+    // GET/POST失敗・タイムアウト時：ローカルは保持され、次の自動同期（20秒/操作時）で再度マージ送信される
     if(st)st.textContent='⚠ 通信エラー: '+e.message;
     if(!silent)showToast('⚠ 通信エラー: '+e.message,'#c00',9000);
   }
 }
-// シートから読込（端末間同期）。silent=trueで通知控えめ
-async function loadFromSheet(silent){
+// シートから読込（端末間同期）。silent=trueで通知控えめ ※公開名 loadFromSheet は上のラッパー（直列化）経由
+async function _loadFromSheetImpl(silent){
   const url=(ld(GAS_KEY)||(document.getElementById('gas-url')?document.getElementById('gas-url').value:'')||'').trim();
   if(!url){if(!silent)showToast('⚠ GAS URLを先に設定してください','#c00');return;}
   const st=document.getElementById('sync-status');
   if(!gasUrlOk(url)){ if(st)st.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
   if(st)st.textContent='読み込み中...';
   try{
-    const res=await fetch(url,{method:'GET',redirect:'follow'});
+    const res=await _fetchTimeout(_noCacheUrl(url),{method:'GET',redirect:'follow'});
     const json=await gasReadJson(res);
     if(json.status==='ok'){
       // ★空のシートでローカルを消さない安全装置（2026/07/16の事故対策）
