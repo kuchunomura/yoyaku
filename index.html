@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=405;
-const APP_BUILD_DATE='2026/08/05 09:47';
+const APP_VERSION=406;
+const APP_BUILD_DATE='2026/08/06 09:31';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -998,7 +998,7 @@ function calcTime(){
   const _dd=normDate((document.getElementById('day-date')||{}).value||'');
   const ovH=(addFacId==='tree'&&checkOverlap(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#c00">重複</span>':((addFacId==='tree'&&checkAdjacent(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#1565c0">連続</span>':'');
   document.getElementById('time-display').innerHTML=st+' 〜 '+getEnd(st,addCourse,addFacId)+noteH+ovH;
-  // 宿泊者割引：OTAでない宿泊に紐づく空中ウォーク(115分/1DAY)は1人500円引き。村内割引が優先
+  // 宿泊者割引：宿泊(OTA含む)に紐づく空中ウォーク(115分/1DAY)は1人500円引き。村内割引が優先
   const sgd=stayGuestDisc(addFacId,addCourse,getDayStayLinkIds(),mura);
   // 村内：BBQは無料・空中ウォーク・ツリーハウスは半額。レンタルは村内でも有料
   const price=dayUnitPrice(fac,addCourse,mura,sgd);
@@ -1171,10 +1171,10 @@ function _likelyLink(a,b){
 // ===== 宿泊者割引 =====
 // 宿泊予約に紐づいた空中ウォークは 1人500円引き（POSレジの STAY_GUEST_DISC と同じ）。
 // 対象は115分と1DAYのみ（55分は割引なし＝POSに i_walk55 の割引が無いのに合わせる）。
-// OTA（楽天・じゃらん等）経由の宿泊は宿泊料をサイト側で精算済みのため対象外。
+// ※2026-08-06変更：楽天などOTA経由の宿泊も対象に含める（泊まる客の空中ウォークは500円引き）。以前は「OTAは精算済み」で対象外だった。
 const STAY_GUEST_DISC=500;
 const STAY_GUEST_DISC_COURSES=[115,0]; // 115分 / 1DAY
-// 紐づけ先にOTAでない宿泊があれば割引額(500)、無ければ0を返す。
+// 紐づけ先に（OTA含む）宿泊があれば割引額(500)、無ければ0を返す。
 // 村内割引とは併用しない（半額の方が安いので村内が優先。POSレジも同じ順番にしてある）
 function stayGuestDisc(facId,course,linkedStayIds,mura){
   if(mura) return 0; // 村内割引が優先
@@ -1183,7 +1183,7 @@ function stayGuestDisc(facId,course,linkedStayIds,mura){
   var ids=linkedStayIds||[];
   for(var i=0;i<ids.length;i++){
     var s=stays.find(function(x){return x.id===ids[i];});
-    if(s&&!isCancelled(s)&&!_isOta(s.source)) return STAY_GUEST_DISC;
+    if(s&&!isCancelled(s)) return STAY_GUEST_DISC; // OTA(楽天)宿泊も対象
   }
   return 0;
 }
@@ -1602,7 +1602,7 @@ function renderList(){
     const co=fac.courses.find(x=>x.min===r.course);
     const basePrice=fac.prices[r.course];
     const mura=r.mura||false;
-    // 宿泊者割引：OTAでない宿泊に紐づく空中ウォーク(115分/1DAY)は1人500円引き（村内が優先）
+    // 宿泊者割引：宿泊(OTA含む)に紐づく空中ウォーク(115分/1DAY)は1人500円引き（村内が優先）
     const sgd=stayGuestDisc(r.facility,r.course,r.linkedStayIds,mura);
     const price=dayUnitPrice(fac,r.course,mura,sgd);
     const ninzu=parseInt(r.ninzu)||0;
