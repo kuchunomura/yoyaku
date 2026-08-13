@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=409;
-const APP_BUILD_DATE='2026/08/13 09:18';
+const APP_VERSION=410;
+const APP_BUILD_DATE='2026/08/13 10:38';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2378,7 +2378,7 @@ async function gasReadJson(res){
 // → 古いデータを持つ端末が書くと、他端末のキャンセル/削除を踏み潰して"復活"させてしまう。
 // 対策：書き込む前に必ずシートを読み、レコード単位で base(前回サーバ状態)/local/remote を
 // 3方向マージしてから書く。「変更していないローカル」は remote のキャンセル/削除に負ける＝復活しない。
-// GAS側は不変（＝再デプロイ不要）。base は yv_syncbase（id→内容ハッシュ）に端末ごとに保存。
+// GAS側は不変（＝再デプロイ不要）。base は yv_syncbase（id→実レコード）に端末ごとに保存。
 var _syncTsLast=0;
 function nowTs(){ var t=Date.now(); if(t<=_syncTsLast)t=_syncTsLast+1; _syncTsLast=t; return t; }
 // ★取込/新規作成した直後で「まだサーバに載ったのを確認できていない」IDの集合（id→登録時刻）。
@@ -2397,9 +2397,28 @@ function _stableStr(o){
 }
 function _recHash(o){ return _stableStr(o); } // updatedAtを除いた内容ハッシュ
 function _loadSyncBase(){ var b=ld('yv_syncbase'); if(!b||typeof b!=='object')b={}; if(!b.r||typeof b.r!=='object')b.r={}; if(!b.s||typeof b.s!=='object')b.s={}; return b; }
-function _buildBaseMap(arr){ var m={}; (arr||[]).forEach(function(o){ if(o&&o.id!=null)m[String(o.id)]=_recHash(o); }); return m; }
+function _buildBaseMap(arr){ var m={}; (arr||[]).forEach(function(o){ if(o&&o.id!=null)m[String(o.id)]=o; }); return m; } // ★baseは実レコードを保存（フィールド単位3方向マージ用）。旧版はハッシュ文字列＝_mergeById側で両対応（移行互換）
 function _saveSyncBase(rArr,sArr){ sv('yv_syncbase',{r:_buildBaseMap(rArr),s:_buildBaseMap(sArr)}); }
-// 3方向マージ。baseMap=前回サーバ状態のハッシュ表, local/remote=レコード配列。返り値=マージ済み配列。
+// フィールド単位の3方向マージ。両端末が同じ予約の「別々の項目」を変えても両方残す（＝チェックアウト等のwf・会計済み・メモ・人数・紐づけが競合上書きで消えるのを防ぐ）。
+// 同一フィールドを双方が変更した時だけ updatedAt の新しい方を採用（同点=remote＝従来踏襲）。base実レコードがある時のみ呼ぶ。
+function _merge3(baseRec, lo, ro){
+  baseRec=baseRec||{}; var out={}, keys={};
+  Object.keys(lo).forEach(function(k){keys[k]=1;}); Object.keys(ro).forEach(function(k){keys[k]=1;});
+  var loNewer=(+(lo.updatedAt||0)) > (+(ro.updatedAt||0)); // 同点はro
+  Object.keys(keys).forEach(function(k){
+    if(k==='updatedAt') return;
+    var lv=lo[k], rv=ro[k], bv=baseRec[k];
+    var lC=_stableStr(lv)!==_stableStr(bv), rC=_stableStr(rv)!==_stableStr(bv);
+    if(lC && !rC) out[k]=lv;          // こちらだけ変更
+    else if(rC && !lC) out[k]=rv;     // あちらだけ変更
+    else if(!lC && !rC) out[k]=rv;    // 双方無変更＝同じ
+    else out[k]=loNewer?lv:rv;        // 同一フィールドを双方変更＝新しい方
+  });
+  out.updatedAt=nowTs();              // マージ結果＝新状態（次のpushで全端末へ反映）
+  return out;
+}
+// 3方向マージ。baseMap=前回サーバ状態（id→実レコード。旧版はハッシュ文字列で移行互換）, local/remote=レコード配列。返り値=マージ済み配列。
+// 競合（双方が同じ予約を変更）は _merge3 でフィールド単位に合成＝別項目の変更を両方残す（チェックアウト等が消えない）。
 function _mergeById(baseMap, localArr, remoteArr){
   baseMap=baseMap||{};
   var L={}, R={}, ids=[], seen={};
@@ -2407,7 +2426,10 @@ function _mergeById(baseMap, localArr, remoteArr){
   (remoteArr||[]).forEach(function(o){ if(o&&o.id!=null){var k=String(o.id);R[k]=o;if(!seen[k]){seen[k]=1;ids.push(k);}} });
   var out=[];
   ids.forEach(function(k){
-    var lo=L[k], ro=R[k], hasB=Object.prototype.hasOwnProperty.call(baseMap,k), bh=hasB?baseMap[k]:null;
+    var lo=L[k], ro=R[k], hasB=Object.prototype.hasOwnProperty.call(baseMap,k);
+    var baseVal=hasB?baseMap[k]:null;
+    var bRec=(baseVal!=null && typeof baseVal==='object')?baseVal:null;                 // 新形式=実レコード（フィールドマージ用）
+    var bh=(bRec!=null)?_recHash(bRec):(typeof baseVal==='string'?baseVal:null);        // 旧形式=ハッシュ文字列も可（移行互換＝変更検知はどちらでも効く）
     if(ro && _pendingLocalAdds[k]!==undefined) delete _pendingLocalAdds[k]; // サーバに載ったのを確認＝保護解除
     var lChg=!!(lo && hasB && _recHash(lo)!==bh);
     var rChg=!!(ro && hasB && _recHash(ro)!==bh);
@@ -2416,7 +2438,7 @@ function _mergeById(baseMap, localArr, remoteArr){
       if(lChg && !rChg){ lo.updatedAt=nowTs(); out.push(lo); }            // こちらだけ変更＝こちら
       else if(rChg && !lChg){ out.push(ro); }                            // あちらだけ変更＝あちら（★復活防止の核）
       else if(!lChg && !rChg){ out.push(ro); }                           // 双方無変更＝同一。remote採用
-      else { var lt=+(lo.updatedAt||0), rt=+(ro.updatedAt||0); if(lt>rt){ lo.updatedAt=nowTs(); out.push(lo); } else { out.push(ro); } } // 競合＝新しい方（同点はremote）
+      else { out.push(bRec ? _merge3(bRec,lo,ro) : (function(){ var lt=+(lo.updatedAt||0), rt=+(ro.updatedAt||0); if(lt>rt){ lo.updatedAt=nowTs(); return lo; } return ro; })()); } // 競合＝フィールド単位3方向マージ（別項目の変更は両方残す）。移行直後でbase実レコードが無い時のみ従来の「新しい方」
     } else if(lo && !ro){
       if(!hasB){ lo.updatedAt=nowTs(); out.push(lo); }                    // この端末で新規追加＝残す
       else if(lChg){ lo.updatedAt=nowTs(); out.push(lo); }               // remote削除でもこちらが編集＝残す
