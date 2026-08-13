@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=408;
-const APP_BUILD_DATE='2026/08/09 15:54';
+const APP_VERSION=409;
+const APP_BUILD_DATE='2026/08/13 09:18';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3185,7 +3185,7 @@ function importCSV(){
       var _md=(type==='day'?rec.date:rec.checkin); if(_md&&/^\d{4}-\d{2}/.test(_md)){ var _mk=_md.slice(0,7); _impMonths[_mk]=true; _impMonthCnt[_mk]=(_impMonthCnt[_mk]||0)+1; } // 何月分か記録＋件数カウント
       var arr = type==='day' ? reservations : stays;
       _landed[wpId]={name:name, csvCancel:/cancel/.test(status)}; // このwpIdは取込後アプリに出ているべき（後で検証）
-      var exIdx = arr.findIndex(function(x){ return x.wpId===wpId; });
+      var exIdx = arr.findIndex(function(x){ return x && x.wpId!=null && String(x.wpId)===wpId; }); // ★String化で比較（削除側3229と統一）。x.wpIdが数値化(同期往復でGASがセル化)しても一致＝重複追加でチェックアウト等のwf/会計済みが消えるのを防ぐ
       if(exIdx>=0){
         // 再取込時はアプリ側の手動状態を保持（会計/状況・紐づけ・変更フラグ）。予約内容(日付/人数/ベッド/メモ等)はCSVで更新
         var old=arr[exIdx];
