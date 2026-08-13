@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=410;
-const APP_BUILD_DATE='2026/08/13 10:38';
+const APP_VERSION=411;
+const APP_BUILD_DATE='2026/08/13 13:41';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -4187,8 +4187,25 @@ function _pullNow(){
   }
 }
 function _pullSoon(minGap){ if(!ld(GAS_KEY)||document.hidden||window._printing)return; var wait=(minGap||3000)-(Date.now()-_lastPull); if(wait<=0){ _pullNow(); } else if(!_pullTimer){ _pullTimer=setTimeout(function(){ _pullTimer=null; _pullNow(); }, wait); } }
-setInterval(function(){ _pullSoon(0); }, 15000);
-document.addEventListener('visibilitychange', function(){ if(!document.hidden) _pullNow(); });
+setInterval(function(){ _pullSoon(0); }, 10000); // 可視中は10秒ごと（15→10へ短縮）
+document.addEventListener('visibilitychange', function(){ if(!document.hidden){ _pullNow(); _acquireWakeLock(); } });
+// 画面復帰・フォーカス・オンライン復帰・bfcache復帰(pageshow)・画面タッチで即時取得＝相手デバイスを触った瞬間にほぼ同期。
+// （非表示タブ/スリープ中はブラウザがタイマーを止めるので裏では取得できない＝下のWake Lockで寝かせない）
+window.addEventListener('focus', function(){ _pullSoon(1200); });
+window.addEventListener('online', function(){ _pullSoon(0); });
+window.addEventListener('pageshow', function(){ _pullSoon(1200); }); // iOSでタブ復帰時にvisibilitychangeが出ない場合の保険
+document.addEventListener('pointerdown', function(){ _pullSoon(2500); }, {passive:true}); // 画面を触ったら取得（最短2.5秒間隔で間引き）
+// ── Screen Wake Lock：アプリ表示中はiPadを寝かせない＝ポーリングが止まらず他デバイスの変更が遅れない（カウンター運用向け）──
+// 非対応/拒否/非表示時は黙って無効（従来動作へフォールバック）。ブラウザは非表示になると自動で解放するので、別アプリ表示中は電池を食わない。
+var _wakeLock=null;
+async function _acquireWakeLock(){
+  try{
+    if(document.hidden || !('wakeLock' in navigator) || _wakeLock) return;
+    _wakeLock=await navigator.wakeLock.request('screen');
+    _wakeLock.addEventListener('release', function(){ _wakeLock=null; });
+  }catch(e){ _wakeLock=null; } // 非対応/ユーザー拒否などは無視
+}
+_acquireWakeLock();
 window.addEventListener('focus', function(){ _pullNow(); });
 window.addEventListener('online', function(){ _pullNow(); });
 window.addEventListener('pageshow', function(){ _pullNow(); });
