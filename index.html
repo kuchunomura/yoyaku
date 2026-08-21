@@ -140,14 +140,14 @@ details[open] summary{opacity:0.75}
 .pcat{font-size:12px;font-weight:700;background:#eee;padding:2px 6px;margin-top:5px;border-radius:3px}
 .pio{font-weight:400;font-size:11px;color:#333;margin-left:4px}
 .prow{border:1px solid #ccc;border-radius:4px;padding:4px 7px;margin:3px 0;font-size:12px;break-inside:avoid;display:flex;flex-direction:column}
-.prow .pwf{justify-content:flex-end;margin-top:auto}
+.prow .pwf{justify-content:flex-start;padding-left:40%;margin-top:auto}
 .prow.pempty{color:#aaa;border-color:#e0e0e0}
 .pr1{font-weight:700;font-size:13px}
 .pr2,.pr3{font-size:11px;color:#333;margin-top:1px}
 .plink{font-size:11px;color:#224466;margin-top:1px;font-weight:600}
 .pcompact .plink{font-size:8.5px;line-height:1.15;margin-top:0;font-weight:600}
 .pwf{margin-top:4px;font-size:11px;display:flex;gap:10px;flex-wrap:wrap;color:#888}
-.pbox{display:inline-block;width:11px;height:11px;border:1px solid #bbb;text-align:center;line-height:10px;margin-left:3px;margin-right:10px;font-size:10px;vertical-align:-1px}
+.pbox{display:inline-block;width:16px;height:16px;border:1px solid #999;text-align:center;line-height:15px;margin-left:3px;margin-right:10px;font-size:12px;vertical-align:-3px}
 .pu-wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:3px 0 7px}
 .pu-frame{border:1px solid #ccc;border-radius:4px;padding:4px 7px;font-size:12px;break-inside:avoid;box-sizing:border-box;min-height:64px;display:flex;flex-direction:column}
 .pu-frame.pu-vacant{border-color:#e0e0e0}
@@ -191,7 +191,7 @@ details[open] summary{opacity:0.75}
 .pcompact .pr1{font-size:11.5px;font-weight:600;line-height:1.2}
 .pcompact .pr2,.pcompact .pr3{font-size:8.5px;line-height:1.15;margin-top:0}
 .pcompact .pwf{margin-top:auto;font-size:7.5px;gap:4px;color:#888}
-.pcompact .pbox{width:10px;height:10px;line-height:9px;font-size:9px;margin-left:2px;margin-right:7px}
+.pcompact .pbox{width:16px;height:16px;line-height:15px;font-size:11px;margin-left:3px;margin-right:8px;vertical-align:-3px}
 .pcompact .pgap{height:0;margin:5px 0 3px;border-top:1.5px solid #333}
 @media print{
   #app{display:none!important}
@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=411;
-const APP_BUILD_DATE='2026/08/13 13:41';
+const APP_VERSION=412;
+const APP_BUILD_DATE='2026/08/21 11:05';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1596,6 +1596,27 @@ function renderList(){
     return div;
   }
 
+  // 連泊の2泊目以降に出す軽量カード（会計等の操作は初日カードに集約）
+  function buildStayContinueCard(s,nightNo){
+    const grp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
+    const grpFacs=STAY_FACS.filter(x=>x.group===grp);
+    const fac=getSFac(s.facility)||grpFacs[0];if(!fac)return null;
+    const div=document.createElement('div');div.className='card'+(isCancelled(s)?' cancelled':'');
+    div.style.background='#fbf6f2';
+    div.innerHTML=
+      '<div class="card-header">'+
+        '<span class="badge badge-stay" style="background:#e7d3c7;color:#7a4a2a">宿泊 継続</span>'+
+        '<span style="font-size:12px;font-weight:600;color:#111">'+(s.facility?fac.label:grp)+'</span>'+
+        '<span style="font-size:12px;font-weight:700;color:#b5651d;background:#fbe9d8;border:1px solid #e6c199;border-radius:8px;padding:1px 8px">'+nightNo+'泊目</span>'+
+        ((s.wf&&s.wf.out)?'<span style="font-size:11px;font-weight:700;color:#1c5c39;background:#e6f4ea;border:1px solid #7bbf96;border-radius:8px;padding:1px 8px">✅ OUT済み</span>':'')+
+      '</div>'+
+      '<div class="card-meta" style="font-size:14px;color:#333;font-weight:600;line-height:1.6">'+
+        s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+
+        '<span style="font-size:12px;color:#888;font-weight:400">　（'+fmtMD(s.checkin)+' IN／会計は初日カードで）</span>'+
+      '</div>';
+    return div;
+  }
+
   function buildDayCard(r){
     const fac=getFac(r.facility);if(!fac)return null;
     const end=getEnd(r.startTime,r.course,r.facility);
@@ -1683,7 +1704,29 @@ function renderList(){
   // 宿泊は施設カテゴリ順：ツリーハウス（夜）→ドーム→テント→ハンモック
   const STAY_GROUP_ORDER={'ツリーハウス':0,'透明ドーム':1,'空中テント':2,'空中ハンモック':3};
   const entries=[];
-  sl.forEach(s=>{var g=s.facGroup||((getSFac(s.facility)||{}).group)||'';entries.push({date:s.checkin||'',kind:0,t:'',fo:(STAY_GROUP_ORDER[g]!=null?STAY_GROUP_ORDER[g]:9),ci:s.checkin||'',item:s});});
+  // 継続（2泊目以降）を出してよい日付か＝現在の表示絞り込みに合わせる（検索中は初日のみ）
+  const _contVisible=(d)=>{
+    if(!d)return false;
+    if(searchQ)return false;
+    if(dateFrom||dateTo)return (!dateFrom||d>=dateFrom)&&(!dateTo||d<=dateTo);
+    if(dateFilter)return d===dateFilter;
+    if(listFromToday)return d>=today;
+    return true;
+  };
+  sl.forEach(s=>{
+    var g=s.facGroup||((getSFac(s.facility)||{}).group)||'';
+    var fo=(STAY_GROUP_ORDER[g]!=null?STAY_GROUP_ORDER[g]:9);
+    entries.push({date:s.checkin||'',kind:0,t:'',fo:fo,ci:s.checkin||'',item:s});
+    // 連泊：2泊目以降を各夜の日付にも「継続カード」として表示（表示中の日付範囲だけ）
+    var nn=parseInt(s.nights)||1;
+    if(nn>=2&&s.checkin&&s.checkout){
+      for(var k=1;k<nn;k++){
+        var nd=addDays(s.checkin,k);
+        if(nd>=s.checkout)break;
+        if(_contVisible(nd))entries.push({date:nd,kind:0,t:'',fo:fo,ci:s.checkin||'',item:s,_cont:true,_night:k+1});
+      }
+    }
+  });
   dl.forEach(r=>entries.push({date:r.date||'',kind:1,t:r.startTime||'',fo:(DAY_FAC_ORDER[r.facility]!=null?DAY_FAC_ORDER[r.facility]:9),ci:'',item:r}));
   entries.sort((a,b)=>
     a.date.localeCompare(b.date)
@@ -1695,6 +1738,7 @@ function renderList(){
   // 日付ごとの施設別件数を集計（宿泊=カテゴリ、日帰り=施設名。ツリーハウス昼は区別）
   dayCounts={};
   entries.forEach(e=>{
+    if(e._cont)return; // 連泊の継続日は件数に数えない（初日のみ）
     if(isCancelled(e.item))return; // キャンセルは集計に数えない
     const d=e.date||'';if(!dayCounts[d])dayCounts[d]={};
     let label;
@@ -1708,7 +1752,7 @@ function renderList(){
   // union-find でクラスタ化
   const cl=entries.map((_,i)=>i);
   const find=x=>{while(cl[x]!==x){cl[x]=cl[cl[x]];x=cl[x];}return x;};
-  for(let i=0;i<entries.length;i++)for(let j=i+1;j<entries.length;j++){if(_renzoku(entries[i],entries[j]))cl[find(i)]=find(j);}
+  for(let i=0;i<entries.length;i++)for(let j=i+1;j<entries.length;j++){if(!entries[i]._cont&&!entries[j]._cont&&_renzoku(entries[i],entries[j]))cl[find(i)]=find(j);}
   entries.forEach((e,i)=>{e._cid=find(i);});
   // 同クラスタを連続配置（sorted順を保ちつつ先頭出現位置にまとめる）
   const ordered=[],usedCl={};
@@ -1716,7 +1760,7 @@ function renderList(){
   lastDate=null;
   let prev=null;
   ordered.forEach(e=>{
-    const div=e.kind===0?buildStayCard(e.item):buildDayCard(e.item);
+    const div=e.kind===0?(e._cont?buildStayContinueCard(e.item,e._night):buildStayCard(e.item)):buildDayCard(e.item);
     if(!div)return;
     if(e.date!==lastDate){dateDivider(e.date);lastDate=e.date;prev=null;}
     // 直前カードと同じ連続クラスタなら、間に跨るコネクタを挿入
@@ -3932,7 +3976,7 @@ function _pStayCat(s){return s.facGroup||((getSFac(s.facility)||{}).group)||'宿
 function _pCatIO(cat){var f=STAY_FACS.find(function(x){return x.group===cat;});return f?{ci:f.ci,co:f.co}:{ci:'',co:''};}
 // チェック欄はラベルを先に、☐を右側に（ペンで記入しやすいように）
 function _pWfStay(s){var wf=(s&&s.wf)||{};return '部屋準備'+_pbox(wf.prep)+'会計'+_pbox(wf.pay)+'案内'+_pbox(wf.guide)+'OUT'+_pbox(wf.out)+'キャンセル'+_pbox(s&&s.cancelled);}
-function _pWfDay(r){return '会計'+_pbox(r&&r.done)+'キャンセル'+_pbox(r&&r.cancelled);}
+function _pWfDay(r){return '会計'+_pbox(r&&r.done)+'案内'+_pbox(r&&r.guide)+'キャンセル'+_pbox(r&&r.cancelled);}
 // 印刷用の紐づけ行（📌）。カード表示と同じ内容を印刷にも出す。
 function _pLinksStay(s){
   return ((s&&s.linkedDayIds)||[]).map(function(lid){
@@ -4005,6 +4049,19 @@ function _pStayInner(s){
     (s.addr?'<div class="pr3">'+htmlEscape(s.addr)+'</div>':'')+
     _pLinksStay(s);
 }
+// 連泊の継続日（チェックイン以外の泊）を印刷枠に出す＝「N泊目」。金額・レンタル・備考は初日にだけ出す（重複読み防止）。
+function _pStayNightNo(s,date){ return Math.round((new Date(date)-new Date(s.checkin))/86400000)+1; }
+function _pStayContinue(s,nightNo){
+  var petTxt=(s.petCount||0)>0?('　ペット'+s.petCount):'';
+  var bedTxt=BED_GROUPS.includes(_pStayCat(s))?('　'+bedLabel(s.bed)):'';
+  var coTodayP=(s.checkout&&s.checkout===todayStr())?'<span style="margin-left:4px;font-weight:700;color:#b5651d;font-size:0.72em;white-space:nowrap">▲本日OUT</span>':'';
+  return '<div class="prtop"><div class="pr1"><span style="color:#b5651d">'+nightNo+'泊目</span>　'+s.ninzu+'名'+(s.name?'　'+s.name:'')+bedTxt+petTxt+coTodayP+'</div>'+
+    '<div class="pr2" style="color:#999">'+fmtMD(s.checkin)+'IN・'+s.nights+'泊</div></div>';
+}
+function _pStayFrameInner(s,date){
+  if(!s)return '<div class="pu-empty">（空き）</div>';
+  return (s.checkin===date)?_pStayInner(s):_pStayContinue(s,_pStayNightNo(s,date));
+}
 // ---- 連続（掃除の空き時間が無い＝別客が続く）判定。一覧・印刷で共通に使う ----
 function _rzIsTreeStay(e){ return e.kind===0&&(e.item.facGroup||((getSFac(e.item.facility)||{}).group))==='ツリーハウス'; }
 function _rzIsTreeDay(e){ return e.kind===1&&e.item.facility==='tree'; }
@@ -4059,7 +4116,7 @@ function _pStayBlock(date){
   PRINT_STAY_CATS.forEach(function(cat){
     var io=_pCatIO(cat);
     var units=STAY_FACS.filter(function(x){return x.group===cat;});
-    var rows=stays.filter(function(s){return !isCancelled(s)&&s.checkin===date&&_pStayCat(s)===cat;});
+    var rows=stays.filter(function(s){return !isCancelled(s)&&s.checkin&&s.checkout&&s.checkin<=date&&s.checkout>date&&_pStayCat(s)===cat;});
     // 棟へ割り当て：施設(棟)が一致する予約を優先、残りは空き棟へ順に入れる
     var assigned={},leftovers=[];
     rows.forEach(function(s){var u=units.find(function(x){return x.id===s.facility;});if(u&&!assigned[u.id])assigned[u.id]=s;else leftovers.push(s);});
@@ -4071,12 +4128,12 @@ function _pStayBlock(date){
     units.forEach(function(u){
       var s=assigned[u.id]||null;
       c+='<div class="pu-frame'+(s?'':' pu-vacant')+'"><div class="pu-head">'+u.label+'</div>'+
-         (s?_pStayInner(s):'<div class="pu-empty">（空き）</div>')+
+         _pStayFrameInner(s,date)+
          '<div class="pwf">'+_pWfStay(s)+'</div></div>';
     });
     // 棟数を超える予約があれば追加枠（赤枠）で出す
     leftovers.forEach(function(s){
-      c+='<div class="pu-frame pu-over"><div class="pu-head">追加（棟未定）</div>'+_pStayInner(s)+'<div class="pwf">'+_pWfStay(s)+'</div></div>';
+      c+='<div class="pu-frame pu-over"><div class="pu-head">追加（棟未定）</div>'+_pStayFrameInner(s,date)+'<div class="pwf">'+_pWfStay(s)+'</div></div>';
     });
     c+='</div></div></div>';   // pu-wrap / pcatbody / pcatblock
     cats+=c;
