@@ -217,7 +217,7 @@ details[open] summary{opacity:0.75}
     <button class="tab" data-tab="settings" onclick="switchTab('settings')">設定</button>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 10px">
-    <span id="app-version" style="font-size:11px;color:#aaa;white-space:nowrap"></span>
+    <span id="app-version" style="font-size:11px;color:#777;white-space:nowrap"></span>
     <div id="sync-indicator" onclick="loadFromSheet()" title="タップで今すぐ同期" style="font-size:11px;color:#999;text-align:right;cursor:pointer"></div>
   </div>
 
@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=416;
-const APP_BUILD_DATE='2026/08/21 12:03';
+const APP_VERSION=417;
+const APP_BUILD_DATE='2026/08/21 12:25';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -4228,7 +4228,7 @@ function doPrint(){
 // 起動
 repairNinzuFromAmount(); // 保存済みの人数誤読(332等)を金額から自動修復
 renderFltTabs();renderList();showLastSync();setupCsvDrop();
-(function(){var _av=document.getElementById('app-version');if(_av)_av.textContent='yoyaku v'+APP_VERSION+'　更新 '+APP_BUILD_DATE;})();
+(function(){var _av=document.getElementById('app-version');if(_av)_av.textContent='yoyaku ver.'+APP_VERSION+'　更新 '+APP_BUILD_DATE;})();
 // GAS URL設定済みなら、起動時に最新をシートから取得（端末間同期）
 if(ld(GAS_KEY)) loadFromSheet(true);
 // 受信を速く（v400の直列化＋CAS＋キャッシュ回避で安全になったので即時取得を解禁）：
