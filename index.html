@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=422;
-const APP_BUILD_DATE='2026/08/24 11:18';
+const APP_VERSION=423;
+const APP_BUILD_DATE='2026/08/24 19:59';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -762,7 +762,7 @@ function toggleQPast(){_qPast=!_qPast;renderQuestionAlerts();}
 // 質問・要確認パターン（？ / 〜ですか？ / ですか。 / でしょうか。 / ますか。 / したいです。 / と思っています。）
 var Q_PATTERNS=/[？?]|(?:です|ます)か(?=[。\.\s、，？?]|$)|でしょうか|たいです|[のん]です[がけ]|と思って(?:い)?ます|\b(?:can|could|may)\s+(?:i|we|you)\b|\bis\s+it\s+possible\b|\b(?:we|i)\s+(?:would\s+like|want|wish)\s+to\b|\bplease\s+(?:let\s+(?:me|us)\s+know|advise|confirm|tell)\b|\bdo\s+you\s+have\b|\bhow\s+(?:much|many|about)\b|\bwhat\s+time\b|\bis\s+there\b|\bpossible\s+to\b/i;
 // 質問ではないが要確認の言い回し（追加料金・別途・変更・要相談など）。スタッフが見落とさないよう要確認に集約する。
-var ALERT_PATTERNS=/追加料金|追加のため|追加分|別途.{0,3}(料金|費用|支払|請求)|要(?:確認|相談|対応)|至急|変更|連絡あり|仮予約|無料|キャンセル待ち|返金|\bextra\s*(?:charge|fee|cost|person|guest)\b|\badditional\b|\b(?:free\s*of\s*charge|for\s*free)\b|\brefund\b|\bcancel(?:l?ed|lation)?\b|\bchange[sd]?\b|\bmodif(?:y|ication)\b|\burgent\b|\basap\b|\ballerg(?:y|ic|ies)\b|\bwheel\s*chair\b|\bearly\s*check\s*-?\s*in\b|\blate\s*check\s*-?\s*out\b/i;
+var ALERT_PATTERNS=/追加料金|追加のため|追加分|別途.{0,3}(料金|費用|支払|請求)|要(?:確認|相談|対応)|至急|変更|連絡あり|仮予約|無料|キャンセル待ち|返金|\bextra\s*(?:charge|fee|cost|person|guest)\b|\badditional\b|\b(?:free\s*of\s*charge|for\s*free)\b|\brefund\b|\bcancel(?:l?ed|lation)?\b|\bchange[sd]?\b|\bmodif(?:y|ication)\b|\burgent\b|\basap\b|\ballerg(?:y|ic|ies)\b|\bwheel\s*chair\b|\bearly\s*check\s*-?\s*in\b|\blate\s*check\s*-?\s*out\b|請求書|後払い|振込/i;
 // 簡易ハッシュ（備考が同一かの判定用。内容が変われば値が変わる＝チェックが自動リセット）
 function _hash(s){s=String(s||'');var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h+s.charCodeAt(i))|0;}return (h>>>0).toString(36);}
 // チェック状態のキー：予約ID＋備考ハッシュ。再取込で予約が上書きされてもIDと内容が同じなら引き継ぐ。内容が変わればリセット
@@ -2021,7 +2021,11 @@ function openEdit(id){
           '<button type="button" onclick="eRChgQ(\''+item.id+'\',1)">＋</button>'+
         '</div></div>';
     }).join('');
-    html+='<hr style="border:none;border-top:1px solid #eee;margin:12px 0"><div style="font-size:14px;font-weight:600;color:#633806;margin-bottom:4px">備品レンタル</div>';
+    html+='<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+
+        '<div style="flex:1;font-size:14px;font-weight:600;color:#633806">備品レンタル</div>'+
+        '<button type="button" onclick="edReadMemoRental()" style="font-size:13px;font-weight:600;padding:6px 12px;border:1.5px solid #6b4f20;color:#fff;background:#6b4f20;border-radius:8px;cursor:pointer">📋メモから自動入力</button>'+
+      '</div>';
     html+=rItms(ALL_ITEMS.filter(x=>!x.col));
     html+='<div style="font-size:13px;color:#888;cursor:pointer;padding:8px 0" onclick="togEditEx(this)">▶ その他（'+ALL_ITEMS.filter(x=>x.col).length+'点）</div>';
     html+='<div id="edit-ex" style="display:none">'+rItms(ALL_ITEMS.filter(x=>x.col))+'</div>';
@@ -2216,6 +2220,29 @@ function esRebuildMemoChecks(){
   marks.forEach(function(pos){ h+=htmlEscape(memo.slice(p,pos))+'<span style="color:#e67700;font-weight:700">✓</span>'; p=pos; });
   h+=htmlEscape(memo.slice(p));
   el.innerHTML=h;
+}
+// 日帰り(BBQ)編集用。宿泊の esReadMemoRental と同じ動作で、対象のidだけ erc_/erq_/ers_ に変わる。
+function edReadMemoRental(silent){
+  var memoEl=document.getElementById('ed-memo'); if(!memoEl)return;
+  var box=(memoEl.innerText||'');
+  var r=reservations.find(function(x){return x.id===editId;});
+  var stored=(r&&r.memo)||'';
+  // 客チェック方式(保存メモに✓)はその生メモで判定。そうでなければ編集中テキスト(アプリ✓除去)。
+  var memo=(stored.indexOf('✓')!==-1)?stored:box.replace(/✓/g,'');
+  if(!memo.trim()){ if(!silent)showToast('メモが空です','#777'); return; }
+  var hit=0, exNeeded=false;
+  detectRentalFromMemo(memo, true).forEach(function(d){
+    var it=ALL_ITEMS.find(function(x){return x.id===d.id;}); if(!it)return;
+    var cb=document.getElementById('erc_'+d.id); if(!cb)return;   // BBQ以外は備品欄が無い
+    cb.checked=true;
+    var qbox=document.getElementById('erq_'+d.id); if(qbox)qbox.style.display='flex';
+    var qs=document.getElementById('ers_'+d.id); if(qs)qs.textContent=d.qty;
+    if(it.col)exNeeded=true;
+    hit++;
+  });
+  if(exNeeded){ var ex=document.getElementById('edit-ex'); if(ex)ex.style.display=''; } // 折りたたみ内の品があれば開く
+  if(silent){ if(hit)showToast('✓ メモから'+hit+'点を自動入力（要確認）','#1a7a3a'); }
+  else showToast(hit?('✓ '+hit+'点を読み取りました（✓印・要確認）'):'該当する備品が見つかりませんでした',hit?'#1a7a3a':'#777');
 }
 function esReadMemoRental(silent){
   var memoEl=document.getElementById('es-memo'); if(!memoEl)return;
@@ -2656,7 +2683,7 @@ async function _loadFromSheetImpl(silent){
       var _rep=repairNinzuFromAmount(); // 読込データの人数誤読を自動修復
       var _rq=healRentalQty();          // 客チェック方式メモの備品数量バグ（金額=数量）を自動修復
       var _rt=0;                          // +9自動補正は廃止（CSVの時刻をそのまま使う。過去に補正した分は再取込で正しくなる）
-      var _rd=0; if(!ld('yv_redetect3')){ _rd=redetectRentalAll(); sv('yv_redetect3',1); } // 既存予約を一度だけメモから読み取り直す（検出改良のたびフラグ番号を上げる）
+      var _rd=0; if(!ld('yv_redetect4')){ _rd=redetectRentalAll(); sv('yv_redetect4',1); } // 既存予約を一度だけメモから読み取り直す（検出改良のたびフラグ番号を上げる）
       if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 読込完了'+(_rep?'（人数'+_rep+'件を自動修正）':'')+(_rq?'（備品数量'+_rq+'件を自動修正）':'')+(_rt?'（時刻'+_rt+'件を自動修正）':'')+(_rd?'（備品'+_rd+'件を再読取）':'');
       markSync('同期');
       if(!silent)showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）'+(_rep?'／人数'+_rep+'件を自動修正':'')+(_rq?'／備品数量'+_rq+'件を自動修正':'')+(_rt?'／時刻'+_rt+'件を自動修正':'')+(_rd?'／備品'+_rd+'件を再読取':''),'#1a7a3a');
