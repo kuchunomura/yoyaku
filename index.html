@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=421;
-const APP_BUILD_DATE='2026/08/24 11:14';
+const APP_VERSION=422;
+const APP_BUILD_DATE='2026/08/24 11:18';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1789,15 +1789,23 @@ let showCancelled=false;
 let _cancelKeep={}; // この表示中にキャンセルしたカードを一時的に残す（取消し操作のため）
 function isCancelled(o){return !!(o&&o.cancelled)||/キャンセル/.test((o&&o.memo)||'');}
 // メモ内の備品表記「○○1個」「○○:2個」「○○１個」を「○○×1」に整形（顧客の自由記述はそのまま）
-// 客フォームの定型英訳＋価格（例「ローテーブル✓ Table　800JPY」の "Table　800JPY"）は
-// カード表示では冗長なので隠す。日本語の直後にある英字＋数字＋JPY だけを削るので、
-// お客さんが英語だけで書いた文（JPYが付かない）はそのまま残る。原文は編集画面で確認できる。
+// 客フォームの「レンタルチェック項目」の定型英訳＋価格だけを表示から隠す。
+// 例「ローテーブル✓ Table　800JPY」→「ローテーブル✓」
+// 判定は厳格に：英字＋数字＋JPY の直前が RENTAL_ALIAS に載っているレンタル品名のときだけ削る。
+// → お客さんの手記入（例「延泊 extra night 9000JPY」「毛布 blanket 500JPY」）は
+//    品名がレンタル項目ではないので消えない。英語だけの記述（前に日本語が無い）も残す。
+// 表示専用。保存メモは無加工で、編集画面では常に原文が見える。
 function stripFormEn(m){
-  return String(m||'')
-    .replace(/([ぁ-んァ-ヶー一-龥々〆＋+)）】」』〕]|✓)[ \t　]*[A-Za-z][A-Za-z0-9\s.,+&\/'’()\-]*?[0-9０-９]+[ \t　]*JPY/g,'$1')
-    .replace(/[ \t　]{2,}/g,' ')
-    .replace(/\s+([\/／])\s+/g,' $1 ')
-    .trim();
+  var s=String(m||'');
+  if(!/[0-9０-９][ \t　]*JPY/i.test(s)) return s;
+  s=s.replace(/[A-Za-z][A-Za-z0-9\s.,+&\/'’()\-]*?[0-9０-９]+[ \t　]*JPY/gi,function(tail,idx,whole){
+    var head=whole.slice(0,idx);
+    var jp=head.match(/[ぁ-んァ-ヶー一-龥々〆＋+✓]+[ \t　]*$/);
+    if(!jp) return tail;                              // 直前が日本語でない＝手記入 → 残す
+    for(var k in RENTAL_ALIAS){ if(RENTAL_ALIAS[k].test(jp[0])) return ''; }
+    return tail;                                      // レンタル品名でない → 残す
+  });
+  return s.replace(/[ \t　]{2,}/g,' ').trim();
 }
 function fmtMemoText(m){return String(m||'').replace(/\s*[:：]?\s*([0-9０-９]+)\s*個/g,function(_,n){return '×'+n.replace(/[０-９]/g,function(d){return '０１２３４５６７８９'.indexOf(d);});});}
 function htmlEscape(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
