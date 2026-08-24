@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=420;
-const APP_BUILD_DATE='2026/08/24 11:10';
+const APP_VERSION=421;
+const APP_BUILD_DATE='2026/08/24 11:14';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -4023,7 +4023,7 @@ function _pStayRow(s){
     '<div class="pr1">'+(fac?fac.label:(s.facGroup||''))+'　'+s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+bedTxt+petTxt+'</div>'+
     '<div class="pr2">'+money+'</div>'+
     ((s.rental||[]).length?'<div class="pr3" style="border-bottom:1px solid #bbb;padding-bottom:1px;margin-bottom:2px">レンタル：'+s.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
-    (s.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(s.memo))+'</div>':'')+
+    (s.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(stripFormEn(s.memo)))+'</div>':'')+
     (s.addr?'<div class="pr3">'+htmlEscape(s.addr)+'</div>':'')+
     '<div class="pwf">'+_pWfStay(s)+'</div>'+
   '</div>';
@@ -4039,7 +4039,7 @@ function _pDayRow(r){
     '<div class="prtop"><div class="pr1">'+r.startTime+'〜'+end+(co?'　'+co.minLabel:'')+'　'+ninzu+fac.priceUnit+(r.name?'　'+r.name:'')+(mura?'　（村内）':'')+(_rzHasPartner(r.id,0)?'<span class="prz">連続→ 夜（宿泊IN）</span>':'')+'</div>'+
     '<div class="pr2">計'+total.toLocaleString()+'円'+(rt>0?'（レンタル'+rt.toLocaleString()+'含む）':'')+'</div></div>'+
     ((r.rental||[]).length?'<div class="pr3" style="border-bottom:1px solid #bbb;padding-bottom:1px;margin-bottom:2px">レンタル：'+r.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
-    (r.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(r.memo))+'</div>':'')+
+    (r.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(stripFormEn(r.memo)))+'</div>':'')+
     _pLinksDay(r)+
     '<div class="pwf">'+_pWfDay(r)+'</div>'+
   '</div>';
@@ -4058,7 +4058,7 @@ function _pStayInner(s){
   return '<div class="prtop"><div class="pr1">'+s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+bedTxt+petTxt+coTodayP+_rzS+'</div>'+
     '<div class="pr2">'+money+'</div></div>'+
     ((s.rental||[]).length?'<div class="pr3" style="border-bottom:1px solid #bbb;padding-bottom:1px;margin-bottom:2px">レンタル：'+s.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
-    (s.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(s.memo))+'</div>':'')+
+    (s.memo?'<div class="pr3">備考：'+htmlEscape(fmtMemoText(stripFormEn(s.memo)))+'</div>':'')+
     (s.addr?'<div class="pr3">'+htmlEscape(s.addr)+'</div>':'')+
     _pLinksStay(s);
 }
