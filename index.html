@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=425;
-const APP_BUILD_DATE='2026/08/27 09:22';
+const APP_VERSION=426;
+const APP_BUILD_DATE='2026/08/27 09:46';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -763,6 +763,23 @@ function toggleQPast(){_qPast=!_qPast;renderQuestionAlerts();}
 var Q_PATTERNS=/[？?]|(?:です|ます)か(?=[。\.\s、，？?]|$)|でしょうか|たいです|[のん]です[がけ]|と思って(?:い)?ます|\b(?:can|could|may)\s+(?:i|we|you)\b|\bis\s+it\s+possible\b|\b(?:we|i)\s+(?:would\s+like|want|wish)\s+to\b|\bplease\s+(?:let\s+(?:me|us)\s+know|advise|confirm|tell)\b|\bdo\s+you\s+have\b|\bhow\s+(?:much|many|about)\b|\bwhat\s+time\b|\bis\s+there\b|\bpossible\s+to\b/i;
 // 質問ではないが要確認の言い回し（追加料金・別途・変更・要相談など）。スタッフが見落とさないよう要確認に集約する。
 var ALERT_PATTERNS=/追加料金|追加のため|追加分|別途.{0,3}(料金|費用|支払|請求)|要(?:確認|相談|対応)|至急|変更|連絡あり|仮予約|無料|キャンセル待ち|返金|\bextra\s*(?:charge|fee|cost|person|guest)\b|\badditional\b|\b(?:free\s*of\s*charge|for\s*free)\b|\brefund\b|\bcancel(?:l?ed|lation)?\b|\bchange[sd]?\b|\bmodif(?:y|ication)\b|\burgent\b|\basap\b|\ballerg(?:y|ic|ies)\b|\bwheel\s*chair\b|\bearly\s*check\s*-?\s*in\b|\blate\s*check\s*-?\s*out\b|請求書|後払い|振込/i;
+// 客の手入力で「1つの数量が複数の備品にまたがる可能性がある書き方」を検出＝要確認に回す。
+// 例「・ガスコンロ ・スキレット＋鍋 ・ホットサンドクッカー ・寝袋　4つ」＝4つが寝袋だけか4種全部か判別不能。
+// 判定：数量表記（4つ/2個 等）の直前スパンにレンタル品名が2つ以上並んでいたら曖昧。お客様記入部（" / "以降）を対象。
+function hasAmbiguousQty(memo){
+  var s=stripFormEn(String(memo||'').replace(/✓/g,''));
+  if(!s)return false;
+  var sm=s.match(/^[\s\S]*?[ \t　]+[\/／][ \t　]+([\s\S]*)$/);
+  var free=sm?sm[1]:s;
+  var qtyRe=/([0-9０-９]+)\s*(?:つ|個|台|セット|組|脚|本|枚|張|点)/g, m, prev=0;
+  while((m=qtyRe.exec(free))){
+    var span=free.slice(prev, m.index); prev=qtyRe.lastIndex;
+    var cnt=0;
+    for(var i=0;i<ALL_ITEMS.length;i++){ var re=RENTAL_ALIAS[ALL_ITEMS[i].id]; if(re&&re.test(span))cnt++; if(cnt>=2)break; }
+    if(cnt>=2)return true;
+  }
+  return false;
+}
 // 簡易ハッシュ（備考が同一かの判定用。内容が変われば値が変わる＝チェックが自動リセット）
 function _hash(s){s=String(s||'');var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h+s.charCodeAt(i))|0;}return (h>>>0).toString(36);}
 // チェック状態のキー：予約ID＋備考ハッシュ。再取込で予約が上書きされてもIDと内容が同じなら引き継ぐ。内容が変わればリセット
@@ -776,8 +793,9 @@ function renderQuestionAlerts(){
     if(isCancelled(o))return;
     var d=isStay?o.checkin:o.date;
     var memo=String(o.memo||''); if(!memo)return;
-    if(!Q_PATTERNS.test(memo) && !ALERT_PATTERNS.test(memo))return;
-    allItems.push({isStay:isStay,o:o,k:qackKey(o),past:!!(d&&d<today)});
+    var _amb=hasAmbiguousQty(memo);
+    if(!Q_PATTERNS.test(memo) && !ALERT_PATTERNS.test(memo) && !_amb)return;
+    allItems.push({isStay:isStay,o:o,k:qackKey(o),past:!!(d&&d<today),amb:_amb});
   }
   stays.forEach(function(s){scan(s,true);});
   reservations.forEach(function(r){scan(r,false);});
@@ -804,6 +822,7 @@ function renderQuestionAlerts(){
       '<input type="checkbox" data-qack="'+it.k+'" '+(done?'checked':'')+' style="width:18px;height:18px;flex-shrink:0;margin-top:2px">'+
       '<div style="flex:1;min-width:0;font-size:13px;color:#7a5b10">'+
         '<div style="font-weight:600'+(done?';text-decoration:line-through':'')+'">'+icon+' '+(d?fmtMD(d):'日付未定')+'　'+facL+(o.name?'　'+o.name:'')+'</div>'+
+        (it.amb?'<div style="font-size:11px;color:#b5651d;font-weight:700;margin-top:1px">⚠ 備品の数量手入力あり＝複数品にまたがる可能性（要確認）</div>':'')+
         '<div style="font-size:12px;color:#8a6f2a;margin-top:1px">'+fmtMemoText(htmlEscape(memoQExcerpt(o.memo)))+'</div>'+
       '</div>'+
       '<button class="btn-sm" data-act="'+act+'" data-id="'+o.id+'" style="flex-shrink:0;background:#fff;border:1px solid #d9b676;color:#6b4f20">確認</button>'+
@@ -1533,10 +1552,10 @@ function renderList(){
     const _paidBadge='<span style="font-size:11px;font-weight:700;color:#1a7a3a;background:#e6f4ea;border:1px solid #9cc8ad;border-radius:10px;padding:1px 8px;margin-left:6px;white-space:nowrap">✓ 支払い済み</span>';
     const _stayBase=s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'');
     var stayAmtHtml;
-    if(passPaid){ stayAmtHtml='<span style="font-size:13px;color:#999;text-decoration:line-through">'+_stayBase+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'
+    if(passPaid){ stayAmtHtml='<span style="font-size:13px;color:#999;text-decoration:line-through">'+_stayBase+(rt>0?'＋レンタル×'+(s.rental||[]).length+'　'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'
         +'<span style="font-size:11px;font-weight:700;color:#1a7a3a;background:#e6f4ea;border:1px solid #9cc8ad;border-radius:10px;padding:1px 8px;margin-left:6px;white-space:nowrap">✓ 年間パス・支払い済み</span>'; }
-    else if(otaP){ stayAmtHtml='<span style="font-size:13px;color:#999"><span style="text-decoration:line-through">'+_stayBase+'</span>'+(rt>0?' ＋レンタル'+rt.toLocaleString():'')+'　計'+rt.toLocaleString()+'円'+(rt>0?'<span style="color:#b5651d">（レンタルは当日）</span>':'')+'</span>'+_paidBadge; }
-    else{ stayAmtHtml='<span style="font-size:13px;color:#999">'+_stayBase+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'; }
+    else if(otaP){ stayAmtHtml='<span style="font-size:13px;color:#999"><span style="text-decoration:line-through">'+_stayBase+'</span>'+(rt>0?' ＋レンタル×'+(s.rental||[]).length+'　'+rt.toLocaleString():'')+'　計'+rt.toLocaleString()+'円'+(rt>0?'<span style="color:#b5651d">（レンタルは当日）</span>':'')+'</span>'+_paidBadge; }
+    else{ stayAmtHtml='<span style="font-size:13px;color:#999">'+_stayBase+(rt>0?'＋レンタル×'+(s.rental||[]).length+'　'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円</span>'; }
     const srcL=(s.source||detectOtaFromText(s.memo))?getSrcLabel(s.source||detectOtaFromText(s.memo)):'';
     const linkedH=(s.linkedDayIds||[]).map(lid=>{
       const lr=reservations.find(r=>r.id===lid);if(!lr||isCancelled(lr))return'';
@@ -4066,7 +4085,7 @@ function _pStayRow(s){
   var grand=(s.unitPrice*tp*s.nights)+(s.petFee||0)+rt;
   var bedTxt=BED_GROUPS.includes(_pStayCat(s))?('　'+bedLabel(s.bed)):'';
   var petTxt=(s.petCount||0)>0?('　ペット'+s.petCount):'';
-  var money=s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円';
+  var money=s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル×'+(s.rental||[]).length+'　'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円';
   return '<div class="prow">'+
     '<div class="pr1">'+(fac?fac.label:(s.facGroup||''))+'　'+s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+bedTxt+petTxt+'</div>'+
     '<div class="pr2">'+money+'</div>'+
@@ -4099,7 +4118,7 @@ function _pStayInner(s){
   var grand=(s.unitPrice*tp*s.nights)+(s.petFee||0)+rt;
   var petTxt=(s.petCount||0)>0?('　ペット'+s.petCount):'';
   var bedTxt=BED_GROUPS.includes(_pStayCat(s))?('　'+bedLabel(s.bed)):'';
-  var money=s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円';
+  var money=s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル×'+(s.rental||[]).length+'　'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円';
   var coTodayP=(s.checkout&&s.checkout===todayStr())?'<span style="margin-left:4px;font-weight:700;color:#b5651d;font-size:0.72em;white-space:nowrap">▲本日OUT</span>':'';
   var _dp=_rzHasPartner(s.id,1);   // 昼から連続している相手（別ページになるので時刻を書いて分かるように）
   var _rzS=_dp?('<span class="prz">連続← 昼 '+_dp.item.startTime+'〜'+getEnd(_dp.item.startTime,_dp.item.course,'tree')+'</span>'):'';
