@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=424;
-const APP_BUILD_DATE='2026/08/27 09:16';
+const APP_VERSION=425;
+const APP_BUILD_DATE='2026/08/27 09:22';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1814,6 +1814,17 @@ function htmlEscape(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace
 // カードの備考表示：現在の備品(rental)に対応する文言の直後へ橙色✓を付ける（何を認識できたかが一目で分かる）
 function fmtMemoChecks(memo,rental){
   memo=stripFormEn(String(memo||'').replace(/✓/g,''));
+  if(!memo)return '';
+  // 客フォームは「レンタルのチェック項目」と「お客様の自由記入」を " / " で連結する。
+  // 混同しないよう、最初の " / "（前後スペース付き）で区切ってラベル＋区切り線で分ける。
+  var sm=memo.match(/^([\s\S]*?)[ \t　]+[\/／][ \t　]+([\s\S]*)$/);
+  if(sm && sm[1].trim() && sm[2].trim()){
+    return '<div><span style="color:#5a8f6a;font-weight:700;font-size:11px">☑ チェック項目</span> '+_fmtChecksCore(sm[1].trim(),rental)+'</div>'
+         + '<div style="margin-top:3px;padding-top:3px;border-top:1px dashed #d8c0b0"><span style="color:#b5651d;font-weight:700;font-size:11px">✎ お客様記入</span> '+_fmtChecksCore(sm[2].trim(),rental)+'</div>';
+  }
+  return _fmtChecksCore(memo,rental);
+}
+function _fmtChecksCore(memo,rental){
   if(!memo)return '';
   var marks=[]; // {pos, type:'r'(レンタル橙) / 'q'(質問青)}
   // レンタル：認識語の直後に橙✓
