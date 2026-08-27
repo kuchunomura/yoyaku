@@ -12,9 +12,10 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111;background:#f7f7f7;font-size:16px}
 #app{max-width:520px;margin:0 auto;background:#fff;min-height:100vh;padding-bottom:80px}
-.tabs{display:flex;border-bottom:1px solid #ddd;background:#fff;position:sticky;top:0;z-index:10}
-.tab{flex:1;padding:8px 1px;font-size:11px;cursor:pointer;border:none;background:none;color:#888;border-bottom:2px solid transparent;font-family:inherit}
-.tab.active{color:#111;border-bottom:2px solid #111;font-weight:500}
+.tabs{display:flex;gap:5px;padding:6px 8px;border-bottom:1px solid #ddd;background:#fff;position:sticky;top:0;z-index:10}
+.tab{flex:1;padding:8px 2px;font-size:11px;cursor:pointer;border:1px solid #ccc;background:#f2f2f2;color:#666;border-radius:8px;font-family:inherit;box-shadow:0 2px 0 rgba(0,0,0,.14),0 3px 4px rgba(0,0,0,.10);transition:transform .05s ease,box-shadow .05s ease}
+.tab.active{color:#fff;background:#111;border-color:#111;font-weight:600;box-shadow:0 2px 0 rgba(0,0,0,.4),0 3px 4px rgba(0,0,0,.2)}
+.tab:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.14),0 1px 2px rgba(0,0,0,.18)}
 .tab-content{padding:12px}
 .facility-tabs{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap}
 .ftab{flex:1;min-width:55px;padding:8px 4px;font-size:12px;cursor:pointer;border:1px solid #bbb;border-radius:8px;background:#ebebeb;color:#555;text-align:center;font-family:inherit;line-height:1.3}
@@ -633,8 +634,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=440;
-const APP_BUILD_DATE='2026/08/27 11:24';
+const APP_VERSION=441;
+const APP_BUILD_DATE='2026/08/27 11:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
