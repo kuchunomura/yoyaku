@@ -635,8 +635,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=443;
-const APP_BUILD_DATE='2026/08/27 11:38';
+const APP_VERSION=444;
+const APP_BUILD_DATE='2026/08/27 11:46';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3461,6 +3461,11 @@ function importCSV(){
         if(old.cancelled) rec.cancelled=old.cancelled;
         if(old.rental&&old.rental.length && old.rentalAuto===false){ rec.rental=old.rental; rec.rentalAuto=false; } // 手動設定した備品のみ保持（自動推定は毎回メモから作り直す）
         if(old.customValues) rec.customValues=old.customValues;
+        // ★スタッフメモ（「メモ」ボタンで足した「――スタッフメモ――」以降）は再取込で消さない。
+        //   従来はCSVからメモを作り直すだけで旧メモを一切引き継がず、手書きのスタッフメモが上書きで消えていた。
+        if(old.memo){ var _osi=String(old.memo).indexOf(STAFF_MEMO_MARK);
+          if(_osi>=0){ var _staffPart=String(old.memo).slice(_osi).replace(/\s+$/,'');
+            if(rec.memo.indexOf(STAFF_MEMO_MARK)<0){ rec.memo=(rec.memo?String(rec.memo).replace(/\s+$/,'')+'\n':'')+_staffPart; } } }
         // 宿泊：手動で割り当てた「棟」を保持（CSVに棟は無いので、再取込のたびに棟未選択へ戻るのを防ぐ）。
         // ただし施設違いの修正取込（別グループのCSVを取り込んで直す時）は、旧棟は新グループに属さないので引き継がない。
         // ＝棟をリセット（新グループの既定：単棟なら自動割当／複数棟なら未選択）。これで施設違いが棟ごと正しく直る。
