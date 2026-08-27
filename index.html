@@ -628,8 +628,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=431;
-const APP_BUILD_DATE='2026/08/27 10:18';
+const APP_VERSION=432;
+const APP_BUILD_DATE='2026/08/27 10:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1624,6 +1624,7 @@ function renderList(){
         '<button class="btn-sm" id="cardtog-'+s.id+'" data-act="toggleCardBtns" data-id="'+s.id+'" style="color:#666">'+(cardOpen?'▲ 閉じる':'▼ 操作')+'</button>'+
       '</div>'+
       '<div id="cardbtns-'+s.id+'" data-disp="block" style="display:'+(cardOpen?'block':'none')+'">'+
+        '<div style="margin-bottom:5px"><button class="btn-sm" data-act="addStaffMemo" data-id="'+s.id+'" data-t="stay" style="color:#1565c0;border-color:#9cc;font-weight:600">📝 メモを追記</button></div>'+
         '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+cancelBtn+'</div>'+
       '</div>';
     return div;
@@ -1817,6 +1818,18 @@ var _cardOpen={};
 var _rentalOpen={};  // レンタル明細(details)の開閉をカードID単位で記憶（再描画=pull/10秒ごとで閉じないように）
 function _noteRentalOpen(id,open){ if(open)_rentalOpen[id]=1; else delete _rentalOpen[id]; }
 function toggleCardBtns(id){var el=document.getElementById('cardbtns-'+id);var tg=document.getElementById('cardtog-'+id);var isOpen=el?(el.style.display!=='none'):(_cardOpen[id]!==false);_cardOpen[id]=!isOpen;var open=_cardOpen[id];if(el)el.style.display=open?(el.getAttribute('data-disp')||'block'):'none';if(tg)tg.textContent=open?'▲ 閉じる':'▼ 操作';}
+// カードから「👤 スタッフメモ」を素早く追記（部屋準備の上のボタン）。マーカー以降に追記＝カード/印刷/レジで「👤スタッフ記入」表示。
+function addStaffMemoQuick(type,id){
+  var arr=(type==='stay')?stays:reservations;
+  var o=arr.find(function(x){return String(x.id)===String(id);}); if(!o)return;
+  var txt=prompt('👤 スタッフメモを追記（スタッフ記入として保存されます）','');
+  if(txt==null)return; txt=String(txt).trim(); if(!txt)return;
+  var base=String(o.memo||'').replace(/\s+$/,'');
+  if(base.indexOf(STAFF_MEMO_MARK)>=0){ o.memo=base+' '+txt; }
+  else { o.memo=base+(base?'\n':'')+STAFF_MEMO_MARK+'\n'+txt; }
+  sv((type==='stay')?STKEY:RKEY, arr); autoPush(); renderList();
+  showToast('👤 スタッフメモを追記しました','#1565c0');
+}
 // ベッド構成（ドーム・ツリーハウス）。タップで切替
 function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=(bedCode(s.bed)==='ws')?'ww':'ws';sv(STKEY,stays);autoPush();renderList();}
 // メモ等のテキストからOTAを判定（ソウエクスペリ/SOU/じゃらん/楽天）
@@ -1860,14 +1873,14 @@ function fmtMemoChecks(memo,rental){
   var html='';
   var sm=memo.match(/^([\s\S]*?)[ \t　]+[\/／][ \t　]+([\s\S]*)$/);
   if(sm && sm[1].trim() && sm[2].trim()){
-    html='<div><span style="color:#5a8f6a;font-weight:700;font-size:11px">☑ チェック項目</span> '+_fmtChecksCore(sm[1].trim(),rental)+'</div>'
-       + '<div style="margin-top:3px;padding-top:3px;border-top:1px dashed #d8c0b0"><span style="color:#b5651d;font-weight:700;font-size:11px">✎ お客様記入</span> '+_fmtChecksCore(sm[2].trim(),rental)+'</div>';
+    html='<div><span style="color:#5a8f6a;font-weight:700;font-size:0.85em">☑ チェック項目</span> '+_fmtChecksCore(sm[1].trim(),rental)+'</div>'
+       + '<div style="margin-top:3px;padding-top:3px;border-top:1px dashed #d8c0b0"><span style="color:#b5651d;font-weight:700;font-size:0.85em">✎ お客様記入</span> '+_fmtChecksCore(sm[2].trim(),rental)+'</div>';
   } else if(memo){
     html='<div>'+_fmtChecksCore(memo,rental)+'</div>';
   }
   // ③スタッフ記入
   if(staffPart){
-    html+='<div style="margin-top:3px;padding-top:3px;border-top:1px dashed #a9c0d8"><span style="color:#1565c0;font-weight:700;font-size:11px">👤 スタッフ記入</span> '+_fmtChecksCore(staffPart,rental)+'</div>';
+    html+='<div style="margin-top:3px;padding-top:3px;border-top:1px dashed #a9c0d8"><span style="color:#1565c0;font-weight:700;font-size:0.85em">👤 スタッフ記入</span> '+_fmtChecksCore(staffPart,rental)+'</div>';
   }
   return html||_fmtChecksCore(memo,rental);
 }
@@ -4462,6 +4475,7 @@ document.addEventListener('click',function(e){
   else if(act==='setStayUnit')setStayUnit(id,btn.dataset.unit);
   else if(act==='toggleUnitSel')toggleUnitSel(id);
   else if(act==='toggleCardBtns')toggleCardBtns(id);
+  else if(act==='addStaffMemo')addStaffMemoQuick(btn.dataset.t,id);
   else if(act==='toggleBed')toggleBed(id);
   else if(act==='togglePet')togglePet(id);
   else if(act==='toggleBedSel')toggleBedSel(id);
