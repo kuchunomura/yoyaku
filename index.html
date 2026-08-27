@@ -206,6 +206,7 @@ details[open] summary{opacity:0.75}
   .psheet.port{page:pgPort}
   body{background:#fff}
 }
+@keyframes yspin{to{transform:translateY(-50%) rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -236,7 +237,11 @@ details[open] summary{opacity:0.75}
         <input type="date" id="list-to" onchange="onRangeChange()" oninput="onRangeChange()" style="font-size:12px;padding:3px 4px;border:1px solid #ccc;border-radius:6px">
         <button class="btn-sm" onclick="clearRange()" style="padding:3px 8px;font-size:12px">✕</button>
       </div>
-      <input id="list-search" type="search" placeholder="🔍 名前・メモ・住所・施設で検索" oninput="onSearchInput(this.value)" style="width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px;border:1px solid #ccc;border-radius:8px;-webkit-appearance:none">
+      <div style="position:relative">
+        <input id="list-search" type="search" placeholder="🔍 名前・メモ・住所・施設で検索" oninput="onSearchInput(this.value)" style="width:100%;box-sizing:border-box;font-size:13px;padding:6px 34px 6px 8px;border:1px solid #ccc;border-radius:8px;-webkit-appearance:none">
+        <span id="search-spin" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);width:15px;height:15px;border:2px solid #d9b676;border-top-color:transparent;border-radius:50%;animation:yspin .6s linear infinite;pointer-events:none"></span>
+      </div>
+      <div style="font-size:11px;color:#999;margin-top:3px">入力すると自動で検索します（クルクル＝検索中）</div>
     </div>
     <div class="facility-tabs" id="flt-tabs"></div>
     <div id="list-container"></div>
@@ -623,8 +628,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=428;
-const APP_BUILD_DATE='2026/08/27 09:58';
+const APP_VERSION=429;
+const APP_BUILD_DATE='2026/08/27 10:04';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -700,7 +705,18 @@ function quickDate(off){dateFilter=offsetStr(off);listFromToday=false;_clearSear
 function showFromToday(){dateFilter=null;listFromToday=true;_clearSearchInput();_clearRangeInputs();renderList();}
 // 全期間（過去も含めて表示）
 function showAllDates(){dateFilter=null;listFromToday=false;_clearSearchInput();_clearRangeInputs();renderList();}
-function onSearchInput(v){searchQ=(v||'').trim();if(searchQ){dateFilter=null;}renderList();}
+var _searchTimer=null;
+function onSearchInput(v){
+  searchQ=(v||'').trim();
+  if(searchQ){dateFilter=null;}
+  var sp=document.getElementById('search-spin'); if(sp)sp.style.display=searchQ?'inline-block':'none'; // 検索中クルクル
+  if(_searchTimer)clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(function(){
+    _searchTimer=null;
+    renderList();
+    var sp2=document.getElementById('search-spin'); if(sp2)sp2.style.display='none';
+  },250); // 250msデバウンス＝入力が落ち着いてから検索（連打で重くならない・動作が見える）
+}
 // 期間（開始〜終了）絞込
 function onRangeChange(){var f=document.getElementById('list-from'),t=document.getElementById('list-to');dateFrom=f?normDate(f.value):'';dateTo=t?normDate(t.value):'';if(dateFrom||dateTo){dateFilter=null;listFromToday=false;_clearSearchInput();}renderList();}
 function clearRange(){_clearRangeInputs();if(!dateFilter&&!searchQ)listFromToday=true;renderList();}
