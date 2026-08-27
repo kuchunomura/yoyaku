@@ -628,8 +628,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=432;
-const APP_BUILD_DATE='2026/08/27 10:30';
+const APP_VERSION=433;
+const APP_BUILD_DATE='2026/08/27 10:36';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1624,7 +1624,7 @@ function renderList(){
         '<button class="btn-sm" id="cardtog-'+s.id+'" data-act="toggleCardBtns" data-id="'+s.id+'" style="color:#666">'+(cardOpen?'▲ 閉じる':'▼ 操作')+'</button>'+
       '</div>'+
       '<div id="cardbtns-'+s.id+'" data-disp="block" style="display:'+(cardOpen?'block':'none')+'">'+
-        '<div style="margin-bottom:5px"><button class="btn-sm" data-act="addStaffMemo" data-id="'+s.id+'" data-t="stay" style="color:#1565c0;border-color:#9cc;font-weight:600">📝 メモを追記</button></div>'+
+        '<div style="margin-bottom:5px"><button class="btn-sm" data-act="addStaffMemo" data-id="'+s.id+'" data-t="stay" style="color:#1565c0;border-color:#9cc;font-weight:600;font-size:11px;padding:2px 8px">📝 メモを追記</button></div>'+
         '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+cancelBtn+'</div>'+
       '</div>';
     return div;
@@ -1724,11 +1724,14 @@ function renderList(){
         '<span style="font-size:11px;color:#aaa">'+(showDayInfo?'最終受付 '+(fac.lastAccept||'')+' ／ 終了 '+(fac.close||''):'')+'</span>'+
         '<button class="btn-sm" id="cardtog-'+r.id+'" data-act="toggleCardBtns" data-id="'+r.id+'" style="flex-shrink:0;color:#666">'+((_cardOpen[r.id]!==false)?'▲ 閉じる':'▼ 操作')+'</button>'+
       '</div>'+
-      '<div id="cardbtns-'+r.id+'" data-disp="flex" style="display:'+((_cardOpen[r.id]!==false)?'flex':'none')+';justify-content:flex-end;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap">'+
-        '<button data-act="toggleDayPay" data-id="'+r.id+'" class="wf-btn'+(r.done?' on':'')+(dayArm===r.id?' arm':'')+'" style="flex:0 0 auto;padding:4px 16px">'+(dayArm===r.id?'もう1タップで確定':((r.done?'✅':'')+'会計'))+'</button>'+
-        '<button data-act="toggleDayCancel" data-id="'+r.id+'" class="wf-btn'+(dayCancelArm===r.id?' arm':'')+'" style="flex:0 0 auto;padding:4px 12px;'+(r.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(dayCancelArm===r.id?'もう1タップで確定':(r.cancelled?'↩ キャンセルを取り消し':'キャンセル'))+'</button>'+
-        '<button class="btn-sm" data-act="openEdit" data-id="'+r.id+'">編集</button>'+
-        '<button class="btn-sm" data-act="delDay" data-id="'+r.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
+      '<div id="cardbtns-'+r.id+'" data-disp="block" style="display:'+((_cardOpen[r.id]!==false)?'block':'none')+';margin-top:6px">'+
+        '<div style="margin-bottom:5px;text-align:right"><button class="btn-sm" data-act="addStaffMemo" data-id="'+r.id+'" data-t="day" style="color:#1565c0;border-color:#9cc;font-weight:600;font-size:11px;padding:2px 8px">📝 メモを追記</button></div>'+
+        '<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;flex-wrap:wrap">'+
+          '<button data-act="toggleDayPay" data-id="'+r.id+'" class="wf-btn'+(r.done?' on':'')+(dayArm===r.id?' arm':'')+'" style="flex:0 0 auto;padding:4px 16px">'+(dayArm===r.id?'もう1タップで確定':((r.done?'✅':'')+'会計'))+'</button>'+
+          '<button data-act="toggleDayCancel" data-id="'+r.id+'" class="wf-btn'+(dayCancelArm===r.id?' arm':'')+'" style="flex:0 0 auto;padding:4px 12px;'+(r.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(dayCancelArm===r.id?'もう1タップで確定':(r.cancelled?'↩ キャンセルを取り消し':'キャンセル'))+'</button>'+
+          '<button class="btn-sm" data-act="openEdit" data-id="'+r.id+'">編集</button>'+
+          '<button class="btn-sm" data-act="delDay" data-id="'+r.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
+        '</div>'+
       '</div>';
     return div;
   }
