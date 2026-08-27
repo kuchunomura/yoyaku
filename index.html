@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=427;
-const APP_BUILD_DATE='2026/08/27 09:52';
+const APP_VERSION=428;
+const APP_BUILD_DATE='2026/08/27 09:58';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2039,7 +2039,8 @@ function openEdit(id){
     '<hr style="border:none;border-top:1px solid #eee;margin:12px 0">'+
     '<label>メモ（ドラッグで広げられます）</label>'+
     '<div style="font-size:11px;color:#667;line-height:1.6;margin:-2px 0 6px">※メモの備品名から<b>自動でレンタルを認識</b>します（認識出来た文言は後ろに<span style="color:#e67700;font-weight:700">✓</span>）。<b>ランタン・ポータブル電源は各施設1個まで無料</b>＝2個以上の記載で<b>超過分のみ</b>有料計上。</div>'+
-    '<div id="ed-memo" contenteditable="true" style="min-height:70px;max-height:50vh;overflow-y:auto;resize:vertical;border:1px solid #ccc;border-radius:8px;padding:8px;font-size:14px;line-height:1.6;background:#fff;white-space:pre-wrap;-webkit-overflow-scrolling:touch">'+htmlEscape(r.memo||'')+'</div>';
+    '<div id="ed-memo" contenteditable="true" oninput="edUpdateMemoPreview()" style="min-height:70px;max-height:50vh;overflow-y:auto;resize:vertical;border:1px solid #ccc;border-radius:8px;padding:8px;font-size:14px;line-height:1.6;background:#fff;white-space:pre-wrap;-webkit-overflow-scrolling:touch">'+htmlEscape(r.memo||'')+'</div>'+
+    '<div id="ed-memo-preview" style="display:none;font-size:12px;color:#555;background:#fbfaf6;border:1px solid #e6ddcc;border-radius:8px;padding:6px 8px;margin-top:5px;line-height:1.5"></div>';
   if(r.facility==='bbq'){
     const rItms=(items)=>items.map(item=>{
       const s=rMap[item.id]||{checked:false,qty:1};
@@ -2072,6 +2073,7 @@ function openEdit(id){
   document.getElementById('edit-modal-title').textContent='日帰り予約を編集';
   document.getElementById('edit-modal-content').innerHTML=html;
   document.getElementById('edit-modal').classList.add('open');document.body.style.overflow='hidden';
+  edUpdateMemoPreview();
 }
 
 function openEditStay(id){
@@ -2331,7 +2333,17 @@ function esSrcChg(){const src=document.getElementById('es-src').value;const m=do
 function togEditEx(el){const d=document.getElementById('edit-ex');const o=d.style.display!=='none';d.style.display=o?'none':'';el.textContent=(o?'▶':'▼')+' その他（'+ALL_ITEMS.filter(x=>x.col).length+'点）';}
 // 汎用の折り畳み（見出しの先頭▶/▼を切替）
 function togColl(el,bodyId){var b=document.getElementById(bodyId);if(!b)return;var open=b.style.display!=='none';b.style.display=open?'none':'';el.textContent=(open?'▶':'▼')+el.textContent.slice(1);}
-function eRChg(id){document.getElementById('erq_'+id).style.display=document.getElementById('erc_'+id).checked?'flex':'none';}
+function eRChg(id){document.getElementById('erq_'+id).style.display=document.getElementById('erc_'+id).checked?'flex':'none';edUpdateMemoPreview();}
+// 日帰り編集画面の原文メモの下に「☑ チェック項目 / ✎ お客様記入」の読み取り専用プレビュー（宿泊の esUpdateMemoPreview と同型・erc_ を見る）
+function edUpdateMemoPreview(){
+  var el=document.getElementById('ed-memo'); var pv=document.getElementById('ed-memo-preview'); if(!el||!pv)return;
+  var memo=(el.innerText||'').replace(/✓/g,'');
+  if(!memo.trim()){ pv.style.display='none'; pv.innerHTML=''; return; }
+  var rental=[];
+  ALL_ITEMS.forEach(function(it){ var cb=document.getElementById('erc_'+it.id); if(cb&&cb.checked)rental.push({id:it.id}); });
+  pv.style.display='block';
+  pv.innerHTML='<div style="font-size:10px;color:#aaa;margin-bottom:3px">表示プレビュー（保存内容は上の原文のまま）</div>'+fmtMemoChecks(memo,rental);
+}
 function eRChgQ(id,delta){const el=document.getElementById('ers_'+id);el.textContent=Math.max(1,parseInt(el.textContent)+delta);}
 function updEditCrs(){
   const fac=getFac(document.getElementById('edit-facility').value);
