@@ -63,9 +63,10 @@ textarea{resize:vertical;min-height:60px}
 .date-divider{font-size:14px;font-weight:600;color:#224466;margin:14px 0 7px;padding-bottom:5px;border-bottom:4px solid #7a7f88}
 .date-divider:first-child{margin-top:0}
 .wf-row{display:flex;gap:4px;margin-top:5px;padding-top:5px;border-top:1px solid #eee}
-.wf-btn{flex:1;padding:4px 2px;font-size:11px;border:1px solid #ccc;border-radius:5px;background:#fff;color:#555;cursor:pointer;font-family:inherit}
+.wf-btn{flex:1;padding:4px 2px;font-size:11px;border:1px solid #ccc;border-radius:5px;background:#fff;color:#555;cursor:pointer;font-family:inherit;box-shadow:0 2px 0 rgba(0,0,0,.14),0 3px 4px rgba(0,0,0,.10);transition:transform .05s ease,box-shadow .05s ease}
 .wf-btn.on{background:#e6f4ea;border-color:#7bbf96;color:#1c5c39;font-weight:600}
 .wf-btn.arm{background:#fff4d6;border-color:#e0b000;color:#8a6d00;font-weight:600}
+.wf-btn:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.14),0 1px 2px rgba(0,0,0,.15)}
 /* カレンダー中央左右の月送り矢印（PC/マウス時のみ表示。タッチはスワイプで操作） */
 #cal-gridwrap{position:relative}
 .cal-navarrow{display:none;position:absolute;top:50%;transform:translateY(-50%);width:28px;height:46px;border:1px solid #e0e0e0;border-radius:8px;background:rgba(255,255,255,0.65);color:#999;font-size:20px;line-height:1;cursor:pointer;align-items:center;justify-content:center;padding:0;z-index:5;transition:background .15s,color .15s}
@@ -634,8 +635,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=442;
-const APP_BUILD_DATE='2026/08/27 11:34';
+const APP_VERSION=443;
+const APP_BUILD_DATE='2026/08/27 11:38';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
