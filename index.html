@@ -50,6 +50,11 @@ textarea{resize:vertical;min-height:60px}
 .btn-primary{width:100%;padding:14px;background:#111;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;margin-top:8px;font-family:inherit}
 .btn-sm{padding:6px 10px;font-size:12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;color:#555;font-family:inherit}
 .btn-danger{color:#c00;border-color:#fcc}
+/* ボタンを立体的に（小ボタン・施設フィルタタブ） */
+.btn-sm{box-shadow:0 2px 0 rgba(0,0,0,.14),0 3px 4px rgba(0,0,0,.10);transition:transform .05s ease,box-shadow .05s ease}
+.btn-sm:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.14),0 1px 2px rgba(0,0,0,.15)}
+.ftab{box-shadow:0 2px 0 rgba(0,0,0,.16),0 3px 4px rgba(0,0,0,.12);transition:transform .05s ease,box-shadow .05s ease}
+.ftab:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.16),0 1px 2px rgba(0,0,0,.15)}
 .card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:6px 11px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
 .card.done{opacity:0.45}
 .card.cancelled{opacity:0.5}
@@ -628,8 +633,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=439;
-const APP_BUILD_DATE='2026/08/27 10:42';
+const APP_VERSION=440;
+const APP_BUILD_DATE='2026/08/27 11:24';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
