@@ -623,8 +623,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=423;
-const APP_BUILD_DATE='2026/08/24 19:59';
+const APP_VERSION=424;
+const APP_BUILD_DATE='2026/08/27 09:16';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1576,7 +1576,7 @@ function renderList(){
         '</span>'+
         stayAmtHtml+
       '</div>'+
-      ((s.rental||[]).length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+s.rental.length+'点（'+rt.toLocaleString()+'円）</summary><div style="margin-top:2px">'+s.rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
+      ((s.rental||[]).length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"'+(_rentalOpen[s.id]?' open':'')+' ontoggle="_noteRentalOpen(\''+s.id+'\',this.open)"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+s.rental.length+'点（'+rt.toLocaleString()+'円）</summary><div style="margin-top:2px">'+s.rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
       linkedH+
       (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoChecks(s.memo,s.rental)+'</div>':'')+
       (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+s.addr+'</div>':'')+
@@ -1679,7 +1679,7 @@ function renderList(){
         '</span>'+
         dayAmtHtml+
       '</div>'+
-      (rental.length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+rental.length+'点（'+rt.toLocaleString()+'円）</summary><div style="margin-top:2px">'+rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
+      (rental.length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"'+(_rentalOpen[r.id]?' open':'')+' ontoggle="_noteRentalOpen(\''+r.id+'\',this.open)"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+rental.length+'点（'+rt.toLocaleString()+'円）</summary><div style="margin-top:2px">'+rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
       (r.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoChecks(r.memo,r.rental)+'</div>':'')+
       (r.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+r.addr+'</div>':'')+
@@ -1779,6 +1779,8 @@ function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;co
 function toggleUnitSel(id){var el=document.getElementById('unitsel-'+id);if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'flex':'none';}
 // カード下部の操作ボタン群（編集〜キャンセル）を▼で開閉
 var _cardOpen={};
+var _rentalOpen={};  // レンタル明細(details)の開閉をカードID単位で記憶（再描画=pull/10秒ごとで閉じないように）
+function _noteRentalOpen(id,open){ if(open)_rentalOpen[id]=1; else delete _rentalOpen[id]; }
 function toggleCardBtns(id){var el=document.getElementById('cardbtns-'+id);var tg=document.getElementById('cardtog-'+id);var isOpen=el?(el.style.display!=='none'):(_cardOpen[id]!==false);_cardOpen[id]=!isOpen;var open=_cardOpen[id];if(el)el.style.display=open?(el.getAttribute('data-disp')||'block'):'none';if(tg)tg.textContent=open?'▲ 閉じる':'▼ 操作';}
 // ベッド構成（ドーム・ツリーハウス）。タップで切替
 function toggleBed(id){var s=stays.find(x=>x.id===id);if(!s)return;s.bed=(bedCode(s.bed)==='ws')?'ww':'ws';sv(STKEY,stays);autoPush();renderList();}
