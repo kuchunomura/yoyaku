@@ -635,8 +635,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=444;
-const APP_BUILD_DATE='2026/08/27 11:46';
+const APP_VERSION=445;
+const APP_BUILD_DATE='2026/09/03 18:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1001,7 +1001,9 @@ function setFac(id){
 
 function renderCourseSection(){
   const fac=getFac(addFacId);const c=document.getElementById('course-section');
-  const filt=fac.courses.filter(x=>x.min!==0);
+  // コースが1つだけ（BBQ＝1DAY固定）なら選択ボタン不要。複数（空中ウォーク/ツリーハウス昼＝55分/115分/1DAY）は
+  // 1DAY(min:0)も含めて全部出す。※以前は min!==0 で1DAYを一律除外していたため、手入力から1DAYが消えていた不具合。
+  const filt=fac.courses.length<=1?[]:fac.courses;
   if(!filt.length){c.innerHTML='';return;}
   c.innerHTML='<div class="course-btns" id="cbi"></div>';
   filt.forEach(cr=>{
@@ -1878,7 +1880,10 @@ function detectOtaFromText(t){t=String(t||'');if(/ソウエクスペリ|そう�
 // キャンセル判定（メモに「キャンセル」を含む）と表示トグル
 let showCancelled=false;
 let _cancelKeep={}; // この表示中にキャンセルしたカードを一時的に残す（取消し操作のため）
-function isCancelled(o){return !!(o&&o.cancelled)||/キャンセル/.test((o&&o.memo)||'');}
+// キャンセル判定＝①明示フラグ(o.cancelled/取消ボタン) ②CSV取込がキャンセル状態で付ける専用マーカー「★キャンセル」だけ。
+// 以前は memo に「キャンセル」を含むだけで取消扱いにしていたため、備考に『キャンセル待ち』『前回キャンセル』等の文言があるだけで
+// カードが消え、フラグを戻しても memo 判定で復活できなかった（誤検知）。専用マーカー限定にして誤検知をなくす。
+function isCancelled(o){return !!(o&&o.cancelled)||/★キャンセル/.test((o&&o.memo)||'');}
 // メモ内の備品表記「○○1個」「○○:2個」「○○１個」を「○○×1」に整形（顧客の自由記述はそのまま）
 // 客フォームの「レンタルチェック項目」の定型英訳＋価格だけを表示から隠す。
 // 例「ローテーブル✓ Table　800JPY」→「ローテーブル✓」
@@ -2100,7 +2105,7 @@ function openEdit(id){
   const fac=getFac(r.facility);
   const rMap={};(r.rental||[]).forEach(i=>rMap[i.id]={checked:true,qty:i.qty});
   const facOpts=FACILITIES.map(f=>'<option value="'+f.id+'"'+(r.facility===f.id?' selected':'')+'>'+f.label+'</option>').join('');
-  const filt=fac.courses.filter(c=>c.min!==0);
+  const filt=fac.courses.length<=1?[]:fac.courses; // 1コース(BBQ=1DAY固定)だけ選択不要。複数は1DAY(min:0)も含め全部（編集時に1DAYが選べず保存で化けるのを防ぐ）
   const crBlk=filt.length?'<label>コース</label><select id="edit-course">'+filt.map(c=>'<option value="'+c.min+'"'+(r.course===c.min?' selected':'')+'>'+c.minLabel+'</option>').join('')+'</select>':'';
   const srcOpts=['','rakuten','jalan','sou','other1','other2','other3','pass_day','pass_night'].map(k=>'<option value="'+k+'"'+((r.source||'')=== k?' selected':'')+'>'+( k?getSrcLabel(k):'直接予約')+'</option>').join('');
   // 紐づけ候補は予約日の前後±1日のみ（既に紐付け済みは範囲外でも表示）
@@ -2443,7 +2448,7 @@ function eRChgQ(id,delta){const el=document.getElementById('ers_'+id);el.textCon
 function updEditCrs(){
   const fac=getFac(document.getElementById('edit-facility').value);
   const sel=document.getElementById('edit-course');
-  if(sel)sel.innerHTML=fac.courses.filter(c=>c.min!==0).map(c=>'<option value="'+c.min+'">'+c.minLabel+'</option>').join('');
+  if(sel)sel.innerHTML=(fac.courses.length<=1?[]:fac.courses).map(c=>'<option value="'+c.min+'">'+c.minLabel+'</option>').join(''); // 1DAY(min:0)も含める
 }
 
 function saveEdit(){
