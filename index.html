@@ -152,6 +152,10 @@ details[open] summary{opacity:0.75}
 .pr1{font-weight:700;font-size:13px}
 .pr2,.pr3{font-size:11px;color:#333;margin-top:1px}
 .plink{font-size:11px;color:#224466;margin-top:1px;font-weight:600}
+/* 印刷の行が「ベッ／ド」のように単語の途中で改行されるのを防ぐ。
+   keep-all＝日本語も途中で折らず、全角スペース等の区切りだけで折る。
+   overflow-wrap:anywhere＝それでも1語が長すぎて枠をはみ出す時だけ折る（安全網）。 */
+.pr1,.pr2,.pr3,.plink,.pio,.pwf,.pu-head,.pcat{word-break:keep-all;overflow-wrap:anywhere}
 .pcompact .plink{font-size:8.5px;line-height:1.15;margin-top:0;font-weight:600}
 .pwf{margin-top:4px;font-size:11px;display:flex;gap:10px;flex-wrap:wrap;color:#888}
 .pbox{display:inline-block;width:16px;height:16px;border:1px solid #999;text-align:center;line-height:15px;margin-left:3px;margin-right:10px;font-size:12px;vertical-align:-3px}
@@ -635,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=445;
-const APP_BUILD_DATE='2026/09/03 18:30';
+const APP_VERSION=446;
+const APP_BUILD_DATE='2026/09/06 08:52';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
