@@ -26,7 +26,14 @@ var SS_ID = '1gwV7YQHA0p6pWUXjw9qAhB5Js0NK3p-QtuR063QqM54'; // yoyaku同期（20
 
 // ★デプロイ確認用バージョン印。コードを変えて再デプロイするたびに数字を上げる。
 // doGetがこれを返すので「今デプロイされているコードが新しいか」を（個人情報を取らずに）1発で確認できる。
-var GASVER = '2026-09-06-v451f';
+var GASVER = '2026-09-06-v454gate';
+
+// ★バージョンガード：この番号より古いクライアント（=avを送らない or av<MINVER）からの
+//   書き込み(sync_all)は拒否する。古い端末は「wf全体を古い塊のまま新しい時刻で上書き」する
+//   バグ挙動を持つため、逆戻り(revert)の原因になる。ここで弾けば、更新していない端末が
+//   残っても・今後また誰かが古い端末を開いても、二度とデータを壊せない（読み取りは自由＝害なし）。
+//   ※新版(index.html v454)を配ったら、全端末がv454に更新されるまでは古い端末は「同期できません」表示になる（自動更新バナーで数分内に解消）。
+var MINVER = 454;
 
 function getTargetSS(){
   if(!SS_ID) throw new Error('SS_ID が未設定です。GASコード先頭の SS_ID にスプレッドシートのIDを貼ってください');
@@ -103,6 +110,13 @@ function doPost(e){
   try{
     var data = JSON.parse(e.postData.contents);
     if(data.type === 'sync_all'){
+      // ★バージョンガード（ロック取得より前に弾く＝古い端末は処理も競合もさせない）。
+      //   avを送らない旧クライアント（av=0）や MINVER 未満は書き込み拒否。旧クライアントは status を見て
+      //   汎用エラー欄に message を表示する（＝古い端末に「更新して」と出る）。読み取り(doGet)は従来どおり可能。
+      var _av = Number(data.av || 0);
+      if(_av < MINVER){
+        return jsonOut({status:'stale_client', minver:MINVER, av:_av, message:'⚠ この端末は古い版（v'+(_av||'?')+'）です。ページを再読み込み（更新）してください。安全のため、この端末からの保存は行いませんでした。'});
+      }
       // 端末間の同時書込み対策（CAS）。書込みはスクリプトロックで直列化し、
       // クライアントが読んだリビジョン(baseRev)と現在revが違えば拒否＝取り直して再送させる。
       // baseRev未指定の旧クライアントは従来どおり無条件書込（後方互換）。

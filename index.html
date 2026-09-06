@@ -639,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=453;
-const APP_BUILD_DATE='2026/09/06 13:08';
+const APP_VERSION=454;
+const APP_BUILD_DATE='2026/09/06 13:55';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2806,9 +2806,10 @@ async function _syncToSheetImpl(silent){
       // ★POSTは40秒まで待つ（従来18秒＝GASの重い全再描画16〜17秒がギリギリ間に合わず中断→やり直し→競合の連鎖を招いていた。GAS高速化と併用）
       var res=await _fetchTimeout(url,{
         method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({type:'sync_all',baseRev:_srvRev,stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),csvimpmon:(ld('yv_csvimp_mon')||{}),csvimpfile:(ld('yv_csvimp_file')||{}),csvimplastmon:(ld('yv_csvimp_lastmon')||{}),csvimpmts:(ld('yv_csvimp_mts')||{}),sharednote:(ld('yv_sharednote')||''),dayevents:(ld('yv_dayevents')||{})})
+        body:JSON.stringify({type:'sync_all',av:APP_VERSION,baseRev:_srvRev,stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),csvimpmon:(ld('yv_csvimp_mon')||{}),csvimpfile:(ld('yv_csvimp_file')||{}),csvimplastmon:(ld('yv_csvimp_lastmon')||{}),csvimpmts:(ld('yv_csvimp_mts')||{}),sharednote:(ld('yv_sharednote')||''),dayevents:(ld('yv_dayevents')||{})})
       },40000);
       var json=await gasReadJson(res);
+      if(json.status==='stale_client'){ _showStaleClientBlock(json); return; } // サーバが「この版は古い」と拒否＝これ以上書かず更新を促す（保存はしていない＝データを壊さない）
       if(json.status==='conflict'){ await new Promise(function(r){ setTimeout(r, 250+Math.floor(Math.random()*750)); }); continue; } // 他端末が先に書込＝少しばらつかせて取り直し再送（2端末が同時に叩き合う"競合渋滞"を緩和）
       if(json.status==='ok'){
         _saveSyncBase(reservations,stays); // 書き込んだ内容＝新しいサーバ状態を base に
@@ -4532,6 +4533,21 @@ function _showUpdateBanner(newV){
   }
   b.textContent='🔄 新版あり（v'+newV+'）→ タップして新バージョンに更新してください';
   b.onclick=function(){ location.href=location.pathname+'?v='+newV; };
+}
+// サーバに「この端末は古い版」と拒否された時＝赤い固定バーで強く更新を促す（保存はされていない＝データは壊れない）。
+// タップで最新版に更新。併せて新版チェックも走らせ、緑の更新バナーも出す。
+function _showStaleClientBlock(info){
+  var b=document.getElementById('stale-client-banner');
+  if(!b){
+    b=document.createElement('div');
+    b.id='stale-client-banner';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:100000;background:#c0392b;color:#fff;padding:12px 14px;text-align:center;font-size:14px;font-weight:bold;box-shadow:0 2px 10px rgba(0,0,0,.4);cursor:pointer;line-height:1.55';
+    document.body.appendChild(b);
+  }
+  b.textContent='⚠ この端末は古い版です（同期できません）→ タップして最新版に更新してください';
+  b.onclick=function(){ var mv=(info&&info.minver)?info.minver:''; location.href=location.pathname+'?v='+(mv||Date.now()); };
+  var st=document.getElementById('sync-status'); if(st)st.textContent='⚠ 古い版のため同期できません（更新してください）';
+  try{ checkForUpdate(); }catch(_e){}
 }
 var _updChecking=false;
 function checkForUpdate(){
