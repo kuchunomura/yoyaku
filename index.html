@@ -639,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=454;
-const APP_BUILD_DATE='2026/09/06 13:55';
+const APP_VERSION=455;
+const APP_BUILD_DATE='2026/09/06 14:20';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1837,8 +1837,8 @@ function renderList(){
   });
 }
 
-function toggleDD(id){const r=reservations.find(x=>x.id===id);if(r){r.done=!r.done;sv(RKEY,reservations);autoPush();renderList();}}
-function toggleSD(id){const s=stays.find(x=>x.id===id);if(s){s.done=!s.done;sv(STKEY,stays);autoPush();renderList();}}
+function toggleDD(id){const r=reservations.find(x=>x.id===id);if(r){r.done=!r.done;_touchField(r,'done');sv(RKEY,reservations);autoPush();renderList();}}
+function toggleSD(id){const s=stays.find(x=>x.id===id);if(s){s.done=!s.done;_touchField(s,'done');sv(STKEY,stays);autoPush();renderList();}}
 function setStayUnit(id,unitId){const s=stays.find(x=>x.id===id);if(!s)return;const u=getSFac(unitId);if(!u)return;s.facility=unitId;const tp=(s.totalPpl||s.ninzu);s.unitPrice=getSPrice(u,tp);sv(STKEY,stays);autoPush();renderList();showToast('棟を「'+u.label+'」に設定');}
 function toggleUnitSel(id){var el=document.getElementById('unitsel-'+id);if(!el)return;el.style.display=(el.style.display==='none'||!el.style.display)?'flex':'none';}
 // カード下部の操作ボタン群（編集〜キャンセル）を▼で開閉
@@ -1867,10 +1867,10 @@ function addStaffMemoQuick(type,id){
 let dayGuideArm=null;
 function toggleDayGuide(id){
   var r=reservations.find(x=>x.id===id);if(!r)return;
-  if(r.guide){r.guide=false;dayGuideArm=null;clearTimeout(window._dayGuideT);sv(RKEY,reservations);autoPush();renderList();return;}
+  if(r.guide){r.guide=false;dayGuideArm=null;clearTimeout(window._dayGuideT);_touchField(r,'guide');sv(RKEY,reservations);autoPush();renderList();return;}
   if(dayGuideArm===id){
     r.guide=true;dayGuideArm=null;clearTimeout(window._dayGuideT);
-    sv(RKEY,reservations);autoPush();renderList();
+    _touchField(r,'guide');sv(RKEY,reservations);autoPush();renderList();
   }else{
     dayGuideArm=id;renderList();
     clearTimeout(window._dayGuideT);
@@ -1978,19 +1978,19 @@ function toggleWf(id,k){
   var s=stays.find(x=>x.id===id);if(!s)return;
   // キャンセルは s.cancelled をトグル（二回タップ／✅は1タップ解除）
   if(k==='cancel'){
-    if(s.cancelled){s.cancelled=false;delete _cancelKeep[id];wfArm=null;clearTimeout(window._wfArmT);s.updatedAt=nowTs();sv(STKEY,stays);autoPush();renderList();return;}
-    if(wfArm&&wfArm.id===id&&wfArm.key===k){s.cancelled=true;_cancelKeep[id]=true;wfArm=null;clearTimeout(window._wfArmT);s.updatedAt=nowTs();sv(STKEY,stays);autoPush();renderList();}
+    if(s.cancelled){s.cancelled=false;delete _cancelKeep[id];wfArm=null;clearTimeout(window._wfArmT);_touchField(s,'cancelled');sv(STKEY,stays);autoPush();renderList();return;}
+    if(wfArm&&wfArm.id===id&&wfArm.key===k){s.cancelled=true;_cancelKeep[id]=true;wfArm=null;clearTimeout(window._wfArmT);_touchField(s,'cancelled');sv(STKEY,stays);autoPush();renderList();}
     else{wfArm={id:id,key:k};renderList();clearTimeout(window._wfArmT);window._wfArmT=setTimeout(function(){wfArm=null;renderList();},2500);}
     return;
   }
   if(!s.wf)s.wf={};
   // すでに✅なら1タップで即解除（確認不要）
-  if(s.wf[k]){s.wf[k]=false;wfArm=null;clearTimeout(window._wfArmT);s.updatedAt=nowTs();sv(STKEY,stays);autoPush();renderList();return;}
+  if(s.wf[k]){s.wf[k]=false;wfArm=null;clearTimeout(window._wfArmT);_touchField(s,'wf.'+k);sv(STKEY,stays);autoPush();renderList();return;}
   // OFF→ONは二回タップ（誤操作防止）
   if(wfArm&&wfArm.id===id&&wfArm.key===k){
     s.wf[k]=true;wfArm=null;clearTimeout(window._wfArmT);
     if(k==='out')_cardOpen[id]=false; // OUT確定で折り畳みを自動で閉じる
-    s.updatedAt=nowTs();sv(STKEY,stays);autoPush();renderList();
+    _touchField(s,'wf.'+k);sv(STKEY,stays);autoPush();renderList();
   }else{
     wfArm={id:id,key:k};renderList();
     clearTimeout(window._wfArmT);
@@ -2001,10 +2001,10 @@ function toggleWf(id,k){
 let dayArm=null;
 function toggleDayPay(id){
   var r=reservations.find(x=>x.id===id);if(!r)return;
-  if(r.done){r.done=false;dayArm=null;clearTimeout(window._dayArmT);sv(RKEY,reservations);autoPush();renderList();return;}
+  if(r.done){r.done=false;dayArm=null;clearTimeout(window._dayArmT);_touchField(r,'done');sv(RKEY,reservations);autoPush();renderList();return;}
   if(dayArm===id){
     r.done=true;dayArm=null;clearTimeout(window._dayArmT);
-    sv(RKEY,reservations);autoPush();renderList();
+    _touchField(r,'done');sv(RKEY,reservations);autoPush();renderList();
   }else{
     dayArm=id;renderList();
     clearTimeout(window._dayArmT);
@@ -2015,10 +2015,10 @@ function toggleDayPay(id){
 let dayCancelArm=null;
 function toggleDayCancel(id){
   var r=reservations.find(x=>x.id===id);if(!r)return;
-  if(r.cancelled){r.cancelled=false;delete _cancelKeep[id];dayCancelArm=null;clearTimeout(window._dayCancelT);sv(RKEY,reservations);autoPush();renderList();return;}
+  if(r.cancelled){r.cancelled=false;delete _cancelKeep[id];dayCancelArm=null;clearTimeout(window._dayCancelT);_touchField(r,'cancelled');sv(RKEY,reservations);autoPush();renderList();return;}
   if(dayCancelArm===id){
     r.cancelled=true;_cancelKeep[id]=true;dayCancelArm=null;clearTimeout(window._dayCancelT);
-    sv(RKEY,reservations);autoPush();renderList();
+    _touchField(r,'cancelled');sv(RKEY,reservations);autoPush();renderList();
   }else{
     dayCancelArm=id;renderList();
     clearTimeout(window._dayCancelT);
@@ -2672,6 +2672,36 @@ function _stampLocalEdits(baseMap, arr){
     if(_recHash(o)!==bh) o.updatedAt=nowTs();                       // baseと内容が違う＝この端末で編集済み→今の時刻
   });
 }
+// ── ★ワークフローflag（部屋準備/会計/案内/OUT/掃除/キャンセル/会計済み）の「項目別タイムスタンプ」マージ ──
+// レコード全体を1つの updatedAt でLWWすると「古い塊を新しい時刻で丸ごと上書き」して逆戻りする（実測：flaplogで
+// prep/pay/guideが必ず3つ一緒に反転＋送信時刻inU＞保存時刻stU）。各flagを編集した瞬間の時刻を o._ft['wf.prep'] 等に
+// 記録し、マージは flag ごとに「新しい編集時刻の値」を採る＝逆戻り不能（未編集の古い端末は _ft が古いので実編集に負ける）。
+// 全端末が対応版（v454ゲートで担保）＝全書込みが _ft を持つ前提。旧データで _ft が無い項目はレコードの updatedAt にフォールバック。
+var _WF_PATHS_STAY=['wf.prep','wf.pay','wf.guide','wf.out','wf.clean','cancelled','done'];
+var _WF_PATHS_DAY=['done','guide','cancelled'];
+function _ftGet(o){ return (o && o._ft && typeof o._ft==='object') ? o._ft : {}; }
+function _pathGet(o,p){ if(!o)return undefined; if(p.indexOf('.')<0)return o[p]; var a=p.split('.'),v=o; for(var i=0;i<a.length;i++){ if(v==null)return undefined; v=v[a[i]]; } return v; }
+function _pathSet(o,p,val){ if(p.indexOf('.')<0){ o[p]=val; return; } var a=p.split('.'),v=o; for(var i=0;i<a.length-1;i++){ if(v[a[i]]==null||typeof v[a[i]]!=='object')v[a[i]]={}; v=v[a[i]]; } v[a[a.length-1]]=val; }
+// 編集した瞬間に呼ぶ：その項目の時刻＋レコードのupdatedAtを今にする。
+function _touchField(o,p){ if(!o)return; if(!o._ft||typeof o._ft!=='object')o._ft={}; var t=nowTs(); o._ft[p]=t; o.updatedAt=t; }
+function _ftMax(){ var out={}; for(var i=0;i<arguments.length;i++){ var m=arguments[i]; if(m&&typeof m==='object')for(var k in m){ if(!Object.prototype.hasOwnProperty.call(m,k))continue; var t=+m[k]||0; if(t>(+out[k]||0))out[k]=t; } } return out; }
+// 両方に在るレコードのワークフローflagを「項目別の編集時刻」で合成し outRec に上書きする。
+function _mergeWorkflow(lo, ro, outRec, paths){
+  if(!outRec||!paths)return;
+  var lft=_ftGet(lo), rft=_ftGet(ro);
+  var lU=+(lo&&lo.updatedAt||0), rU=+(ro&&ro.updatedAt||0);
+  paths.forEach(function(p){
+    var lv=_pathGet(lo,p), rv=_pathGet(ro,p);
+    if(_stableStr(lv)===_stableStr(rv))return;              // 一致＝触らない
+    var lHas=(lft[p]!=null), rHas=(rft[p]!=null), useL;
+    if(lHas&&rHas) useL=(+lft[p] > +rft[p]);                // 双方がこの項目を編集済み＝新しい編集時刻の値（同点はremote＝安定・往復しない）
+    else if(lHas) useL=true;                                // この端末だけがこの項目を編集＝こちら（相手のupdatedAtは"別項目"の編集かもしれず当てにしない＝別項目の同時編集で片方が消えるのを防ぐ）
+    else if(rHas) useL=false;                               // 相手だけがこの項目を編集＝あちら
+    else useL=(lU>rU);                                      // 旧データ（項目時刻が両者に無い）＝レコードのupdatedAtで後方互換（同点はremote）
+    _pathSet(outRec, p, useL?lv:rv);
+  });
+  outRec._ft=_ftMax(_ftGet(outRec), lft, rft);              // 項目時刻は両者の新しい方を保持（次回マージの基準）
+}
 // フィールド単位の3方向マージ。両端末が同じ予約の「別々の項目」を変えても両方残す（＝チェックアウト等のwf・会計済み・メモ・人数・紐づけが競合上書きで消えるのを防ぐ）。
 // 同一フィールドを双方が変更した時だけ updatedAt の新しい方を採用（同点=remote＝従来踏襲）。base実レコードがある時のみ呼ぶ。
 function _isPlainObj(x){ return x!=null && typeof x==='object' && Object.prototype.toString.call(x)!=='[object Array]'; }
@@ -2705,7 +2735,7 @@ function _merge3(baseRec, lo, ro){
 }
 // 3方向マージ。baseMap=前回サーバ状態（id→実レコード。旧版はハッシュ文字列で移行互換）, local/remote=レコード配列。返り値=マージ済み配列。
 // 競合（双方が同じ予約を変更）は _merge3 でフィールド単位に合成＝別項目の変更を両方残す（チェックアウト等が消えない）。
-function _mergeById(baseMap, localArr, remoteArr){
+function _mergeById(baseMap, localArr, remoteArr, wfPaths){
   baseMap=baseMap||{};
   var L={}, R={}, ids=[], seen={};
   (localArr||[]).forEach(function(o){ if(o&&o.id!=null){var k=String(o.id);L[k]=o;if(!seen[k]){seen[k]=1;ids.push(k);}} });
@@ -2720,11 +2750,14 @@ function _mergeById(baseMap, localArr, remoteArr){
     var lChg=!!(lo && hasB && _recHash(lo)!==bh);
     var rChg=!!(ro && hasB && _recHash(ro)!==bh);
     if(lo && ro){
-      if(!hasB){ out.push(ro); return; }                                  // 基準なし＝サーバ優先（初回・安全側）
-      if(lChg && !rChg){ lo.updatedAt=nowTs(); out.push(lo); }            // こちらだけ変更＝こちら
-      else if(rChg && !lChg){ out.push(ro); }                            // あちらだけ変更＝あちら（★復活防止の核）
-      else if(!lChg && !rChg){ out.push(ro); }                           // 双方無変更＝同一。remote採用
-      else { out.push(bRec ? _merge3(bRec,lo,ro) : (function(){ var lt=+(lo.updatedAt||0), rt=+(ro.updatedAt||0); if(lt>rt){ lo.updatedAt=nowTs(); return lo; } return ro; })()); } // 競合＝フィールド単位3方向マージ（別項目の変更は両方残す）。移行直後でbase実レコードが無い時のみ従来の「新しい方」
+      if(!hasB){ if(wfPaths)_mergeWorkflow(lo,ro,ro,wfPaths); out.push(ro); return; } // 基準なし＝サーバ優先（初回・安全側）。ワークフローflagだけ項目時刻で合成
+      var _chosen;
+      if(lChg && !rChg){ lo.updatedAt=nowTs(); _chosen=lo; }              // こちらだけ変更＝こちら
+      else if(rChg && !lChg){ _chosen=ro; }                             // あちらだけ変更＝あちら（★復活防止の核）
+      else if(!lChg && !rChg){ _chosen=ro; }                            // 双方無変更＝同一。remote採用
+      else { _chosen = bRec ? _merge3(bRec,lo,ro) : (function(){ var lt=+(lo.updatedAt||0), rt=+(ro.updatedAt||0); if(lt>rt){ lo.updatedAt=nowTs(); return lo; } return ro; })(); } // 競合＝フィールド単位3方向マージ（別項目の変更は両方残す）
+      if(wfPaths)_mergeWorkflow(lo,ro,_chosen,wfPaths);                  // ★ワークフローflagは項目別の編集時刻で最終決定＝古い塊の丸ごと上書き(逆戻り)を封じる
+      out.push(_chosen);
     } else if(lo && !ro){
       if(!hasB){ lo.updatedAt=nowTs(); out.push(lo); }                    // この端末で新規追加＝残す
       else if(lChg){ lo.updatedAt=nowTs(); out.push(lo); }               // remote削除でもこちらが編集＝残す
@@ -2792,8 +2825,8 @@ async function _syncToSheetImpl(silent){
       // ② 3方向マージ（base=前回サーバ状態）。古いローカルが他端末のキャンセル/削除を踏み潰さない
       var base=_loadSyncBase();
       _stampLocalEdits(base.r, reservations); _stampLocalEdits(base.s, stays); // 実編集にupdatedAtを打ってから合成（競合で実編集が勝つ）
-      var mergedR=_mergeById(base.r, reservations, remoteR);
-      var mergedS=_mergeById(base.s, stays, remoteS);
+      var mergedR=_mergeById(base.r, reservations, remoteR, _WF_PATHS_DAY);
+      var mergedS=_mergeById(base.s, stays, remoteS, _WF_PATHS_STAY);
       // 大量消失ガード：シートにある予約の半分以上が消える結果は異常とみなし中止（誤爆防止）
       var _remCnt=remoteR.length+remoteS.length, _mrgCnt=mergedR.length+mergedS.length;
       if(_remCnt>=8 && _mrgCnt < _remCnt*0.5){
@@ -2861,8 +2894,8 @@ async function _loadFromSheetImpl(silent){
       var _srvS=Array.isArray(json.stays)?json.stays:stays;
       var _lb=_loadSyncBase();
       _stampLocalEdits(_lb.r, reservations); _stampLocalEdits(_lb.s, stays); // 未pushの実編集にupdatedAtを打ってから合成
-      var _mR=_mergeById(_lb.r, reservations, _srvR);
-      var _mS=_mergeById(_lb.s, stays, _srvS);
+      var _mR=_mergeById(_lb.r, reservations, _srvR, _WF_PATHS_DAY);
+      var _mS=_mergeById(_lb.s, stays, _srvS, _WF_PATHS_STAY);
       var _localContrib=_contribDiff(_mR,_srvR)||_contribDiff(_mS,_srvS); // 並び順ではなく「ID＋内容」の集合で判定＝順序差の空pushを止める
       reservations=_mR; stays=_mS;
       _saveSyncBase(_srvR,_srvS); // base=サーバ真値（こちらの上乗せ分は次のautoPushでサーバへ）
