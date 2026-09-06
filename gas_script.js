@@ -230,12 +230,19 @@ function writeRows(sh, cols, rows, groupKeys){
     var memoIdx = cols.indexOf('メモ');
     var cancelIdx = cols.indexOf('キャンセル');
     if(memoIdx >= 0) sh.getRange(2, memoIdx+1, rows.length, 1).setHorizontalAlignment('left'); // メモは左寄せ
-    // キャンセル行は薄グレー（メモに「キャンセル」or キャンセル列が✅）
+    // ★キャンセル行の網掛け（薄グレー＋淡色文字）を「setBackgrounds/setFontColors 各1回」でまとめて適用。
+    //   従来は1行ずつ setBackground/setFontColor を呼んでおり、数百行だとAPI往復だけで十数秒かかっていた
+    //   （＝同期が遅い・18秒タイムアウトで書き込みが中断する主因）。値そのものは不変＝集計・復元に影響なし。
+    var bg=[], fc=[], anyC=false;
     for(var c=0;c<rows.length;c++){
       var isC=(memoIdx>=0 && String(rows[c][memoIdx]).indexOf('キャンセル')>=0) || (cancelIdx>=0 && String(rows[c][cancelIdx]).trim()!=='');
-      if(isC) sh.getRange(2+c,1,1,cols.length).setBackground('#f3f3f3').setFontColor('#999999');
+      if(isC)anyC=true;
+      var bgRow=[], fcRow=[];
+      for(var d=0; d<cols.length; d++){ bgRow.push(isC?'#f3f3f3':'#ffffff'); fcRow.push(isC?'#999999':'#000000'); }
+      bg.push(bgRow); fc.push(fcRow);
     }
-    // 日付（グループキー）が変わる行の下に下線を引く
+    if(anyC){ rng.setBackgrounds(bg); rng.setFontColors(fc); } // キャンセルが1件も無ければ何もしない（clearで既定の白黒のまま）
+    // 日付（グループキー）が変わる行の下に下線を引く（境界ごと。ここは行数=日数ぶんで軽い）
     if(groupKeys){
       for(var i=0;i<rows.length;i++){
         var isLast = (i === rows.length-1) || (groupKeys[i] !== groupKeys[i+1]);

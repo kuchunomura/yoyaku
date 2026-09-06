@@ -506,17 +506,6 @@ details[open] summary{opacity:0.75}
         <button class="btn-primary" onclick="saveSharedNote()" style="background:#224466;flex:1">💾 保存して同期</button>
         <button class="btn-primary" onclick="copySharedNote()" style="background:#777;flex:1">📋 コピー</button>
       </div>
-
-      <div style="border-top:2px solid #9fbce4;margin:16px 0 0"></div>
-      <div style="font-size:13.5px;font-weight:800;color:#224466;margin:10px 0 4px">🐞 同期ログ（自動観測）</div>
-      <div id="sync-log-summary" style="font-size:12.5px;font-weight:600;color:#1a7a3a;margin:2px 0 4px">直近1時間：異常なし ✓</div>
-      <div style="font-size:11px;color:#556;margin:2px 0 6px;line-height:1.6"><b>自動で観測しています</b>＝リロードしても消えず、遅い同期・競合・巻き戻り・端末間の反映ラグを常時記録。異常があると上の要約が赤くなり、🔄最終同期に⚠が付き、巻き戻りが起きた瞬間は自動で通知します。原因を私に送るときは<b>「📋 コピー」→そのまま貼るだけ</b>（手で監視する必要はありません）。読み方＝<b>pull-CHANGE の edited:true＝巻き戻り</b>／<b>lagS＝他端末の変更が届くまでの秒数</b>／get・post＝GAS通信のミリ秒／conflict＝競合。</div>
-      <textarea id="sync-log-box" readonly style="font-size:11px;min-height:150px;white-space:pre;font-family:ui-monospace,Menlo,Consolas,monospace" placeholder="（まだ記録がありません。同期が走ると自動で溜まります）"></textarea>
-      <div style="display:flex;gap:6px;margin-top:6px">
-        <button class="btn-primary" onclick="renderSyncLog()" style="background:#1a7a3a;flex:1">🔄 更新</button>
-        <button class="btn-primary" onclick="copySyncLog()" style="background:#777;flex:1">📋 コピー</button>
-        <button class="btn-primary" onclick="clearSyncLog()" style="background:#a33;flex:1">🗑 消去</button>
-      </div>
     </div>
     <div class="separator"></div>
     <div class="section-title">カスタム項目（日帰り）</div>
@@ -650,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=450;
-const APP_BUILD_DATE='2026/09/06 11:25';
+const APP_VERSION=451;
+const APP_BUILD_DATE='2026/09/06 11:36';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -934,7 +923,7 @@ function switchTab(t,keepDateFilter){
   if(t==='day'){setFac('walk');renderCFAdd();setToday('day-date');updDayStayLink();updDayDayLink();updDaySourceOpts();renderCsvFacOptions();renderCsvImpLog();renderCsvFileName();renderCsvImportInfo();renderCsvImpHist();setTimeout(refreshDateDisps,0);}
   if(t==='stay'){initStay();setTimeout(refreshDateDisps,0);}
   if(t==='cal')initCal();
-  if(t==='settings'){renderSettings();renderStock();loadSNUI();loadGasUrl();try{renderSyncLog();}catch(e){}try{_pullNow();}catch(e){}} // 設定を開いた瞬間に即pull＝共有メモを最新化（リロード不要）
+  if(t==='settings'){renderSettings();renderStock();loadSNUI();loadGasUrl();try{_pullNow();}catch(e){}} // 設定を開いた瞬間に即pull＝共有メモを最新化（リロード不要）
 }
 
 function updDayDateDisp(){
@@ -1996,12 +1985,12 @@ function toggleWf(id,k){
   }
   if(!s.wf)s.wf={};
   // すでに✅なら1タップで即解除（確認不要）
-  if(s.wf[k]){s.wf[k]=false;wfArm=null;clearTimeout(window._wfArmT);_slog({ev:'edit',fn:'toggleWf',id:String(id),k:k,to:false,nm:(s.name||'').slice(0,8)});sv(STKEY,stays);autoPush();renderList();return;}
+  if(s.wf[k]){s.wf[k]=false;wfArm=null;clearTimeout(window._wfArmT);sv(STKEY,stays);autoPush();renderList();return;}
   // OFF→ONは二回タップ（誤操作防止）
   if(wfArm&&wfArm.id===id&&wfArm.key===k){
     s.wf[k]=true;wfArm=null;clearTimeout(window._wfArmT);
     if(k==='out')_cardOpen[id]=false; // OUT確定で折り畳みを自動で閉じる
-    _slog({ev:'edit',fn:'toggleWf',id:String(id),k:k,to:true,nm:(s.name||'').slice(0,8)});sv(STKEY,stays);autoPush();renderList();
+    sv(STKEY,stays);autoPush();renderList();
   }else{
     wfArm={id:id,key:k};renderList();
     clearTimeout(window._wfArmT);
@@ -2645,53 +2634,6 @@ async function gasReadJson(res){
 // GAS側は不変（＝再デプロイ不要）。base は yv_syncbase（id→実レコード）に端末ごとに保存。
 var _syncTsLast=0;
 function nowTs(){ var t=Date.now(); if(t<=_syncTsLast)t=_syncTsLast+1; _syncTsLast=t; return t; }
-// ===== 同期の実測ログ＋自動観測（切り分け専用・同期ロジックは一切変えない）=====
-// GET/POST各何ミリ秒・競合何回・どのpullで部屋準備等が戻ったか（＝巻き戻りの瞬間）・端末間の反映ラグを記録。
-// ★自動観測：localStorageに保存（リロードでも消えない）＋異常を自動判定して巻き戻りは即トースト＋🔄に⚠バッジ＋設定に要約。
-// 設定タブ「🐞 同期ログ」で表示・コピー。console にも [sync] で出す。
-var _LOGKEY='yv_synclog';
-var SLOW_MS=3000;      // GET/POST単体がこれ超で「遅い」
-var SLOW_TOTAL_MS=6000;// pushの総時間がこれ超で「遅い」
-var LAG_SLOW_S=20;     // 端末間の反映ラグ（秒）がこれ超で「遅延」
-var _syncLog=(function(){ try{ var a=ld(_LOGKEY); return Array.isArray(a)?a:[]; }catch(e){ return []; } })();
-var _syncSeq=(_syncLog.length?(+(_syncLog[_syncLog.length-1].n)||0):0);
-var _lastRevertToast=0;
-function _persistLog(){ try{ sv(_LOGKEY,_syncLog); }catch(e){} }
-function _slog(o){ try{ o=o||{}; o.ms=Date.now(); o.t=new Date().toLocaleTimeString('ja-JP'); o.n=(++_syncSeq); _syncLog.push(o); if(_syncLog.length>200)_syncLog.shift(); if(window.console&&console.log)console.log('[sync]',JSON.stringify(o)); _persistLog(); _autoObserve(o); }catch(e){} }
-// 記録1件が「異常」かどうかを判定（自動観測の心臓部）
-function _isRevert(o){ return o&&o.ev==='pull-CHANGE'&&o.items&&o.items.some(function(x){return x&&x.edited;}); }
-function _maxLag(o){ var mx=0; if(o&&o.items)o.items.forEach(function(x){ if(x&&typeof x.lagS==='number'&&x.lagS>mx)mx=x.lagS; }); return mx; }
-function _isSlow(o){ if(!o)return false; if(o.ev==='push'&&(o.res==='conflict'||o.res==='retry-exhausted'||o.res==='error'))return true; if((+o.get||0)>SLOW_MS||(+o.post||0)>SLOW_MS||(+o.total||0)>SLOW_TOTAL_MS)return true; if(_maxLag(o)>=LAG_SLOW_S)return true; return false; }
-function _autoObserve(o){
-  try{
-    if(_isRevert(o)){
-      var now=Date.now();
-      if(now-_lastRevertToast>12000){ _lastRevertToast=now; try{ showToast('⚠ 同期で部屋準備などが戻りました（自動検知）。設定→🐞同期ログを確認/コピーして共有を','#c00',9000); }catch(e){} }
-    }
-    _updateSyncBadge();
-    var b=document.getElementById('sync-log-box'); if(b&&b.offsetParent!==null) renderSyncLog(); // 設定を開いている時だけライブ更新
-  }catch(e){}
-}
-// 直近 win ミリ秒の異常件数を集計
-function _syncProblemCount(win){
-  var since=Date.now()-(win||3600000); var r={revert:0,slow:0,conflict:0,lagMax:0,total:0};
-  for(var i=_syncLog.length-1;i>=0;i--){ var o=_syncLog[i]; if(!o||(+o.ms||0)<since)break;
-    var bad=false;
-    if(_isRevert(o)){ r.revert++; bad=true; }
-    if(o.ev==='push'&&(o.res==='conflict'||o.res==='retry-exhausted'||o.res==='error')){ r.conflict++; bad=true; }
-    var lg=_maxLag(o); if(lg>r.lagMax)r.lagMax=lg;
-    if((+o.get||0)>SLOW_MS||(+o.post||0)>SLOW_MS||(+o.total||0)>SLOW_TOTAL_MS||lg>=LAG_SLOW_S){ r.slow++; bad=true; }
-    if(bad)r.total++;
-  }
-  return r;
-}
-function _syncSummaryText(){ var s=_syncProblemCount(3600000); if(!s.total&&!s.lagMax)return '直近1時間：異常なし ✓'; return '直近1時間：巻き戻り'+s.revert+'回／遅い同期'+s.slow+'回／競合'+s.conflict+'回'+(s.lagMax?('／最大反映ラグ'+s.lagMax+'秒'):''); }
-function _updateSyncBadge(){ try{ var el=document.getElementById('sync-indicator'); if(!el)return; var base=el.textContent.replace(/\s*⚠\d+$/,''); var s=_syncProblemCount(3600000); el.textContent = s.total>0 ? (base+' ⚠'+s.total) : base; }catch(e){} }
-function syncLogText(){ try{ return _syncLog.map(function(e){ return JSON.stringify(e); }).join('\n'); }catch(e){ return ''; } }
-function renderSyncLog(){ var b=document.getElementById('sync-log-box'); if(b) b.value=syncLogText(); var sm=document.getElementById('sync-log-summary'); if(sm){ sm.textContent=_syncSummaryText(); var bad=_syncProblemCount(3600000).total>0; sm.style.color=bad?'#c00':'#1a7a3a'; sm.style.fontWeight=bad?'800':'600'; } }
-function clearSyncLog(){ _syncLog=[]; _syncSeq=0; _persistLog(); renderSyncLog(); _updateSyncBadge(); showToast('同期ログを消去しました'); }
-function copySyncLog(){ var t=syncLogText(); if(!t){ showToast('ログが空です','#c07000'); return; } if(navigator.clipboard){ navigator.clipboard.writeText(t).then(function(){showToast('✓ 同期ログをコピーしました');},function(){_copyLogFallback(t);}); } else { _copyLogFallback(t); } }
-function _copyLogFallback(){ var b=document.getElementById('sync-log-box'); if(b){ b.focus(); b.select(); try{ document.execCommand('copy'); showToast('✓ 同期ログをコピーしました'); }catch(e){ showToast('⚠ コピー不可。手で選択してください','#c00'); } } }
 // ★取込/新規作成した直後で「まだサーバに載ったのを確認できていない」IDの集合（id→登録時刻）。
 // この端末で今追加したばかりの予約は、他端末がまだ見てすらいないので"削除"されるはずがない＝
 // マージで remote に無くても絶対に消さない。サーバ側に載ったのを確認(=remoteに出現)したら解除。
@@ -2818,13 +2760,10 @@ async function _syncToSheetImpl(silent){
   if(st)st.textContent='同期中...';
   try{
     var _saved=false;
-    var _pushT0=Date.now();
     for(var _try=0; _try<5 && !_saved; _try++){
       // ① シート取得（キャッシュ回避＋タイムアウト）＝マージの remote と現在リビジョン
-      var _getT0=Date.now();
       var _gres=await _fetchTimeout(_noCacheUrl(url),{method:'GET',redirect:'follow'});
       var _gjson=await gasReadJson(_gres);
-      var _getMs=Date.now()-_getT0;
       if(_gjson.status!=='ok'){ if(st)st.textContent='⚠ エラー: '+(_gjson.message||'読取失敗'); if(!silent)showToast('⚠ 同期失敗（シート読取）','#c00'); return; }
       var remoteR=Array.isArray(_gjson.reservations)?_gjson.reservations:[];
       var remoteS=Array.isArray(_gjson.stays)?_gjson.stays:[];
@@ -2843,21 +2782,19 @@ async function _syncToSheetImpl(silent){
       }
       reservations=mergedR; stays=mergedS; sv(RKEY,reservations); sv(STKEY,stays);
       // ③ マージ結果でシート更新（baseRev添付＝CAS：サーバが不一致なら拒否）
-      var _postT0=Date.now();
+      // ★POSTは40秒まで待つ（従来18秒＝GASの重い全再描画16〜17秒がギリギリ間に合わず中断→やり直し→競合の連鎖を招いていた。GAS高速化と併用）
       var res=await _fetchTimeout(url,{
         method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain'},
         body:JSON.stringify({type:'sync_all',baseRev:_srvRev,stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),csvimpmon:(ld('yv_csvimp_mon')||{}),csvimpfile:(ld('yv_csvimp_file')||{}),csvimplastmon:(ld('yv_csvimp_lastmon')||{}),csvimpmts:(ld('yv_csvimp_mts')||{}),sharednote:(ld('yv_sharednote')||''),dayevents:(ld('yv_dayevents')||{})})
-      });
+      },40000);
       var json=await gasReadJson(res);
-      var _postMs=Date.now()-_postT0;
-      if(json.status==='conflict'){ _slog({ev:'push',res:'conflict',try:(_try+1),get:_getMs,post:_postMs,baseRev:_srvRev,srvRev:json.rev,by:(silent?'auto':'手動')}); continue; } // 他端末が先に書込＝取り直して再マージ・再送（相手の変更も自分の変更も保持）
+      if(json.status==='conflict'){ await new Promise(function(r){ setTimeout(r, 250+Math.floor(Math.random()*750)); }); continue; } // 他端末が先に書込＝少しばらつかせて取り直し再送（2端末が同時に叩き合う"競合渋滞"を緩和）
       if(json.status==='ok'){
         _saveSyncBase(reservations,stays); // 書き込んだ内容＝新しいサーバ状態を base に
         if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 同期完了';
         markSync('保存'); renderList();
         if(!silent)showToast('✓ スプレッドシートに同期しました','#1a7a3a');
         _saved=true;
-        _slog({ev:'push',res:'ok',tries:(_try+1),get:_getMs,post:_postMs,total:(Date.now()-_pushT0),rev:json.rev,R:reservations.length,S:stays.length,by:(silent?'auto':'手動')});
       } else {
         if(st)st.textContent='⚠ エラー: '+json.message;
         if(!silent)showToast('⚠ 同期失敗','#c00');
@@ -2866,13 +2803,11 @@ async function _syncToSheetImpl(silent){
     }
     if(!_saved){ // 競合が続いて保存しきれず→ローカルは保持され次の同期で自動再送（消えない）
       if(st)st.textContent='⚠ 同期が混み合っています（自動で再送します）';
-      _slog({ev:'push',res:'retry-exhausted',total:(Date.now()-_pushT0),by:(silent?'auto':'手動')});
     }
   }catch(e){
     // GET/POST失敗・タイムアウト時：ローカルは保持され、次の自動同期（20秒/操作時）で再度マージ送信される
     if(st)st.textContent='⚠ 通信エラー: '+e.message;
     if(!silent)showToast('⚠ 通信エラー: '+e.message,'#c00',9000);
-    _slog({ev:'push',res:'error',msg:String(e&&e.message||e),total:(Date.now()-(_pushT0||Date.now())),by:(silent?'auto':'手動')});
   }
 }
 // シートから読込（端末間同期）。silent=trueで通知控えめ ※公開名 loadFromSheet は上のラッパー（直列化）経由
@@ -2883,10 +2818,8 @@ async function _loadFromSheetImpl(silent){
   if(!gasUrlOk(url)){ if(st)st.textContent='⚠ GAS URLの形が違います（script.google.com/…/exec を貼ってください）'; if(!silent)showToast('⚠ GAS URLが正しくありません。スプレッドシートURLを貼っていませんか？','#c00',8000); return; }
   if(st)st.textContent='読み込み中...';
   try{
-    var _pullT0=Date.now();
     const res=await _fetchTimeout(_noCacheUrl(url),{method:'GET',redirect:'follow'});
     const json=await gasReadJson(res);
-    var _pullGetMs=Date.now()-_pullT0;
     if(json.status==='ok'){
       // ★空のシートでローカルを消さない安全装置（2026/07/16の事故対策）
       // このアプリは60秒ごと・起動時・タブ復帰時に自動でloadFromSheetを呼び、
@@ -2905,22 +2838,11 @@ async function _loadFromSheetImpl(silent){
       var _srvR=Array.isArray(json.reservations)?json.reservations:reservations;
       var _srvS=Array.isArray(json.stays)?json.stays:stays;
       var _lb=_loadSyncBase();
-      // --- 実測ログ：マージ前のローカル値を控える（部屋準備等が pull で戻る瞬間を捕まえる）---
-      var _preS={}; try{ (stays||[]).forEach(function(s){ if(s&&s.id!=null)_preS[String(s.id)]={wf:JSON.stringify(s.wf||{}),c:!!s.cancelled}; }); }catch(_e){}
-      var _preR={}; try{ (reservations||[]).forEach(function(r){ if(r&&r.id!=null)_preR[String(r.id)]={done:!!r.done,c:!!r.cancelled}; }); }catch(_e){}
       _stampLocalEdits(_lb.r, reservations); _stampLocalEdits(_lb.s, stays); // 未pushの実編集にupdatedAtを打ってから合成
       var _mR=_mergeById(_lb.r, reservations, _srvR);
       var _mS=_mergeById(_lb.s, stays, _srvS);
       var _localContrib=(_stableStr(_mR)!==_stableStr(_srvR))||(_stableStr(_mS)!==_stableStr(_srvS));
       reservations=_mR; stays=_mS;
-      // --- 実測ログ：マージ後にローカル値が変わった予約を検出。edited:true＝この端末で編集したのに戻された＝巻き戻り ---
-      try{
-        var _chg=[]; var _lagOf=function(o){ var u=+(o&&o.updatedAt||0); if(!u)return null; var d=Date.now()-u; if(d<0||d>86400000)return null; return Math.round(d/1000); }; // 受信変更の反映ラグ（秒）＝今−他端末の編集時刻。時計ずれ分は誤差
-        (stays||[]).forEach(function(s){ if(!s||s.id==null)return; var k=String(s.id); var pre=_preS[k]; if(!pre)return; var after=JSON.stringify(s.wf||{}); if(after!==pre.wf||(!!s.cancelled)!==pre.c){ var bv=_lb.s[k]; var bwf=(bv&&typeof bv==='object')?JSON.stringify(bv.wf||{}):null; var edited=(bwf!=null&&pre.wf!==bwf)||(bv&&typeof bv==='object'&&(!!bv.cancelled)!==pre.c); var it={id:k,nm:(s.name||'').slice(0,8),preWf:pre.wf,newWf:after,baseWf:bwf,edited:!!edited}; if(!edited){ var lg=_lagOf(s); if(lg!=null)it.lagS=lg; } _chg.push(it); } });
-        (reservations||[]).forEach(function(r){ if(!r||r.id==null)return; var k=String(r.id); var pre=_preR[k]; if(!pre)return; if((!!r.done)!==pre.done||(!!r.cancelled)!==pre.c){ var bv=_lb.r[k]; var edited=(bv&&typeof bv==='object')&&((!!bv.done)!==pre.done||(!!bv.cancelled)!==pre.c); var it={id:k,nm:(r.name||'').slice(0,8),preDone:pre.done,newDone:!!r.done,edited:!!edited}; if(!edited){ var lg=_lagOf(r); if(lg!=null)it.lagS=lg; } _chg.push(it); } });
-        if(_chg.length) _slog({ev:'pull-CHANGE',get:_pullGetMs,rev:json.rev,contrib:_localContrib,items:_chg});
-      }catch(_e){}
-      _slog({ev:'pull',get:_pullGetMs,rev:json.rev,R:reservations.length,S:stays.length,contrib:_localContrib,by:(silent?'auto':'手動')});
       _saveSyncBase(_srvR,_srvS); // base=サーバ真値（こちらの上乗せ分は次のautoPushでサーバへ）
       if(json.otaack&&typeof json.otaack==='object')sv('yv_otaack',json.otaack);
       if(json.qack&&typeof json.qack==='object')sv('yv_qack',json.qack);
@@ -2950,8 +2872,8 @@ async function _loadFromSheetImpl(silent){
 function autoPush(){ if(ld(GAS_KEY)) syncToSheet(true); }
 // 最終同期日時の表示
 function fmtNow(){ var d=new Date(); return (d.getMonth()+1)+'/'+d.getDate()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
-function markSync(kind){ var txt=fmtNow(); sv('yv_lastsync',txt); var el=document.getElementById('sync-indicator'); if(el) el.textContent='🔄 最終同期 '+txt; try{_updateSyncBadge();}catch(e){} }
-function showLastSync(){ var el=document.getElementById('sync-indicator'); if(!el) return; if(!ld(GAS_KEY)){ el.textContent=''; return; } var v=ld('yv_lastsync'); el.textContent = v?('🔄 最終同期 '+v):'🔄 タップで同期'; try{_updateSyncBadge();}catch(e){} }
+function markSync(kind){ var txt=fmtNow(); sv('yv_lastsync',txt); var el=document.getElementById('sync-indicator'); if(el) el.textContent='🔄 最終同期 '+txt; }
+function showLastSync(){ var el=document.getElementById('sync-indicator'); if(!el) return; if(!ld(GAS_KEY)){ el.textContent=''; return; } var v=ld('yv_lastsync'); el.textContent = v?('🔄 最終同期 '+v):'🔄 タップで同期'; }
 
 // 過去取込の人数誤読(332等)を金額から自動修復。人単価施設(walk/tree等)のみ・キャンセル/村内は対象外。
 // 15人以上は団体/イベント等ごく稀なので、金額÷単価で必ず検算（＝金額が正なら維持、誤読なら訂正）。
