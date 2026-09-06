@@ -26,7 +26,7 @@ var SS_ID = '1gwV7YQHA0p6pWUXjw9qAhB5Js0NK3p-QtuR063QqM54'; // yoyaku同期（20
 
 // ★デプロイ確認用バージョン印。コードを変えて再デプロイするたびに数字を上げる。
 // doGetがこれを返すので「今デプロイされているコードが新しいか」を（個人情報を取らずに）1発で確認できる。
-var GASVER = '2026-09-06-v451c';
+var GASVER = '2026-09-06-v451d';
 
 function getTargetSS(){
   if(!SS_ID) throw new Error('SS_ID が未設定です。GASコード先頭の SS_ID にスプレッドシートのIDを貼ってください');
@@ -115,6 +115,7 @@ function doPost(e){
         _pushHist({ev:'conflict', rev:_curRev, base:Number(data.baseRev)}); // 競合＝2端末が同時書込みで取り直しになった記録（多いと"渋滞"）
         return jsonOut({status:'conflict', rev:_curRev});
       }
+      if(_props.getProperty('diffmode')==='1'){ try{ _recordFlap(data.reservations||[], data.stays||[]); }catch(_fe){} } // 診断中のみ：送信 vs 保存の食い違い項目名を数える
       var _wt0=Date.now();
       writeAll(data.reservations || [], data.stays || []);
       var _wtMs=Date.now()-_wt0; // 実測：シート書き込みに何ミリ秒かかったか（doGetで返して確認できる）
@@ -168,6 +169,13 @@ function doPost(e){
 
 function doGet(e){
   try{
+    // 診断モードの切替（?diff=on / ?diff=off）。onの間だけ、書込み時に「送信データ vs 保存データ」の
+    // 食い違い"項目名"を数える（値は記録しない＝個人情報なし）。押し合い(storm)の原因項目を名指しする用。
+    if(e && e.parameter && e.parameter.diff){
+      var _dp=PropertiesService.getScriptProperties();
+      if(e.parameter.diff==='on'){ _dp.setProperty('diffmode','1'); _dp.deleteProperty('flapfields'); _dp.deleteProperty('flaprecs'); _dp.deleteProperty('flappushes'); return jsonOut({status:'ok', diffmode:'on', gasver:GASVER}); }
+      if(e.parameter.diff==='off'){ _dp.deleteProperty('diffmode'); return jsonOut({status:'ok', diffmode:'off', gasver:GASVER, flapfields:(function(){try{return JSON.parse(_dp.getProperty('flapfields')||'{}');}catch(_e){return {};}})(), flaprecs:_dp.getProperty('flaprecs')||'0', flappushes:_dp.getProperty('flappushes')||'0'}); }
+    }
     var ota={}; try{ ota=JSON.parse(PropertiesService.getScriptProperties().getProperty('otaack')||'{}'); }catch(e2){}
     var qk={}; try{ qk=JSON.parse(PropertiesService.getScriptProperties().getProperty('qack')||'{}'); }catch(e3){}
     var ci={}; try{ ci=JSON.parse(PropertiesService.getScriptProperties().getProperty('csvimp')||'{}'); }catch(e4){}
@@ -190,7 +198,9 @@ function doGet(e){
         return jsonOut({status:'ok', gasver:GASVER, rev:_rev, readMs:_readMs, rows:(_dd.length+'+'+_ss.length)});
       }
       var _hist=[]; try{ _hist=JSON.parse(PropertiesService.getScriptProperties().getProperty('synchist')||'[]'); }catch(_eh){}
-      return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, hist:_hist});
+      var _ff={}; try{ _ff=JSON.parse(PropertiesService.getScriptProperties().getProperty('flapfields')||'{}'); }catch(_ef){}
+      var _dm=PropertiesService.getScriptProperties().getProperty('diffmode')||'';
+      return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, hist:_hist, diffmode:_dm, flapfields:_ff, flaprecs:(PropertiesService.getScriptProperties().getProperty('flaprecs')||'0'), flappushes:(PropertiesService.getScriptProperties().getProperty('flappushes')||'0')});
     }
     return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, csvimplastmon:cilm, csvimpmts:cimts, sharednote:sn, dayevents:de});
   }catch(err){
@@ -200,6 +210,39 @@ function doGet(e){
 
 function jsonOut(obj){
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ===== 診断用：送信データ vs 現在シート保存データ の食い違い"項目名"を数える（値は記録しない＝個人情報なし）=====
+// 押し合い(storm)＝「送ったのに毎回差分ありと誤認して押し続ける」原因項目を名指しする。diffmode中のみ呼ばれる。
+function _recordFlap(inR, inS){
+  var p=PropertiesService.getScriptProperties();
+  var tally={}; try{ tally=JSON.parse(p.getProperty('flapfields')||'{}'); }catch(_e){}
+  var recs=Number(p.getProperty('flaprecs')||'0');
+  var pushes=Number(p.getProperty('flappushes')||'0')+1;
+  function curMap(name){
+    var sh=getTargetSS().getSheetByName(name); if(!sh) return {};
+    var last=sh.getLastRow(); if(last<2) return {};
+    var lc=sh.getLastColumn(); var hdr=sh.getRange(1,1,1,lc).getValues()[0];
+    var ji=hdr.indexOf('_json'); var idi=hdr.indexOf('_id'); if(ji<0||idi<0) return {};
+    var d=sh.getRange(2,1,last-1,lc).getValues(); var m={};
+    for(var i=0;i<d.length;i++){ var id=d[i][idi]; if(id!=='' && id!=null) m[String(id)]=d[i][ji]; }
+    return m;
+  }
+  function cmp(inArr, cm){
+    (inArr||[]).forEach(function(o){
+      if(!o||o.id==null) return; var oldJ=cm[String(o.id)]; if(!oldJ) return;
+      var oldO={}; try{ oldO=JSON.parse(oldJ); }catch(_e){ return; }
+      var diff=false, keys={};
+      Object.keys(o).forEach(function(k){ keys[k]=1; }); Object.keys(oldO).forEach(function(k){ keys[k]=1; });
+      Object.keys(keys).forEach(function(k){
+        if(k==='updatedAt') return;
+        if(JSON.stringify(o[k])!==JSON.stringify(oldO[k])){ tally[k]=(tally[k]||0)+1; diff=true; }
+      });
+      if(diff) recs++;
+    });
+  }
+  cmp(inR, curMap(DAY_SHEET)); cmp(inS, curMap(STAY_SHEET));
+  p.setProperty('flapfields', JSON.stringify(tally)); p.setProperty('flaprecs', String(recs)); p.setProperty('flappushes', String(pushes));
 }
 
 // ===== 観測用：直近30件の同期イベント（時刻・所要ms・行数・競合）をScriptPropertiesにリング保存 =====
