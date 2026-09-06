@@ -639,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=447;
-const APP_BUILD_DATE='2026/09/06 09:05';
+const APP_VERSION=448;
+const APP_BUILD_DATE='2026/09/06 09:20';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2652,6 +2652,18 @@ function _recHash(o){ return _stableStr(o); } // updatedAtを除いた内容ハ�
 function _loadSyncBase(){ var b=ld('yv_syncbase'); if(!b||typeof b!=='object')b={}; if(!b.r||typeof b.r!=='object')b.r={}; if(!b.s||typeof b.s!=='object')b.s={}; return b; }
 function _buildBaseMap(arr){ var m={}; (arr||[]).forEach(function(o){ if(o&&o.id!=null)m[String(o.id)]=o; }); return m; } // ★baseは実レコードを保存（フィールド単位3方向マージ用）。旧版はハッシュ文字列＝_mergeById側で両対応（移行互換）
 function _saveSyncBase(rArr,sArr){ sv('yv_syncbase',{r:_buildBaseMap(rArr),s:_buildBaseMap(sArr)}); }
+// ★手動編集（wf・会計・棟・ベッド・メモ等）は updatedAt を打っていなかったため、競合フォールバックのLWW判定が
+//   「最後にマージした端末」を勝たせ、実際に編集した端末（未打刻＝古い）が負けて変更が押し返されていた
+//   （例：PCで部屋準備ON→スマホが同期しても反映されず、リロードで初めて入る）。
+//   マージ直前に「baseと内容が違う＝この端末で変更した」レコードへ今の時刻を打ち、実編集を正しく最新として勝たせる。
+function _stampLocalEdits(baseMap, arr){
+  baseMap=baseMap||{};
+  (arr||[]).forEach(function(o){ if(!o||o.id==null) return; var k=String(o.id);
+    var bv=baseMap[k]; var bh=(bv&&typeof bv==='object')?_recHash(bv):(typeof bv==='string'?bv:null);
+    if(bh===null){ if(!o.updatedAt) o.updatedAt=nowTs(); return; } // baseに無い（新規/未知）＝未打刻なら打つ
+    if(_recHash(o)!==bh) o.updatedAt=nowTs();                       // baseと内容が違う＝この端末で編集済み→今の時刻
+  });
+}
 // フィールド単位の3方向マージ。両端末が同じ予約の「別々の項目」を変えても両方残す（＝チェックアウト等のwf・会計済み・メモ・人数・紐づけが競合上書きで消えるのを防ぐ）。
 // 同一フィールドを双方が変更した時だけ updatedAt の新しい方を採用（同点=remote＝従来踏襲）。base実レコードがある時のみ呼ぶ。
 function _merge3(baseRec, lo, ro){
@@ -2758,6 +2770,7 @@ async function _syncToSheetImpl(silent){
       var _srvRev=_gjson.rev; // 旧GASではundefined→CASなしで従来動作（後方互換）
       // ② 3方向マージ（base=前回サーバ状態）。古いローカルが他端末のキャンセル/削除を踏み潰さない
       var base=_loadSyncBase();
+      _stampLocalEdits(base.r, reservations); _stampLocalEdits(base.s, stays); // 実編集にupdatedAtを打ってから合成（競合で実編集が勝つ）
       var mergedR=_mergeById(base.r, reservations, remoteR);
       var mergedS=_mergeById(base.s, stays, remoteS);
       // 大量消失ガード：シートにある予約の半分以上が消える結果は異常とみなし中止（誤爆防止）
@@ -2824,6 +2837,7 @@ async function _loadFromSheetImpl(silent){
       var _srvR=Array.isArray(json.reservations)?json.reservations:reservations;
       var _srvS=Array.isArray(json.stays)?json.stays:stays;
       var _lb=_loadSyncBase();
+      _stampLocalEdits(_lb.r, reservations); _stampLocalEdits(_lb.s, stays); // 未pushの実編集にupdatedAtを打ってから合成
       var _mR=_mergeById(_lb.r, reservations, _srvR);
       var _mS=_mergeById(_lb.s, stays, _srvS);
       var _localContrib=(_stableStr(_mR)!==_stableStr(_srvR))||(_stableStr(_mS)!==_stableStr(_srvS));
