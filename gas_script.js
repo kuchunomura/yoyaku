@@ -26,7 +26,7 @@ var SS_ID = '1gwV7YQHA0p6pWUXjw9qAhB5Js0NK3p-QtuR063QqM54'; // yoyaku同期（20
 
 // ★デプロイ確認用バージョン印。コードを変えて再デプロイするたびに数字を上げる。
 // doGetがこれを返すので「今デプロイされているコードが新しいか」を（個人情報を取らずに）1発で確認できる。
-var GASVER = '2026-09-06-v451d';
+var GASVER = '2026-09-06-v451e';
 
 function getTargetSS(){
   if(!SS_ID) throw new Error('SS_ID が未設定です。GASコード先頭の SS_ID にスプレッドシートのIDを貼ってください');
@@ -116,11 +116,20 @@ function doPost(e){
         return jsonOut({status:'conflict', rev:_curRev});
       }
       if(_props.getProperty('diffmode')==='1'){ try{ _recordFlap(data.reservations||[], data.stays||[]); }catch(_fe){} } // 診断中のみ：送信 vs 保存の食い違い項目名を数える
-      var _wt0=Date.now();
-      writeAll(data.reservations || [], data.stays || []);
-      var _wtMs=Date.now()-_wt0; // 実測：シート書き込みに何ミリ秒かかったか（doGetで返して確認できる）
-      try{ _props.setProperty('lastWriteMs', String(_wtMs)); _props.setProperty('lastWriteAt', new Date().toISOString()); _props.setProperty('lastWriteRows', String((data.reservations||[]).length)+'+'+String((data.stays||[]).length)); }catch(_pe){}
-      _pushHist({ev:'ok', ms:_wtMs, rows:(String((data.reservations||[]).length)+'+'+String((data.stays||[]).length)), rev:(_curRev+1)}); // 書込み成功の記録（時刻・所要ms・行数）
+      // ★空push無害化：予約・宿泊の中身(updatedAt除く・順不同)が現状と同一なら、シート書込み・rev加算をスキップ。
+      //   これで「新コードに更新されていない古い端末」が空pushを出し続けても、サーバは何もしない＝ロック競合も
+      //   他端末の巻き戻りも起きない（＝端末を探して直さなくても実害ゼロ）。共有メモ等の付随データは下で従来どおり保存。
+      var _inHash=_dataHash(data.reservations||[], data.stays||[]);
+      var _noop=(_inHash===(_props.getProperty('datahash')||''));
+      if(_noop){
+        var _nc=Number(_props.getProperty('noopcount')||'0')+1; _props.setProperty('noopcount', String(_nc));
+      } else {
+        var _wt0=Date.now();
+        writeAll(data.reservations || [], data.stays || []);
+        var _wtMs=Date.now()-_wt0; // 実測：シート書き込みに何ミリ秒かかったか（doGetで返して確認できる）
+        try{ _props.setProperty('lastWriteMs', String(_wtMs)); _props.setProperty('lastWriteAt', new Date().toISOString()); _props.setProperty('lastWriteRows', String((data.reservations||[]).length)+'+'+String((data.stays||[]).length)); }catch(_pe){}
+        _pushHist({ev:'ok', ms:_wtMs, rows:(String((data.reservations||[]).length)+'+'+String((data.stays||[]).length)), rev:(_curRev+1)}); // 書込み成功の記録（時刻・所要ms・行数）
+      }
       if(data.otaack && typeof data.otaack === 'object'){
         PropertiesService.getScriptProperties().setProperty('otaack', JSON.stringify(data.otaack));
       }
@@ -157,7 +166,8 @@ function doPost(e){
         for(var _fk in data.csvimpmts){ var _mm=data.csvimpmts[_fk]; if(!_mm||typeof _mm!=='object')continue; if(!_curMTS[_fk])_curMTS[_fk]={}; for(var _mk in _mm){ var _mv=Number(_mm[_mk])||0; if(_mv>(Number(_curMTS[_fk][_mk])||0))_curMTS[_fk][_mk]=_mv; } }
         PropertiesService.getScriptProperties().setProperty('csvimpmts', JSON.stringify(_curMTS));
       }
-      var _newRev=_curRev+1; _props.setProperty('syncrev', String(_newRev)); // 書込み成功＝revを+1（次回のCAS基準）
+      if(_noop){ return jsonOut({status:'ok', rev:_curRev, noop:true}); } // 空push＝rev据え置きで即返す（付随データは上で保存済み・シートもrevも不変）
+      var _newRev=_curRev+1; _props.setProperty('syncrev', String(_newRev)); _props.setProperty('datahash', _inHash); // 書込み成功＝revを+1＋現在の内容ハッシュを保存（次回の空push判定用）
       return jsonOut({status:'ok', rev:_newRev, saved:{reservations:(data.reservations||[]).length, stays:(data.stays||[]).length}});
       } finally { _lock.releaseLock(); }
     }
@@ -200,7 +210,7 @@ function doGet(e){
       var _hist=[]; try{ _hist=JSON.parse(PropertiesService.getScriptProperties().getProperty('synchist')||'[]'); }catch(_eh){}
       var _ff={}; try{ _ff=JSON.parse(PropertiesService.getScriptProperties().getProperty('flapfields')||'{}'); }catch(_ef){}
       var _dm=PropertiesService.getScriptProperties().getProperty('diffmode')||'';
-      return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, hist:_hist, diffmode:_dm, flapfields:_ff, flaprecs:(PropertiesService.getScriptProperties().getProperty('flaprecs')||'0'), flappushes:(PropertiesService.getScriptProperties().getProperty('flappushes')||'0')});
+      return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, hist:_hist, diffmode:_dm, flapfields:_ff, flaprecs:(PropertiesService.getScriptProperties().getProperty('flaprecs')||'0'), flappushes:(PropertiesService.getScriptProperties().getProperty('flappushes')||'0'), noopcount:(PropertiesService.getScriptProperties().getProperty('noopcount')||'0')});
     }
     return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, csvimplastmon:cilm, csvimpmts:cimts, sharednote:sn, dayevents:de});
   }catch(err){
@@ -210,6 +220,22 @@ function doGet(e){
 
 function jsonOut(obj){
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ===== 空push判定用：予約・宿泊の内容ハッシュ（updatedAt除外・順不同）。同一なら書込みをスキップして無害化 =====
+function _stableRec(o){
+  if(o===null||typeof o!=='object') return JSON.stringify(o===undefined?null:o);
+  if(Object.prototype.toString.call(o)==='[object Array]') return '['+o.map(_stableRec).join(',')+']';
+  var ks=Object.keys(o).sort(); var parts=[];
+  for(var i=0;i<ks.length;i++){ if(ks[i]==='updatedAt')continue; parts.push(JSON.stringify(ks[i])+':'+_stableRec(o[ks[i]])); }
+  return '{'+parts.join(',')+'}';
+}
+function _dataHash(rArr, sArr){
+  function sig(arr){ return (arr||[]).map(function(o){ return (o&&o.id!=null?String(o.id):'?')+'='+_stableRec(o); }).sort().join('|'); }
+  var s='R'+sig(rArr)+'#S'+sig(sArr);
+  var dig=Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, s, Utilities.Charset.UTF_8);
+  var hex=''; for(var i=0;i<dig.length;i++){ var b=(dig[i]+256)%256; hex+=(b<16?'0':'')+b.toString(16); }
+  return hex;
 }
 
 // ===== 診断用：送信データ vs 現在シート保存データ の食い違い"項目名"を数える（値は記録しない＝個人情報なし）=====
