@@ -26,7 +26,7 @@ var SS_ID = '1gwV7YQHA0p6pWUXjw9qAhB5Js0NK3p-QtuR063QqM54'; // yoyaku同期（20
 
 // ★デプロイ確認用バージョン印。コードを変えて再デプロイするたびに数字を上げる。
 // doGetがこれを返すので「今デプロイされているコードが新しいか」を（個人情報を取らずに）1発で確認できる。
-var GASVER = '2026-09-06-v451b';
+var GASVER = '2026-09-06-v451c';
 
 function getTargetSS(){
   if(!SS_ID) throw new Error('SS_ID が未設定です。GASコード先頭の SS_ID にスプレッドシートのIDを貼ってください');
@@ -112,12 +112,14 @@ function doPost(e){
       var _props=PropertiesService.getScriptProperties();
       var _curRev=Number(_props.getProperty('syncrev')||'0');
       if(data.baseRev!==undefined && data.baseRev!==null && Number(data.baseRev)!==_curRev){
+        _pushHist({ev:'conflict', rev:_curRev, base:Number(data.baseRev)}); // 競合＝2端末が同時書込みで取り直しになった記録（多いと"渋滞"）
         return jsonOut({status:'conflict', rev:_curRev});
       }
       var _wt0=Date.now();
       writeAll(data.reservations || [], data.stays || []);
       var _wtMs=Date.now()-_wt0; // 実測：シート書き込みに何ミリ秒かかったか（doGetで返して確認できる）
       try{ _props.setProperty('lastWriteMs', String(_wtMs)); _props.setProperty('lastWriteAt', new Date().toISOString()); _props.setProperty('lastWriteRows', String((data.reservations||[]).length)+'+'+String((data.stays||[]).length)); }catch(_pe){}
+      _pushHist({ev:'ok', ms:_wtMs, rows:(String((data.reservations||[]).length)+'+'+String((data.stays||[]).length)), rev:(_curRev+1)}); // 書込み成功の記録（時刻・所要ms・行数）
       if(data.otaack && typeof data.otaack === 'object'){
         PropertiesService.getScriptProperties().setProperty('otaack', JSON.stringify(data.otaack));
       }
@@ -180,9 +182,15 @@ function doGet(e){
     var _lwMs=PropertiesService.getScriptProperties().getProperty('lastWriteMs')||'';
     var _lwAt=PropertiesService.getScriptProperties().getProperty('lastWriteAt')||'';
     var _lwRows=PropertiesService.getScriptProperties().getProperty('lastWriteRows')||'';
-    // ?probe=1 のときは予約データ本体を返さず、確認用の軽い情報だけ返す（個人情報を出さない疎通/バージョン確認用）
+    // ?probe=1 のときは予約データ本体を返さず、確認用の軽い情報だけ返す（個人情報を出さない疎通/バージョン/観測用）
+    // ?probe=2 は読み込み(readSheet×2)の所要msだけ測って返す（データ本体は返さない＝個人情報なし）。GETの重さを観測する用。
     if(e && e.parameter && e.parameter.probe){
-      return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows});
+      if(String(e.parameter.probe)==='2'){
+        var _r0=Date.now(); var _dd=readSheet(DAY_SHEET); var _ss=readSheet(STAY_SHEET); var _readMs=Date.now()-_r0;
+        return jsonOut({status:'ok', gasver:GASVER, rev:_rev, readMs:_readMs, rows:(_dd.length+'+'+_ss.length)});
+      }
+      var _hist=[]; try{ _hist=JSON.parse(PropertiesService.getScriptProperties().getProperty('synchist')||'[]'); }catch(_eh){}
+      return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, hist:_hist});
     }
     return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, csvimplastmon:cilm, csvimpmts:cimts, sharednote:sn, dayevents:de});
   }catch(err){
@@ -192,6 +200,19 @@ function doGet(e){
 
 function jsonOut(obj){
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ===== 観測用：直近30件の同期イベント（時刻・所要ms・行数・競合）をScriptPropertiesにリング保存 =====
+// doGet ?probe=1 で返るので、外部から個人情報なしで「実際の同期の速さ・競合の多さ」を観測できる。
+function _pushHist(entry){
+  try{
+    var p=PropertiesService.getScriptProperties();
+    var a=[]; try{ a=JSON.parse(p.getProperty('synchist')||'[]'); if(!Array.isArray(a))a=[]; }catch(_e){}
+    entry.t=new Date(Date.now()+9*3600000).toISOString().slice(11,19); // JST時刻(HH:MM:SS)
+    a.push(entry);
+    if(a.length>30)a=a.slice(a.length-30);
+    p.setProperty('synchist', JSON.stringify(a));
+  }catch(_e){}
 }
 
 function getSheet(name){
