@@ -26,7 +26,7 @@ var SS_ID = '1gwV7YQHA0p6pWUXjw9qAhB5Js0NK3p-QtuR063QqM54'; // yoyaku同期（20
 
 // ★デプロイ確認用バージョン印。コードを変えて再デプロイするたびに数字を上げる。
 // doGetがこれを返すので「今デプロイされているコードが新しいか」を（個人情報を取らずに）1発で確認できる。
-var GASVER = '2026-09-06-v451e';
+var GASVER = '2026-09-06-v451f';
 
 function getTargetSS(){
   if(!SS_ID) throw new Error('SS_ID が未設定です。GASコード先頭の SS_ID にスプレッドシートのIDを貼ってください');
@@ -183,7 +183,7 @@ function doGet(e){
     // 食い違い"項目名"を数える（値は記録しない＝個人情報なし）。押し合い(storm)の原因項目を名指しする用。
     if(e && e.parameter && e.parameter.diff){
       var _dp=PropertiesService.getScriptProperties();
-      if(e.parameter.diff==='on'){ _dp.setProperty('diffmode','1'); _dp.deleteProperty('flapfields'); _dp.deleteProperty('flaprecs'); _dp.deleteProperty('flappushes'); return jsonOut({status:'ok', diffmode:'on', gasver:GASVER}); }
+      if(e.parameter.diff==='on'){ _dp.setProperty('diffmode','1'); _dp.deleteProperty('flapfields'); _dp.deleteProperty('flaprecs'); _dp.deleteProperty('flappushes'); _dp.deleteProperty('flaplog'); return jsonOut({status:'ok', diffmode:'on', gasver:GASVER}); }
       if(e.parameter.diff==='off'){ _dp.deleteProperty('diffmode'); return jsonOut({status:'ok', diffmode:'off', gasver:GASVER, flapfields:(function(){try{return JSON.parse(_dp.getProperty('flapfields')||'{}');}catch(_e){return {};}})(), flaprecs:_dp.getProperty('flaprecs')||'0', flappushes:_dp.getProperty('flappushes')||'0'}); }
     }
     var ota={}; try{ ota=JSON.parse(PropertiesService.getScriptProperties().getProperty('otaack')||'{}'); }catch(e2){}
@@ -209,8 +209,9 @@ function doGet(e){
       }
       var _hist=[]; try{ _hist=JSON.parse(PropertiesService.getScriptProperties().getProperty('synchist')||'[]'); }catch(_eh){}
       var _ff={}; try{ _ff=JSON.parse(PropertiesService.getScriptProperties().getProperty('flapfields')||'{}'); }catch(_ef){}
+      var _flog=[]; try{ _flog=JSON.parse(PropertiesService.getScriptProperties().getProperty('flaplog')||'[]'); }catch(_efl){}
       var _dm=PropertiesService.getScriptProperties().getProperty('diffmode')||'';
-      return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, hist:_hist, diffmode:_dm, flapfields:_ff, flaprecs:(PropertiesService.getScriptProperties().getProperty('flaprecs')||'0'), flappushes:(PropertiesService.getScriptProperties().getProperty('flappushes')||'0'), noopcount:(PropertiesService.getScriptProperties().getProperty('noopcount')||'0')});
+      return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, hist:_hist, diffmode:_dm, flapfields:_ff, flaplog:_flog, flaprecs:(PropertiesService.getScriptProperties().getProperty('flaprecs')||'0'), flappushes:(PropertiesService.getScriptProperties().getProperty('flappushes')||'0'), noopcount:(PropertiesService.getScriptProperties().getProperty('noopcount')||'0')});
     }
     return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, csvimplastmon:cilm, csvimpmts:cimts, sharednote:sn, dayevents:de});
   }catch(err){
@@ -243,8 +244,10 @@ function _dataHash(rArr, sArr){
 function _recordFlap(inR, inS){
   var p=PropertiesService.getScriptProperties();
   var tally={}; try{ tally=JSON.parse(p.getProperty('flapfields')||'{}'); }catch(_e){}
+  var logs=[]; try{ logs=JSON.parse(p.getProperty('flaplog')||'[]'); if(!Array.isArray(logs))logs=[]; }catch(_e){}
   var recs=Number(p.getProperty('flaprecs')||'0');
   var pushes=Number(p.getProperty('flappushes')||'0')+1;
+  var nowJ=new Date(Date.now()+9*3600000).toISOString().slice(11,19); // JST HH:MM:SS
   function curMap(name){
     var sh=getTargetSS().getSheetByName(name); if(!sh) return {};
     var last=sh.getLastRow(); if(last<2) return {};
@@ -262,13 +265,19 @@ function _recordFlap(inR, inS){
       Object.keys(o).forEach(function(k){ keys[k]=1; }); Object.keys(oldO).forEach(function(k){ keys[k]=1; });
       Object.keys(keys).forEach(function(k){
         if(k==='updatedAt') return;
-        if(JSON.stringify(o[k])!==JSON.stringify(oldO[k])){ tally[k]=(tally[k]||0)+1; diff=true; }
+        if(JSON.stringify(o[k])!==JSON.stringify(oldO[k])){ tally[k]=(tally[k]||0)+1; diff=true;
+          // ★逆戻り観測：wf各項目・cancelled・done の値遷移(bool＝個人情報でない)と、競合判定に使う updatedAt
+          //   (inU=今回pushしてきた側／stU=シートに保存済み側)を記録。どの値がなぜ勝ったかを名指しできる。
+          if(k==='wf'){ var nw=o.wf||{}, ow=oldO.wf||{}; ['prep','pay','guide','out'].forEach(function(sk){ if(!!nw[sk]!==!!ow[sk]) logs.push({t:nowJ,id:String(o.id),nm:(o.name||'').slice(0,6),f:'wf.'+sk,old:!!ow[sk],neu:!!nw[sk],inU:(+o.updatedAt||0),stU:(+oldO.updatedAt||0)}); }); }
+          else if(k==='cancelled'||k==='done'){ logs.push({t:nowJ,id:String(o.id),nm:(o.name||'').slice(0,6),f:k,old:!!oldO[k],neu:!!o[k],inU:(+o.updatedAt||0),stU:(+oldO.updatedAt||0)}); }
+        }
       });
       if(diff) recs++;
     });
   }
   cmp(inR, curMap(DAY_SHEET)); cmp(inS, curMap(STAY_SHEET));
-  p.setProperty('flapfields', JSON.stringify(tally)); p.setProperty('flaprecs', String(recs)); p.setProperty('flappushes', String(pushes));
+  if(logs.length>40) logs=logs.slice(logs.length-40);
+  p.setProperty('flapfields', JSON.stringify(tally)); p.setProperty('flaprecs', String(recs)); p.setProperty('flappushes', String(pushes)); p.setProperty('flaplog', JSON.stringify(logs));
 }
 
 // ===== 観測用：直近30件の同期イベント（時刻・所要ms・行数・競合）をScriptPropertiesにリング保存 =====
