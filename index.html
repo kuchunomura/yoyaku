@@ -639,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=452;
-const APP_BUILD_DATE='2026/09/06 12:23';
+const APP_VERSION=453;
+const APP_BUILD_DATE='2026/09/06 13:08';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1978,19 +1978,19 @@ function toggleWf(id,k){
   var s=stays.find(x=>x.id===id);if(!s)return;
   // キャンセルは s.cancelled をトグル（二回タップ／✅は1タップ解除）
   if(k==='cancel'){
-    if(s.cancelled){s.cancelled=false;delete _cancelKeep[id];wfArm=null;clearTimeout(window._wfArmT);sv(STKEY,stays);autoPush();renderList();return;}
-    if(wfArm&&wfArm.id===id&&wfArm.key===k){s.cancelled=true;_cancelKeep[id]=true;wfArm=null;clearTimeout(window._wfArmT);sv(STKEY,stays);autoPush();renderList();}
+    if(s.cancelled){s.cancelled=false;delete _cancelKeep[id];wfArm=null;clearTimeout(window._wfArmT);s.updatedAt=nowTs();sv(STKEY,stays);autoPush();renderList();return;}
+    if(wfArm&&wfArm.id===id&&wfArm.key===k){s.cancelled=true;_cancelKeep[id]=true;wfArm=null;clearTimeout(window._wfArmT);s.updatedAt=nowTs();sv(STKEY,stays);autoPush();renderList();}
     else{wfArm={id:id,key:k};renderList();clearTimeout(window._wfArmT);window._wfArmT=setTimeout(function(){wfArm=null;renderList();},2500);}
     return;
   }
   if(!s.wf)s.wf={};
   // すでに✅なら1タップで即解除（確認不要）
-  if(s.wf[k]){s.wf[k]=false;wfArm=null;clearTimeout(window._wfArmT);sv(STKEY,stays);autoPush();renderList();return;}
+  if(s.wf[k]){s.wf[k]=false;wfArm=null;clearTimeout(window._wfArmT);s.updatedAt=nowTs();sv(STKEY,stays);autoPush();renderList();return;}
   // OFF→ONは二回タップ（誤操作防止）
   if(wfArm&&wfArm.id===id&&wfArm.key===k){
     s.wf[k]=true;wfArm=null;clearTimeout(window._wfArmT);
     if(k==='out')_cardOpen[id]=false; // OUT確定で折り畳みを自動で閉じる
-    sv(STKEY,stays);autoPush();renderList();
+    s.updatedAt=nowTs();sv(STKEY,stays);autoPush();renderList();
   }else{
     wfArm={id:id,key:k};renderList();
     clearTimeout(window._wfArmT);
@@ -2674,20 +2674,33 @@ function _stampLocalEdits(baseMap, arr){
 }
 // フィールド単位の3方向マージ。両端末が同じ予約の「別々の項目」を変えても両方残す（＝チェックアウト等のwf・会計済み・メモ・人数・紐づけが競合上書きで消えるのを防ぐ）。
 // 同一フィールドを双方が変更した時だけ updatedAt の新しい方を採用（同点=remote＝従来踏襲）。base実レコードがある時のみ呼ぶ。
-function _merge3(baseRec, lo, ro){
-  baseRec=baseRec||{}; var out={}, keys={};
-  Object.keys(lo).forEach(function(k){keys[k]=1;}); Object.keys(ro).forEach(function(k){keys[k]=1;});
-  var loNewer=(+(lo.updatedAt||0)) > (+(ro.updatedAt||0)); // 同点はro
+function _isPlainObj(x){ return x!=null && typeof x==='object' && Object.prototype.toString.call(x)!=='[object Array]'; }
+// フィールド単位3方向合成。入れ子オブジェクト（wf＝部屋準備/会計/案内/OUT 等）は「下位フィールドごと」に合成する
+// ＝A=部屋準備・B=会計 のように別サブ項目を同時に触っても、両方の変更が残る（塊ごとLWWで片方が消える＝逆戻りを防ぐ）。
+// 配列（rental・linked*）は従来どおり丸ごと（_stableStrで比較・LWW）。updatedAtはここでは付けない（最上位でのみ付与）。
+function _mergeFields(bv, lo, ro, loNewer){
+  var out={}, keys={};
+  Object.keys(lo||{}).forEach(function(k){keys[k]=1;}); Object.keys(ro||{}).forEach(function(k){keys[k]=1;});
   Object.keys(keys).forEach(function(k){
     if(k==='updatedAt') return;
-    var lv=lo[k], rv=ro[k], bv=baseRec[k];
-    var lC=_stableStr(lv)!==_stableStr(bv), rC=_stableStr(rv)!==_stableStr(bv);
-    if(lC && !rC) out[k]=lv;          // こちらだけ変更
-    else if(rC && !lC) out[k]=rv;     // あちらだけ変更
-    else if(!lC && !rC) out[k]=rv;    // 双方無変更＝同じ
-    else out[k]=loNewer?lv:rv;        // 同一フィールドを双方変更＝新しい方
+    var lv=(lo?lo[k]:undefined), rv=(ro?ro[k]:undefined), b=(bv?bv[k]:undefined);
+    var lC=_stableStr(lv)!==_stableStr(b), rC=_stableStr(rv)!==_stableStr(b);
+    if(lC && rC && _isPlainObj(lv) && _isPlainObj(rv)){ out[k]=_mergeFields(_isPlainObj(b)?b:{}, lv, rv, loNewer); } // 入れ子は下位ごとに合成
+    else if(lC && !rC) out[k]=lv;          // こちらだけ変更
+    else if(rC && !lC) out[k]=rv;          // あちらだけ変更
+    else if(!lC && !rC) out[k]=rv;         // 双方無変更＝同じ
+    else out[k]=loNewer?lv:rv;             // 同一フィールドを双方変更＝新しい方（同点はro）
   });
-  out.updatedAt=nowTs();              // マージ結果＝新状態（次のpushで全端末へ反映）
+  return out;
+}
+function _merge3(baseRec, lo, ro){
+  var loNewer=(+(lo.updatedAt||0)) > (+(ro.updatedAt||0)); // 同点はro
+  var out=_mergeFields(baseRec||{}, lo||{}, ro||{}, loNewer);
+  // ★逆戻り対策：マージ結果の updatedAt を「今の時刻(nowTs)」にすると、単に同期しただけの端末の“古い値”が
+  //   毎回新しい時刻を得てしまい、実際の編集(部屋準備OFF等)に競合で勝って上書き＝逆戻りの原因になる。
+  //   マージは新しい内容を生まない（両ソースの値を選ぶだけ）ので、updatedAt は「新しい方のソースの時刻」を引き継ぐ。
+  //   ＝実際に編集した時刻が最大＝実編集が必ず勝つ（stampはtoggle等の編集時に打つ）。
+  out.updatedAt=Math.max(+(lo.updatedAt||0), +(ro.updatedAt||0))||nowTs();
   return out;
 }
 // 3方向マージ。baseMap=前回サーバ状態（id→実レコード。旧版はハッシュ文字列で移行互換）, local/remote=レコード配列。返り値=マージ済み配列。
