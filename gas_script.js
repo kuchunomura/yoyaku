@@ -24,6 +24,10 @@
 // 同期先スプレッドシートのID（URLの /d/ と /edit の間）
 var SS_ID = '1gwV7YQHA0p6pWUXjw9qAhB5Js0NK3p-QtuR063QqM54'; // yoyaku同期（2026/07/16 再作成）
 
+// ★デプロイ確認用バージョン印。コードを変えて再デプロイするたびに数字を上げる。
+// doGetがこれを返すので「今デプロイされているコードが新しいか」を（個人情報を取らずに）1発で確認できる。
+var GASVER = '2026-09-06-v451b';
+
 function getTargetSS(){
   if(!SS_ID) throw new Error('SS_ID が未設定です。GASコード先頭の SS_ID にスプレッドシートのIDを貼ってください');
   return SpreadsheetApp.openById(SS_ID);
@@ -110,7 +114,10 @@ function doPost(e){
       if(data.baseRev!==undefined && data.baseRev!==null && Number(data.baseRev)!==_curRev){
         return jsonOut({status:'conflict', rev:_curRev});
       }
+      var _wt0=Date.now();
       writeAll(data.reservations || [], data.stays || []);
+      var _wtMs=Date.now()-_wt0; // 実測：シート書き込みに何ミリ秒かかったか（doGetで返して確認できる）
+      try{ _props.setProperty('lastWriteMs', String(_wtMs)); _props.setProperty('lastWriteAt', new Date().toISOString()); _props.setProperty('lastWriteRows', String((data.reservations||[]).length)+'+'+String((data.stays||[]).length)); }catch(_pe){}
       if(data.otaack && typeof data.otaack === 'object'){
         PropertiesService.getScriptProperties().setProperty('otaack', JSON.stringify(data.otaack));
       }
@@ -170,7 +177,14 @@ function doGet(e){
     var de={}; try{ de=JSON.parse(PropertiesService.getScriptProperties().getProperty('dayevents')||'{}'); }catch(e7){}
     // 現在リビジョン（sheet読取より前に取得＝revがsheetより先行しない＝古いrevで競合→再送となり安全）
     var _rev=Number(PropertiesService.getScriptProperties().getProperty('syncrev')||'0');
-    return jsonOut({status:'ok', rev:_rev, reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, csvimplastmon:cilm, csvimpmts:cimts, sharednote:sn, dayevents:de});
+    var _lwMs=PropertiesService.getScriptProperties().getProperty('lastWriteMs')||'';
+    var _lwAt=PropertiesService.getScriptProperties().getProperty('lastWriteAt')||'';
+    var _lwRows=PropertiesService.getScriptProperties().getProperty('lastWriteRows')||'';
+    // ?probe=1 のときは予約データ本体を返さず、確認用の軽い情報だけ返す（個人情報を出さない疎通/バージョン確認用）
+    if(e && e.parameter && e.parameter.probe){
+      return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows});
+    }
+    return jsonOut({status:'ok', gasver:GASVER, rev:_rev, lastWriteMs:_lwMs, lastWriteAt:_lwAt, lastWriteRows:_lwRows, reservations:readSheet(DAY_SHEET), stays:readSheet(STAY_SHEET), otaack:ota, qack:qk, csvimp:ci, csvimpmon:cim, csvimpfile:cif, csvimplastmon:cilm, csvimpmts:cimts, sharednote:sn, dayevents:de});
   }catch(err){
     return jsonOut({status:'error', message:String(err)});
   }
@@ -242,17 +256,33 @@ function writeRows(sh, cols, rows, groupKeys){
       bg.push(bgRow); fc.push(fcRow);
     }
     if(anyC){ rng.setBackgrounds(bg); rng.setFontColors(fc); } // キャンセルが1件も無ければ何もしない（clearで既定の白黒のまま）
-    // 日付（グループキー）が変わる行の下に下線を引く（境界ごと。ここは行数=日数ぶんで軽い）
-    if(groupKeys){
-      for(var i=0;i<rows.length;i++){
-        var isLast = (i === rows.length-1) || (groupKeys[i] !== groupKeys[i+1]);
-        if(isLast){ sh.getRange(2+i,1,1,cols.length).setBorder(null,null,true,null,null,null,'#888888',SpreadsheetApp.BorderStyle.SOLID_MEDIUM); }
-      }
-    }
+    // ★日付境界の下線（1行ずつsetBorder）と★キャンセル行の折り畳みグループ化（applyCancelGrouping）は
+    //   どちらも「1行/1塊ずつのAPI往復」で数百行だと数〜十数秒かかり、同期が遅い残りの主因だった。
+    //   これらは"見た目だけ"で集計・復元・アプリ表示に一切関係しない（アプリはシートを読まない）。
+    //   → 毎回の同期からは外し、メニュー/関数 beautifySheets() で必要時にまとめて描く運用にした（下記）。
   }
   sh.hideColumns(cols.length); // _json列を隠す
   sh.setFrozenRows(1);
-  applyCancelGrouping(sh); // キャンセル行を行グループ化（±で折り畳み）。同期で書き直しても維持
+}
+// 見た目の整形（日付境界の下線＋キャンセル行の折り畳み）を"必要な時だけ"まとめて描く。
+// 毎回の同期では重いので外してある。シートを人が読む前に手で1回実行すればよい（GASエディタ▶ beautifySheets）。
+function beautifySheets(){
+  [ {name:DAY_SHEET, cols:DAY_COLS, key:'日付'}, {name:STAY_SHEET, cols:STAY_COLS, key:'チェックイン'} ].forEach(function(cfg){
+    var sh=getTargetSS().getSheetByName(cfg.name); if(!sh) return;
+    var last=sh.getLastRow(); if(last<2){ applyCancelGrouping(sh); return; }
+    var lastCol=sh.getLastColumn();
+    var header=sh.getRange(1,1,1,lastCol).getValues()[0];
+    var keyIdx=header.indexOf(cfg.key);
+    if(keyIdx>=0){
+      var keys=sh.getRange(2,keyIdx+1,last-1,1).getValues();
+      for(var i=0;i<keys.length;i++){
+        var isLast=(i===keys.length-1)||(String(keys[i][0])!==String(keys[i+1]?keys[i+1][0]:''));
+        if(isLast){ sh.getRange(2+i,1,1,lastCol).setBorder(null,null,true,null,null,null,'#888888',SpreadsheetApp.BorderStyle.SOLID_MEDIUM); }
+      }
+    }
+    applyCancelGrouping(sh);
+  });
+  return '整形しました（下線＋キャンセル折り畳み）';
 }
 
 // ===== キャンセル予約の折り畳み（行グループ化）=====
