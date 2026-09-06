@@ -639,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=451;
-const APP_BUILD_DATE='2026/09/06 11:36';
+const APP_VERSION=452;
+const APP_BUILD_DATE='2026/09/06 12:23';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2649,6 +2649,14 @@ function _stableStr(o){
   return '{'+parts.join(',')+'}';
 }
 function _recHash(o){ return _stableStr(o); } // updatedAtを除いた内容ハッシュ
+// ★2端末の「押し合い(storm)」対策：この端末に本当に送るべき差分があるかを"並び順に依存せず"判定する。
+//   従来は _stableStr(配列) 同士を比較していたが、GASは書込み時にレコードを日付順へ並べ替えるため、
+//   中身が同一でもクライアントの並び順と一致せず「差分あり」と毎回誤検知→無変更でも延々pushし続けていた
+//   （実測：15回のpush中10回が中身ゼロ＝空push）。ID→内容ハッシュの集合で比較し、順序差では発火させない。
+function _contribDiff(mergedArr, srvArr){
+  function sig(arr){ return (arr||[]).map(function(o){ return (o&&o.id!=null?String(o.id):'?')+'='+_recHash(o); }).sort().join('|'); }
+  return sig(mergedArr)!==sig(srvArr);
+}
 function _loadSyncBase(){ var b=ld('yv_syncbase'); if(!b||typeof b!=='object')b={}; if(!b.r||typeof b.r!=='object')b.r={}; if(!b.s||typeof b.s!=='object')b.s={}; return b; }
 function _buildBaseMap(arr){ var m={}; (arr||[]).forEach(function(o){ if(o&&o.id!=null)m[String(o.id)]=o; }); return m; } // ★baseは実レコードを保存（フィールド単位3方向マージ用）。旧版はハッシュ文字列＝_mergeById側で両対応（移行互換）
 function _saveSyncBase(rArr,sArr){ sv('yv_syncbase',{r:_buildBaseMap(rArr),s:_buildBaseMap(sArr)}); }
@@ -2841,7 +2849,7 @@ async function _loadFromSheetImpl(silent){
       _stampLocalEdits(_lb.r, reservations); _stampLocalEdits(_lb.s, stays); // 未pushの実編集にupdatedAtを打ってから合成
       var _mR=_mergeById(_lb.r, reservations, _srvR);
       var _mS=_mergeById(_lb.s, stays, _srvS);
-      var _localContrib=(_stableStr(_mR)!==_stableStr(_srvR))||(_stableStr(_mS)!==_stableStr(_srvS));
+      var _localContrib=_contribDiff(_mR,_srvR)||_contribDiff(_mS,_srvS); // 並び順ではなく「ID＋内容」の集合で判定＝順序差の空pushを止める
       reservations=_mR; stays=_mS;
       _saveSyncBase(_srvR,_srvS); // base=サーバ真値（こちらの上乗せ分は次のautoPushでサーバへ）
       if(json.otaack&&typeof json.otaack==='object')sv('yv_otaack',json.otaack);
