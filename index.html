@@ -639,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=456;
-const APP_BUILD_DATE='2026/09/07 15:24';
+const APP_VERSION=457;
+const APP_BUILD_DATE='2026/09/07 15:45';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2844,17 +2844,22 @@ async function _syncToSheetImpl(silent){
         return;
       }
       reservations=mergedR; stays=mergedS; sv(RKEY,reservations); sv(STKEY,stays);
+      // 特記(dayevents)も3方向マージしてから送る＝サーバにある他端末ぶんを消さず、この端末の追加も乗せる（LWWで消える不具合の対策）
+      var _deSrv=(_gjson.dayevents&&typeof _gjson.dayevents==='object')?_gjson.dayevents:{};
+      var _deMergedPush=_mergeDayEvents(ld('yv_dayevents_base'), ld('yv_dayevents')||{}, _deSrv);
+      sv('yv_dayevents', _deMergedPush);
       // ③ マージ結果でシート更新（baseRev添付＝CAS：サーバが不一致なら拒否）
       // ★POSTは40秒まで待つ（従来18秒＝GASの重い全再描画16〜17秒がギリギリ間に合わず中断→やり直し→競合の連鎖を招いていた。GAS高速化と併用）
       var res=await _fetchTimeout(url,{
         method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({type:'sync_all',av:APP_VERSION,baseRev:_srvRev,stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),csvimpmon:(ld('yv_csvimp_mon')||{}),csvimpfile:(ld('yv_csvimp_file')||{}),csvimplastmon:(ld('yv_csvimp_lastmon')||{}),csvimpmts:(ld('yv_csvimp_mts')||{}),sharednote:(ld('yv_sharednote')||''),dayevents:(ld('yv_dayevents')||{})})
+        body:JSON.stringify({type:'sync_all',av:APP_VERSION,baseRev:_srvRev,stays,reservations,otaack:(ld('yv_otaack')||{}),qack:(ld('yv_qack')||{}),csvimp:(ld('yv_csvimp')||{}),csvimpmon:(ld('yv_csvimp_mon')||{}),csvimpfile:(ld('yv_csvimp_file')||{}),csvimplastmon:(ld('yv_csvimp_lastmon')||{}),csvimpmts:(ld('yv_csvimp_mts')||{}),sharednote:(ld('yv_sharednote')||''),dayevents:_deMergedPush})
       },40000);
       var json=await gasReadJson(res);
       if(json.status==='stale_client'){ _showStaleClientBlock(json); return; } // サーバが「この版は古い」と拒否＝これ以上書かず更新を促す（保存はしていない＝データを壊さない）
       if(json.status==='conflict'){ await new Promise(function(r){ setTimeout(r, 250+Math.floor(Math.random()*750)); }); continue; } // 他端末が先に書込＝少しばらつかせて取り直し再送（2端末が同時に叩き合う"競合渋滞"を緩和）
       if(json.status==='ok'){
         _saveSyncBase(reservations,stays); // 書き込んだ内容＝新しいサーバ状態を base に
+        sv('yv_dayevents_base', _deMergedPush); // 特記も送った内容＝新サーバ状態を base に
         if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 同期完了';
         markSync('保存'); renderListAuto();
         if(!silent)showToast('✓ スプレッドシートに同期しました','#1a7a3a');
@@ -2914,8 +2919,15 @@ async function _loadFromSheetImpl(silent){
       applyAckLocal('yv_otaack'); applyAckLocal('yv_qack');
       // 共有メモ（全端末で同期）。入力中の端末は上書きしない
       if(typeof json.sharednote==='string'){ sv('yv_sharednote',json.sharednote); var _sn=document.getElementById('shared-note'); if(_sn&&document.activeElement!==_sn)_sn.value=json.sharednote; }
-      // 日付ごとの特記（全端末で同期）
-      if(json.dayevents&&typeof json.dayevents==='object')sv('yv_dayevents',json.dayevents);
+      // 日付ごとの特記（全端末で同期）＝3方向マージ。従来は無条件上書きで、追加直後にpullが走ると
+      // まだpushされていない特記がサーバの古い値で消えていた（＝記入しても保存されない）。base=サーバ真値。
+      var _deLocalUnpushed=false;
+      if(json.dayevents&&typeof json.dayevents==='object'){
+        var _deM=_mergeDayEvents(ld('yv_dayevents_base'), ld('yv_dayevents')||{}, json.dayevents);
+        sv('yv_dayevents', _deM);
+        sv('yv_dayevents_base', json.dayevents);
+        _deLocalUnpushed=(_stableStr(_deM)!==_stableStr(json.dayevents)); // マージ結果がサーバと違う＝この端末の未送信の特記あり→末尾でautoPush
+      }
       // 最終CSV取込日時：施設ごとに新しい方を残してマージ（他デバイスの取込時刻を消さない）
       if(json.csvimp&&typeof json.csvimp==='object'){ var _ci=ld('yv_csvimp')||{}; var _cm=ld('yv_csvimp_mon')||{}; var _if=ld('yv_csvimp_file')||{}; var _ilm=ld('yv_csvimp_lastmon')||{}; var _imts=ld('yv_csvimp_mts')||{}; var _rm=(json.csvimpmon&&typeof json.csvimpmon==='object')?json.csvimpmon:{}; var _rf=(json.csvimpfile&&typeof json.csvimpfile==='object')?json.csvimpfile:{}; var _rlm=(json.csvimplastmon&&typeof json.csvimplastmon==='object')?json.csvimplastmon:{}; var _rmts=(json.csvimpmts&&typeof json.csvimpmts==='object')?json.csvimpmts:{}; for(var _ck in json.csvimp){ var _cv=Number(json.csvimp[_ck])||0; if(_cv>(Number(_ci[_ck])||0)){ _ci[_ck]=_cv; if(_rf[_ck]!==undefined)_if[_ck]=_rf[_ck]; if(_rlm[_ck]!==undefined)_ilm[_ck]=_rlm[_ck]; } } for(var _mk in _rm){ var _uu={}; String(_cm[_mk]||'').split(',').concat(String(_rm[_mk]||'').split(',')).forEach(function(x){x=(x||'').trim();if(x)_uu[x]=1;}); _cm[_mk]=Object.keys(_uu).sort().join(','); } for(var _fk in _rmts){ var _mm=_rmts[_fk]; if(!_mm||typeof _mm!=='object')continue; if(!_imts[_fk])_imts[_fk]={}; for(var _mk2 in _mm){ var _mv=Number(_mm[_mk2])||0; if(_mv>(Number(_imts[_fk][_mk2])||0))_imts[_fk][_mk2]=_mv; } } sv('yv_csvimp',_ci); sv('yv_csvimp_mon',_cm); sv('yv_csvimp_file',_if); sv('yv_csvimp_lastmon',_ilm); sv('yv_csvimp_mts',_imts); if(typeof renderCsvImpLog==='function')renderCsvImpLog(); }
       sv(RKEY,reservations);sv(STKEY,stays);
@@ -2928,7 +2940,7 @@ async function _loadFromSheetImpl(silent){
       markSync('同期');
       if(!silent)showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）'+(_rep?'／人数'+_rep+'件を自動修正':'')+(_rq?'／備品数量'+_rq+'件を自動修正':'')+(_rt?'／時刻'+_rt+'件を自動修正':'')+(_rd?'／備品'+_rd+'件を再読取':''),'#1a7a3a');
       renderListAuto(); // ★入力中(#dep-detail特記・検索欄等)は再描画を保留＝記入を潰さない（離れたら反映）
-      if(_rep||_rq||_rt||_rd||_localContrib)autoPush(); // 修正結果＋この端末の未送信変更をシートへ書き戻して全端末で共有
+      if(_rep||_rq||_rt||_rd||_localContrib||_deLocalUnpushed)autoPush(); // 修正結果＋この端末の未送信変更（予約・特記）をシートへ書き戻して全端末で共有
     }else{ if(st)st.textContent='⚠ エラー: '+json.message; if(!silent)showToast('⚠ 読込失敗','#c00'); }
   }catch(e){ if(st)st.textContent='⚠ 通信エラー: '+e.message; if(!silent)showToast('⚠ 通信エラー: '+e.message,'#c00',9000); }
 }
@@ -4028,6 +4040,22 @@ function eventChipHtml(ev){if(!ev||!ev.type)return '';var c=EVENT_TYPES[ev.type]
 function loadDayEvents(){return ld('yv_dayevents')||{};}
 function getDayEvents(dateStr){return loadDayEvents()[dateStr]||[];}
 function saveDayEvents(o){sv('yv_dayevents',o);autoPush();}
+// ★特記(dayevents)の3方向"集合"マージ。従来は pull で無条件上書き・push で生ローカル送信＝LWWだったため、
+//   追加した特記が「push前に走った pull」でサーバの古い値に上書きされ消える（＝記入しても保存されない）。
+//   各エントリを date|type|detail のキーにして集合マージ：baseに在って片方で消えた=削除を尊重／baseに無く片方で足された=追加を残す。
+function _deKeySet(obj){ var s={}; if(obj&&typeof obj==='object'){ Object.keys(obj).forEach(function(d){ var a=obj[d]; if(!a||!a.forEach)return; a.forEach(function(e){ if(e&&e.type!=null){ s[d+''+(e.type||'')+''+(e.detail||'')]=1; } }); }); } return s; }
+function _deFromSet(keys){ var out={}; Object.keys(keys).forEach(function(k){ var p=k.split(''); (out[p[0]]=out[p[0]]||[]).push({type:p[1],detail:p[2]}); }); return out; }
+function _mergeDayEvents(base, local, server){
+  var B=_deKeySet(base), L=_deKeySet(local), S=_deKeySet(server), keys={}, result={};
+  Object.keys(B).forEach(function(k){keys[k]=1;}); Object.keys(L).forEach(function(k){keys[k]=1;}); Object.keys(S).forEach(function(k){keys[k]=1;});
+  Object.keys(keys).forEach(function(k){
+    var inB=!!B[k], inL=!!L[k], inS=!!S[k], present;
+    if(inB) present=(inL&&inS);   // 元から在った＝どちらかで消えたら削除（削除を尊重）
+    else    present=(inL||inS);   // 新規＝どちらかで足されたら残す（追加を尊重）
+    if(present)result[k]=1;
+  });
+  return _deFromSet(result);
+}
 function addDayEvent(dateStr){
   var t=document.getElementById('dep-type'),d=document.getElementById('dep-detail');if(!t)return;
   var o=loadDayEvents();(o[dateStr]=o[dateStr]||[]).push({type:t.value,detail:(d?d.value.trim():'')});
