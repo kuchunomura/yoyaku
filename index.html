@@ -639,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=457;
-const APP_BUILD_DATE='2026/09/07 15:45';
+const APP_VERSION=458;
+const APP_BUILD_DATE='2026/09/07 16:05';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1502,12 +1502,16 @@ function saveStay(){
 // 一覧
 // ★入力中の再描画ガード：同期(pull)は10秒ごと＋画面タッチごとに renderList を呼ぶが、renderList は
 //   特記入力(#dep-detail)や検索欄などを innerHTML で作り直すため、入力中だと「フォーカスと入力文字が毎回消える＝記入できない」。
-//   入力欄(input/textarea/select/contentEditable)にフォーカス中は自動再描画を保留し、フォーカスを離れたら1回だけ流す。
+//   入力欄(input/textarea/select/contentEditable)にフォーカス中、またはタップ中(pointerdown〜up)は自動再描画を保留する。
 //   ※ユーザー操作起点の renderList()（追加/編集/タブ切替など）は従来どおり即描画＝この関数は"自動"経路だけで使う。
-var _renderPendingWhileTyping=false;
+//   ★focusoutでの即時再描画はしない：＋追加等のボタンをタップすると入力欄がblur→その瞬間に再描画で「押したボタンごと作り直され」clickが消える＝
+//     "＋追加を押しても保存されない"不具合になる（v456で混入）。保留した再描画は次のpull(最長10秒)か次のユーザー操作(renderList直呼び)で自然に反映される。
+var _renderPendingWhileTyping=false,_pointerActive=false;
 function _isTypingInField(){ var a=document.activeElement; if(!a)return false; var tg=a.tagName; return tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT'||a.isContentEditable===true; }
-function renderListAuto(){ if(_isTypingInField()){ _renderPendingWhileTyping=true; return; } renderList(); }
-document.addEventListener('focusout',function(){ setTimeout(function(){ if(_renderPendingWhileTyping && !_isTypingInField()){ _renderPendingWhileTyping=false; renderList(); } },0); },true);
+function renderListAuto(){ if(_isTypingInField()||_pointerActive){ _renderPendingWhileTyping=true; return; } renderList(); }
+document.addEventListener('pointerdown',function(){ _pointerActive=true; },true);
+document.addEventListener('pointerup',function(){ _pointerActive=false; },true);
+document.addEventListener('pointercancel',function(){ _pointerActive=false; },true);
 function renderList(){
   _renderPendingWhileTyping=false; // 描画したので保留は解消
   // 既存データにも自動紐づけを反映（1回／シート読込後は再実行）。変更が出たら保存＋シートへ書き戻し
