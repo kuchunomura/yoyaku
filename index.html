@@ -469,7 +469,6 @@ details[open] summary{opacity:0.75}
       <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px"></div>
       <button class="cal-navarrow" style="right:0" onclick="calNext()" aria-label="翌月">›</button>
     </div>
-    <div id="cal-detail" style="padding:0 4px;margin-top:4px"></div>
   </div>
 
   <div id="tab-settings" class="tab-content" style="display:none">
@@ -639,8 +638,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=458;
-const APP_BUILD_DATE='2026/09/07 16:05';
+const APP_VERSION=459;
+const APP_BUILD_DATE='2026/09/18 10:15';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -4246,44 +4245,9 @@ function renderCal(){
     cell.onclick=()=>{ calSelDate=dateStr; dateFilter=dateStr; switchTab('list',true); };
     grid.appendChild(cell);
   }
-  if(calSelDate)renderCalDetail(calSelDate);
-}
-
-function renderCalDetail(dateStr){
-  const c=document.getElementById('cal-detail');
-  const{days:dl,stayList:sl}=getDayReservations(dateStr);
-  if(!dl.length&&!sl.length){c.innerHTML='<div style="font-size:13px;color:#bbb;text-align:center;padding:1rem">この日の予約はありません</div>';return;}
-  c.innerHTML='<div style="font-size:13px;font-weight:600;margin-bottom:8px">'+fmtDate(dateStr)+'の予約</div>';
-  sl.forEach(s=>{
-    const fac=getSFac(s.facility);if(!fac)return;
-    const totalPpl=(s.totalPpl||s.ninzu);
-    const div=document.createElement('div');div.className='card';div.style.marginBottom='8px';
-    div.innerHTML=
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+
-        '<span class="badge badge-stay">宿泊</span>'+
-        '<span style="font-size:13px;font-weight:600;color:#7a1030">'+fac.label+'</span>'+
-        (s.changed?'<span class="badge-changed">変更済み</span>':'')+
-      '</div>'+
-      '<div style="font-size:13px">'+fmtDate(s.checkin)+' 〜 '+fmtDate(s.checkout)+'（'+s.nights+'泊）</div>'+
-      (s.name?'<div style="font-size:14px;font-weight:500;margin-top:2px">'+s.name+'</div>':'')+
-      eventChipHtml(s.event)+
-      '<div style="font-size:13px;color:#666">'+totalPpl+'名'+(parseInt(s.child)>0?' 子供(3歳未満)'+s.child+'人':'')+((s.petCount||0)>0?' ペット'+s.petCount+'匹':'')+'</div>';
-    c.appendChild(div);
-  });
-  dl.forEach(r=>{
-    const fac=getFac(r.facility);if(!fac)return;
-    const end=getEnd(r.startTime,r.course,r.facility);
-    const div=document.createElement('div');div.className='card';div.style.marginBottom='8px';
-    div.innerHTML=
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'+
-        '<span class="badge '+fac.badgeCls+'">'+fac.label+'</span>'+
-      '</div>'+
-      '<div style="font-size:18px;font-weight:600">'+r.startTime+' 〜 '+end+'</div>'+
-      (r.name?'<div style="font-size:14px;font-weight:500;margin-top:2px">'+r.name+'</div>':'')+
-      eventChipHtml(r.event)+
-      (r.ninzu?'<div style="font-size:13px;color:#666">'+r.ninzu+'名</div>':'');
-    c.appendChild(div);
-  });
+  // ※以前はここで renderCalDetail(calSelDate) を呼び、カレンダー下の #cal-detail に
+  //   選択日の予約を出していたが、日タップは一覧(list)へ飛ぶ仕様のため下パネルは不要な残骸で、
+  //   calSelDate が消えず同じ予約が出続ける問題があった。パネルごと撤去（#cal-detail・renderCalDetailも削除）。
 }
 
 // ==================== 印刷 ====================
