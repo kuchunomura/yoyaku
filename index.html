@@ -638,8 +638,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=461;
-const APP_BUILD_DATE='2026/09/25 09:45';
+const APP_VERSION=462;
+const APP_BUILD_DATE='2026/10/03 11:46';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -4355,7 +4355,10 @@ function _pDayRow(r){
     '<div class="prtop"><div class="pr1">'+r.startTime+'〜'+end+(co?'　'+co.minLabel:'')+'　'+ninzu+fac.priceUnit+(r.name?'　'+r.name:'')+(mura?'　（村内）':'')+(_rzHasPartner(r.id,0)?'<span class="prz">連続→ 夜（宿泊IN）</span>':'')+'</div>'+
     '<div class="pr2">計'+total.toLocaleString()+'円'+(rt>0?'（レンタル'+rt.toLocaleString()+'含む）':'')+'</div></div>'+
     ((r.rental||[]).length?'<div class="pr3" style="border-bottom:1px solid #bbb;padding-bottom:1px;margin-bottom:2px">レンタル：'+r.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
+    // カスタム項目（例「メモ」＝BBQは備考欄が無いので手入力）と住所欄もカードと同じく印刷に出す
+    fields.map(function(f){var v=(r.customValues||{})[f.id];return v?'<div class="pr3">'+htmlEscape(f.name)+'：'+htmlEscape(v)+'</div>':'';}).join('')+
     (r.memo?'<div class="pr3">備考：'+fmtMemoChecks(r.memo,r.rental)+'</div>':'')+
+    (r.addr?'<div class="pr3">'+htmlEscape(r.addr)+'</div>':'')+
     _pLinksDay(r)+
     '<div class="pwf">'+_pWfDay(r)+'</div>'+
   '</div>';
