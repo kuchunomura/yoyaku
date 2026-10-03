@@ -638,8 +638,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=463;
-const APP_BUILD_DATE='2026/10/03 11:57';
+const APP_VERSION=464;
+const APP_BUILD_DATE='2026/10/03 12:03';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2097,6 +2097,7 @@ function saveReservation(){
     source:src,linkedStayIds,linkedDayIds,mura,discountedPrice,
     memo:memoBase,
     rental:addFacId==='bbq'?getRD(rentalSt):[],customValues:getCFV(),done:false,changed:false,createdAt:Date.now()});
+  applyCfRental(reservations[reservations.length-1]); // 項目欄（メモ）に書いた備品数をレンタルへ反映
   _markPendingAdd(rid); // 新規作成＝サーバ未確認として保護（同期の割り込みで消えないように）
   // 双方向同期：宿泊
   linkedStayIds.forEach(sid=>{
@@ -2516,7 +2517,9 @@ function saveEdit(){
     r.rentalAuto=false; // 手動で確定＝以後の自動推定で上書きしない
   }
   const v={};fields.forEach(f=>{const el=document.getElementById('ef_'+f.id);if(el)v[f.id]=el.value;});
+  const _cfOld=_cfText(r);
   r.customValues=v;
+  if(_cfText(r)!==_cfOld)applyCfRental(r); // 項目欄（メモ）を書き換えた時だけ、そこに書いた備品数をレンタルへ反映
   const medEl=document.getElementById('ed-memo');if(medEl)r.memo=(medEl.innerText||'').replace(/✓/g,'').trim();
   sv(RKEY,reservations);sv(STKEY,stays);autoPush();closeModal();renderList();showToast('日帰り予約を更新しました');
 }
@@ -2946,6 +2949,7 @@ async function _loadFromSheetImpl(silent){
       var _rq=healRentalQty();          // 客チェック方式メモの備品数量バグ（金額=数量）を自動修復
       var _rt=0;                          // +9自動補正は廃止（CSVの時刻をそのまま使う。過去に補正した分は再取込で正しくなる）
       var _rd=0; if(!ld('yv_redetect4')){ _rd=redetectRentalAll(); sv('yv_redetect4',1); } // 既存予約を一度だけメモから読み取り直す（検出改良のたびフラグ番号を上げる）
+      if(!ld('yv_cfrental1')){ var _cf=applyCfRentalAll(); sv('yv_cfrental1',1); _rd+=_cf; if(_cf)setTimeout(function(){try{autoPush();}catch(e){}},0); } // 項目欄（メモ）に書いた備品数を一度だけ反映
       if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 読込完了'+(_rep?'（人数'+_rep+'件を自動修正）':'')+(_rq?'（備品数量'+_rq+'件を自動修正）':'')+(_rt?'（時刻'+_rt+'件を自動修正）':'')+(_rd?'（備品'+_rd+'件を再読取）':'');
       markSync('同期');
       if(!silent)showToast('✓ シートから読込（予約'+reservations.length+'・宿泊'+stays.length+'）'+(_rep?'／人数'+_rep+'件を自動修正':'')+(_rq?'／備品数量'+_rq+'件を自動修正':'')+(_rt?'／時刻'+_rt+'件を自動修正':'')+(_rd?'／備品'+_rd+'件を再読取':''),'#1a7a3a');
@@ -3018,6 +3022,33 @@ function healRentalQty(){
 
 // 既存予約の備品を、修正後の検出ロジックでメモから読み取り直す（手動設定=rentalAuto:false は保持）。
 // ※一度きりの移行用（loadFromSheetから yv_redetect1 フラグ付きで1回だけ呼ぶ）。今後の取込は importCSV が正しく検出するので不要。
+// 手入力の項目欄（例「メモ：要追加 ベンチ6 テーブル２ 焚き火台セット２」）のテキスト。選択式は除く。
+function _cfText(r){
+  return fields.map(function(f){ if(f.type==='select3')return ''; return String(((r&&r.customValues)||{})[f.id]||''); })
+    .filter(function(t){return t.trim();}).join('\n');
+}
+// 項目欄に書いた備品数をBBQのレンタルへ反映（同じ品は数量を上書き・無い品は追加）。
+// 後から書いたスタッフ記入なので備考より優先。反映後は rentalAuto=false＝備考の再読取・CSV再取込で戻らない。
+function applyCfRental(r){
+  if(!r||r.facility!=='bbq')return false;
+  var t=_cfText(r); if(!t.trim())return false;
+  var det=detectRentalFromMemo(t,true); if(!det.length)return false;
+  var rental=(r.rental||[]).map(function(i){return Object.assign({},i);}), changed=false;
+  det.forEach(function(d){
+    var ex=rental.find(function(i){return i.id===d.id;});
+    if(ex){ if((ex.qty||1)!==d.qty){ ex.qty=d.qty; changed=true; } }
+    else { rental.push({id:d.id,name:d.name,price:d.price,qty:d.qty}); changed=true; }
+  });
+  if(changed){ r.rental=rental; r.rentalAuto=false; }
+  return changed;
+}
+// 既存予約に一度だけ適用（今日以降・キャンセル以外のBBQ）
+function applyCfRentalAll(){
+  var n=0, today=todayStr();
+  (reservations||[]).forEach(function(r){ if(isCancelled(r)||String(r.date||'')<today)return; if(applyCfRental(r))n++; });
+  if(n)sv(RKEY,reservations);
+  return n;
+}
 function redetectRentalAll(){
   var n=0;
   function go(arr){ (arr||[]).forEach(function(o){
