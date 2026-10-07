@@ -638,8 +638,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=464;
-const APP_BUILD_DATE='2026/10/03 12:03';
+const APP_VERSION=465;
+const APP_BUILD_DATE='2026/10/07 10:25';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3399,6 +3399,12 @@ function importCSV(){
       if(!v) continue;
       if(/同意/.test(v)) continue;
       if(v.length<=14 && _facKeyFromText(v)) continue;                   // 施設名フィールド（判定用）はメモに出さない
+      // ★長い自由記述（備考欄など）は丸ごと捨てない。以前は「TELあった」「電話します」等の“言葉”だけで電話欄と誤判定し、
+      //   備考が丸ごと消えていた（v465）。電話番号・メールらしき部分だけ伏せて残す。
+      if(v.length>20){
+        out.push(v.replace(/\S+@\S+/g,'（メール）').replace(/\+?\d[\d\-‐ー－()\s]{7,}\d/g,function(m){ var d=m.replace(/\D/g,''); return (d.length>=9&&d.length<=13)?'（電話番号）':m; }));
+        continue;
+      }
       if(v.indexOf('@')!==-1) continue;                                  // メール
       if(/(電話|携帯|tel|phone|連絡先|fax)/i.test(v)) continue;          // 電話ラベル付き
       if(/\d{2,4}[-‐ー－]\d{2,4}[-‐ー－]\d{3,4}/.test(v)) continue;      // ハイフン区切り電話
