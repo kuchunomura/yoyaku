@@ -1,0 +1,242 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>予約アプリ（yoyaku）取扱説明書</title>
+<style>
+  body { font-family: 'Hiragino Sans', 'Noto Sans JP', sans-serif; font-size: 14px; color: #1a1a1a; max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; line-height: 1.8; background: #fff; }
+  h1 { font-size: 22px; font-weight: 700; border-bottom: 3px solid #2d5016; padding-bottom: 8px; margin-bottom: 6px; color: #2d5016; }
+  h2 { font-size: 17px; font-weight: 700; border-left: 5px solid #2d5016; padding-left: 10px; margin-top: 40px; margin-bottom: 10px; color: #2d5016; }
+  h3 { font-size: 15px; font-weight: 700; margin-top: 24px; margin-bottom: 8px; color: #8b4513; }
+  h4 { font-size: 13px; font-weight: 700; margin-top: 18px; margin-bottom: 6px; color: #333; border-bottom: 1px dashed #ccc; padding-bottom: 3px; }
+  h5 { font-size: 13px; font-weight: 700; margin-top: 14px; margin-bottom: 4px; color: #555; }
+  p { margin: 6px 0 10px; }
+  ul, ol { margin: 6px 0 10px; padding-left: 24px; }
+  li { margin-bottom: 3px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0 16px; font-size: 13px; }
+  th { background: #2d5016; color: #fff; padding: 7px 10px; text-align: left; font-weight: 600; }
+  td { padding: 6px 10px; border: 1px solid #ddd; }
+  tr:nth-child(even) td { background: #f9f9f9; }
+  code { background: #f0f0f0; border-radius: 4px; padding: 1px 5px; font-family: monospace; font-size: 12px; color: #c0392b; }
+  pre { background: #f4f4f4; border: 1px solid #ddd; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 12px; overflow-x: auto; line-height: 1.6; }
+  pre code { background: none; padding: 0; color: #333; }
+  blockquote { background: #fffbe6; border-left: 4px solid #f0ad00; margin: 10px 0; padding: 8px 14px; border-radius: 0 6px 6px 0; font-size: 13px; }
+  blockquote p { margin: 0; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 28px 0; }
+  strong { font-weight: 700; }
+  .meta { color: #666; font-size: 13px; margin-bottom: 16px; }
+  .toc { background: #f0f4e8; border: 1px solid #c8dca8; border-radius: 8px; padding: 14px 20px; margin: 16px 0 28px; }
+  .toc p { font-weight: 700; margin: 0 0 8px; color: #2d5016; }
+  .toc ol { margin: 0; }
+  .toc li { margin-bottom: 2px; font-size: 13px; }
+  .warn { background: #fde8e8; border-left: 4px solid #c0392b; margin: 10px 0; padding: 8px 14px; border-radius: 0 6px 6px 0; font-size: 13px; }
+  .section-divider { border-top: 2px solid #e0d8d0; margin: 16px 0 10px; }
+  @media print {
+    body { max-width: 100%; padding: 10px; font-size: 12px; }
+    h2 { page-break-before: auto; }
+    table { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<h1 id="予約アプリyoyaku取扱説明書">予約アプリ（yoyaku）取扱説明書</h1>
+
+<p><strong>バージョン</strong>: 461（2026/10 時点）<br><strong>対応端末</strong>: タブレット・パソコンのブラウザ（Chrome / Safari / Edge など）<br><strong>アプリURL</strong>: https://kuchunomura.github.io/yoyaku</p>
+
+<blockquote><p>この説明書は、<strong>パソコンに詳しくない方でも読めるように</strong>、専門用語をできるだけ使わずに書いています。<br>まずは「<a href="#3-毎日の基本の流れ">3. 毎日の基本の流れ</a>」を読めば、ひととおりの作業ができます。<br>※これは<strong>予約アプリの使い方</strong>の説明書です。レジ（POS）とは別のアプリです。システムの改修・トラブル対応は別冊「引き継ぎ説明書」を見てください。</p></blockquote>
+
+<hr>
+
+<h2 id="このアプリは何をするもの">このアプリは何をするもの？</h2>
+
+<blockquote><p><strong>宿泊・日帰りの予約を一覧で管理し、予約表を印刷するためのアプリです。</strong><br>ホームページ（WordPress）の予約フォームに入った予約を <strong>CSVファイル</strong>で取り込み、棟の割り当てや備考の確認をして、<strong>予約表を印刷</strong>します。</p></blockquote>
+
+<p>特別なソフトは不要で、<strong>アプリURLをブラウザで開くだけ</strong>で使えます。データは端末の中に保存され、<strong>Googleスプレッドシート</strong>と同期して複数の端末で共有できます。</p>
+
+<hr>
+
+<h2 id="目次">目次</h2>
+
+<ol><li><a href="#1-画面構成4つのタブ">画面構成（4つのタブ）</a></li><li><a href="#2-最初の準備初回だけ">最初の準備（初回だけ）</a></li><li><a href="#3-毎日の基本の流れ">毎日の基本の流れ</a></li><li><a href="#4-csvの取込予約をアプリに入れる">CSVの取込（予約をアプリに入れる）</a></li><li><a href="#5-csv取込と同期は別物重要">「CSV取込」と「同期」は別物（重要）</a></li><li><a href="#6-一覧タブ予約を探す見る">一覧タブ（予約を探す・見る）</a></li><li><a href="#7-予約を開いて確認編集する">予約を開いて確認・編集する</a></li><li><a href="#8-カレンダータブ">カレンダータブ</a></li><li><a href="#9-手動で予約を追加する">手動で予約を追加する</a></li><li><a href="#10-印刷">印刷</a></li><li><a href="#11-設定タブ">設定タブ</a></li><li><a href="#12-複数の端末で使うときの注意">複数の端末で使うときの注意</a></li><li><a href="#13-よくあるトラブルと対処">よくあるトラブルと対処</a></li><li><a href="#14-アプリの更新画面が古いとき">アプリの更新・画面が古いとき</a></li><li><a href="#15-バックアップと引き継ぎ">バックアップと引き継ぎ</a></li></ol>
+
+<hr>
+
+<h2 id="1-画面構成4つのタブ">1. 画面構成（4つのタブ）</h2>
+
+<p>画面のいちばん上に、4つのタブ（切り替えボタン）が並んでいます。</p>
+
+<table>
+<thead><tr><th>タブ</th><th>何をする場所か</th></tr></thead>
+<tbody><tr><td>一覧</td><td><strong>メイン画面。</strong> 予約の一覧。探す・開いて確認・印刷する</td></tr>
+<tr><td>📅カレンダー</td><td>月のカレンダーで予約を見る（日帰り／宿泊の色分け）</td></tr>
+<tr><td>＋予約追加</td><td><strong>CSVの取込</strong>と、<strong>手動での予約追加</strong>（日帰り／宿泊）</td></tr>
+<tr><td>設定</td><td>同期の設定・バックアップ・各種設定（普段はあまり触らない）</td></tr></tbody>
+</table>
+
+<blockquote><p>タブのすぐ下に、左に<strong>バージョン番号</strong>、右に<strong>同期の状況（🔄最終同期…）</strong>が出ます。右側はタップすると<strong>その場で同期</strong>します。</p></blockquote>
+
+<hr>
+
+<h2 id="2-最初の準備初回だけ">2. 最初の準備（初回だけ）</h2>
+
+<p>新しい端末で初めて使うときだけ、同期の設定をします（→ <a href="#11-設定タブ">11. 設定タブ</a>）。</p>
+
+<ol><li>設定タブを開く</li><li><strong>「🔑 GAS WebアプリURL」</strong>に、予約用のURLを貼って<strong>保存</strong>（URLは担当者から非公開で受け取ります）</li><li>続けて <strong>📥 シートから読込</strong> を押すと、今の予約データが入ってきます</li></ol>
+
+<blockquote><p>これで他の端末と同じデータになります。以降は普段どおり使えます。</p></blockquote>
+
+<hr>
+
+<h2 id="3-毎日の基本の流れ">3. 毎日の基本の流れ</h2>
+
+<p>いちばんよく使う流れはこれだけです。</p>
+
+<pre><code>① ＋予約追加タブで「CSV取込」      … WordPressの予約をアプリに入れる
+② 一覧タブで予約を開いて確認       … 宿泊は「棟」を選ぶ／備考・レンタルの✓を確認
+③ 一覧タブの「🖨 印刷」で予約表を印刷
+④ （他の端末と揃えたいとき）設定タブで同期</code></pre>
+
+<ul><li><strong>毎日の予約の反映は「CSV取込」</strong>、<strong>他の端末と揃えるのは「同期」</strong>です（別物。→ <a href="#5-csv取込と同期は別物重要">5章</a>）。</li></ul>
+
+<hr>
+
+<h2 id="4-csvの取込予約をアプリに入れる">4. CSVの取込（予約をアプリに入れる）</h2>
+
+<p><strong>＋予約追加</strong>タブの上半分が「📥 WordPress予約CSV取込」です。番号（①〜⑤）の順に進みます。</p>
+
+<h3 id="4-1-取込の手順">4-1. 取込の手順</h3>
+
+<ol><li><strong>① 施設を選ぶ（取込先）</strong> … 施設名をタップして、どの施設の予約を取り込むか選ぶ</li><li><strong>② CSVファイル</strong> … WordPressの管理画面から書き出したCSVを、枠に<strong>ドラッグ＆ドロップ</strong>（タップでファイル選択、貼り付けも可）</li><li><strong>③ 取り込む</strong> … ボタンを押すと取り込まれる</li><li><strong>④ 一覧タブで確認</strong> … 取り込んだ予約を開いて、<strong>宿泊は棟を選択</strong>し、<strong>備考とレンタルのチェックが合っているか</strong>を見る</li><li><strong>⑤ 印刷</strong> … 確認できたら予約表を印刷する</li></ol>
+
+<blockquote><p>- 文字コード（UTF-8／Shift-JIS）は<strong>自動判定</strong>されます。<br>- <strong>メールアドレス・電話番号は取り込みません</strong>。住所は<strong>市区町村まで</strong>に丸めて取り込みます（個人情報を持ちすぎない設計）。<br>- <strong>予約IDが同じものは自動で更新</strong>されます（二重にはなりません）。</p></blockquote>
+
+<h3 id="4-2-間違えたとき取込の取り消し">4-2. 間違えたとき（取込の取り消し）</h3>
+
+<ul><li><strong>🕘 取込履歴（間違えたら取り消せる）</strong> を開くと、過去の取込を選んで<strong>取り消せます</strong>（リロード後・後日でもOK。この端末の最新30件）。</li><li>取り消すと、<strong>追加された分は削除</strong>、<strong>更新された分は取込前の内容に戻ります</strong>。</li><li>それでも直らないときは、<strong>🗑 選択中の施設のCSV取込分を削除</strong>（手入力の予約は消えません）。</li></ul>
+
+<h3 id="4-3-施設を入れ間違えたとき">4-3. 施設を入れ間違えたとき</h3>
+
+<ul><li><strong>❓ 施設ズレの見つけ方・直し方</strong> を押すと手順が出ます。各施設のその月のCSVを取り込むと、「取込時チェック」で<strong>施設の取り違えを自動的にあぶり出せます</strong>。</li></ul>
+
+<hr>
+
+<h2 id="5-csv取込と同期は別物重要">5. 「CSV取込」と「同期」は別物（重要）</h2>
+
+<p>ここを混同しやすいので注意してください。</p>
+
+<table>
+<thead><tr><th></th><th>何をする</th><th>向き</th></tr></thead>
+<tbody><tr><td><strong>📥 CSV取込</strong></td><td>WordPressの予約を<strong>このアプリに取り込む</strong></td><td>外部 → アプリ（一方向）</td></tr>
+<tr><td><strong>📊 同期</strong>（設定タブ）</td><td>アプリと<strong>Googleスプレッドシート</strong>でデータを行き来させる</td><td>アプリ ⇄ シート（共有・印刷用）</td></tr></tbody>
+</table>
+
+<ul><li><strong>毎日の予約の反映</strong>＝ CSV取込</li><li><strong>他の端末と内容を揃える</strong>＝ 同期</li></ul>
+
+<hr>
+
+<h2 id="6-一覧タブ予約を探す見る">6. 一覧タブ（予約を探す・見る）</h2>
+
+<p>予約の一覧を見る、メインの画面です。</p>
+
+<ul><li><strong>期間</strong>：日付の「〜」で範囲を指定して絞り込み（✕で解除）</li><li><strong>🔍 検索</strong>：名前・メモ・住所・施設で検索（入力すると自動で検索。クルクル＝検索中）</li><li><strong>施設タブ</strong>：施設ごとに絞り込み</li><li><strong>クイック日付</strong>：よく使う日付ボタンで素早く絞り込み</li><li><strong>🖨 印刷</strong>：右上のボタンから予約表を印刷（→ <a href="#10-印刷">10章</a>）</li></ul>
+
+<blockquote><p>予約の行をタップすると、中身を確認・編集できます（→ <a href="#7-予約を開いて確認編集する">7章</a>）。</p></blockquote>
+
+<hr>
+
+<h2 id="7-予約を開いて確認編集する">7. 予約を開いて確認・編集する</h2>
+
+<p>一覧で予約をタップすると、その予約の詳細が開きます。ここで当日の準備に必要なことを確認・記入します。</p>
+
+<ul><li><strong>棟を選択</strong>（宿泊）：どの棟・部屋に入れるかを選びます。<strong>取り込んだ直後は未選択なので、必ず選ぶ</strong>こと。</li><li><strong>チェック項目</strong>：<strong>部屋準備／部屋掃除／会計済み／チェックアウト済み</strong>などをチェックできます（印刷時点で済んでいるものは✓が入って印刷されます。紙にペンで記入もできます）。</li><li><strong>レンタル（備品）</strong>：備考の中でレンタル品として認識された言葉には<strong>オレンジの✓</strong>が付きます。<strong>レンタルは村内のお客さんでも有料</strong>で、受け渡しは<strong>当日</strong>です。</li><li><strong>特記</strong>：イベント・取り置きなど、予約に付けておきたいメモを入れられます。</li><li><strong>連泊</strong>：2泊以上の予約は、2泊目以降も各日に表示されます（件数は二重に数えません）。</li><li><strong>キャンセル</strong>：キャンセルの予約は一覧・カレンダーで非表示にできます（表示切替あり）。</li></ul>
+
+<blockquote><p>複数の端末で<strong>同じ予約を同時に編集しない</strong>こと。後から保存した方で上書きされます（→ <a href="#12-複数の端末で使うときの注意">12章</a>）。</p></blockquote>
+
+<hr>
+
+<h2 id="8-カレンダータブ">8. カレンダータブ</h2>
+
+<p>月のカレンダーで予約を見る画面です。</p>
+
+<ul><li>上部のボタンで <strong>全て／日帰り／宿泊</strong> を切り替え、<strong>キャンセル表示／非表示</strong>も選べます。</li><li>左右の矢印（‹ ›）で前月・翌月に移動します。</li><li>日付をタップすると、その日の予約にしぼって確認できます。</li></ul>
+
+<hr>
+
+<h2 id="9-手動で予約を追加する">9. 手動で予約を追加する</h2>
+
+<p>CSVに無い予約（電話予約など）を手で足せます。<strong>＋予約追加</strong>タブの下半分「手動予約」を使います。</p>
+
+<ol><li><strong>日帰り／宿泊</strong> を切り替える</li><li><strong>施設</strong>を選ぶ</li><li><strong>コース・予約日・人数・名前・備考</strong>などを入れる</li><li>保存する</li></ol>
+
+<blockquote><p>手入力した予約は、CSV取込の「取り消し」や「CSV取込分の削除」をしても<strong>消えません</strong>（手入力分は保護されます）。</p></blockquote>
+
+<hr>
+
+<h2 id="10-印刷">10. 印刷</h2>
+
+<p>一覧タブ右上の <strong>🖨 印刷</strong> を押すと、印刷の設定が開きます。</p>
+
+<ol><li><strong>種類</strong>を選ぶ：</li></ol>
+
+<ul><li><strong>① 宿泊用（A4に2日分・上下）</strong></li><li><strong>② 日帰り用</strong></li><li><strong>③ 両方まとめて</strong></li></ul>
+
+<ol><li><strong>開始日・終了日</strong>を入れる</li><li><strong>印刷する</strong>を押す</li></ol>
+
+<blockquote><p>予約表のチェック欄（部屋準備・会計など）は<strong>紙にペンで記入</strong>できます。印刷の時点で対応済みのものは✓が入って印刷されます。</p></blockquote>
+
+<hr>
+
+<h2 id="11-設定タブ">11. 設定タブ</h2>
+
+<p>普段はあまり触りませんが、同期や各種設定をする場所です。</p>
+
+<h3 id="googleスプレッドシート同期">📊 Googleスプレッドシート同期</h3>
+
+<ul><li><strong>📤 シートへ保存</strong>：この端末の内容をスプレッドシートに書き出す</li><li><strong>📥 シートから読込</strong>：スプレッドシートの内容をこの端末に取り込む</li><li><strong>🔑 GAS WebアプリURL</strong>（初回のみ設定）：アプリとスプレッドシートをつなぐ“窓口”のURL</li><li><strong>📄 スプレッドシートURL（閲覧用）</strong>：データが入った表そのものを開くURL（GAS URLとは別物）</li><li><strong>📝 共有メモ（全端末で同期）</strong>：スタッフ間で共有したいURLや引き継ぎ事項を書いておける。保存して同期すると全端末に反映</li></ul>
+
+<blockquote><p>⚠ <strong>同時編集に注意</strong>：ほぼ同時に別の端末で同じ予約を編集すると、<strong>後から保存した方で上書き</strong>されます。なるべく1台ずつ操作してください。</p></blockquote>
+
+<h3 id="そのほかの設定">そのほかの設定</h3>
+
+<ul><li><strong>カスタム項目（日帰り）</strong>：予約に独自の入力欄を足せる（選択式・テキスト・数字・メモ）</li><li><strong>外部予約サイト名</strong>：Airbnbなど外部サイトの名前を登録</li><li><strong>備品在庫数</strong>：レンタル備品の在庫数</li><li><strong>📥 バックアップ（ファイルに保存・復元）</strong>：全データを1ファイルに書き出し／復元（→ <a href="#15-バックアップと引き継ぎ">15章</a>）</li><li><strong>⚠ 全データ削除</strong>：全予約を削除（元に戻せない。同期ONならシート側も次回同期で空になる）</li></ul>
+
+<hr>
+
+<h2 id="12-複数の端末で使うときの注意">12. 複数の端末で使うときの注意</h2>
+
+<ul><li>データは<strong>それぞれの端末の中</strong>に保存され、<strong>スプレッドシートを介して</strong>共有されます。</li><li><strong>鉄則：なるべく1台ずつ操作し、作業の前後で同期する。</strong></li><li><strong>同じ予約を2台で同時に編集しない</strong>（後から保存した方で上書きされます）。</li><li>複数項目の編集がぶつからないよう内部で工夫（3方向マージ）していますが、<strong>完璧ではない</strong>ので、同期後は内容が正しいか軽く確認してください。</li></ul>
+
+<hr>
+
+<h2 id="13-よくあるトラブルと対処">13. よくあるトラブルと対処</h2>
+
+<p><strong>Q. 他の端末に反映が遅い／変更が元に戻る</strong><br>A. 画面を表に出している端末は同期し続けますが、裏に回した端末は止まります。画面を<strong>タップ</strong>すると即同期します。繰り返すときは担当者（Claude）に「同期が戻る」と伝えてください。</p>
+
+<p><strong>Q. 取り込んだ予約が見当たらない／取りこぼした気がする</strong><br>A. 取込直後に別端末の同期が割り込むと起きることがありました（対策済み）。少し待ってから一覧に出そろったか確認してください。</p>
+
+<p><strong>Q. チェックアウトなどのチェックが消えた</strong><br>A. 複数端末で別々の項目を編集するとぶつかることがありました（項目ごとのマージで対策済み）。消えていたら担当者に状況を伝えてください。</p>
+
+<p><strong>Q. キャンセルした予約が復活する</strong><br>A. CSVの内容や同期の合流で起きることがあります。<strong>取込の取り消し</strong>（→ <a href="#4-2-間違えたとき取込の取り消し">4-2</a>）で戻せます。</p>
+
+<blockquote><p>いずれも<strong>データの最終保管はスプレッドシート</strong>です。おかしくなったら、まずスプレッドシートの中身と<strong>版の履歴</strong>を確認してください。</p></blockquote>
+
+<hr>
+
+<h2 id="14-アプリの更新画面が古いとき">14. アプリの更新・画面が古いとき</h2>
+
+<ul><li>バージョン番号は画面上部に出ます。新しい版が出ると自動で気づいて更新を促します。</li><li>画面が古いまま変わらないときは、ブラウザの再読み込みをします：</li><li><strong>パソコン（Chrome / Edge）</strong>：<code>Ctrl + Shift + R</code>（Macは <code>Cmd + Shift + R</code>）。データは消えません。</li><li><strong>Androidタブレット（Chrome）</strong>：設定 →「キャッシュされた画像とファイル」<strong>だけ</strong>を削除（「Cookieとサイトデータ」は消さない）。</li><li><strong>iPad（Safari）</strong>：Webサイトデータを削除すると<strong>予約データも消えます</strong>。先に必ず<a href="#15-バックアップと引き継ぎ">バックアップ</a>を取ってください。</li></ul>
+
+<hr>
+
+<h2 id="15-バックアップと引き継ぎ">15. バックアップと引き継ぎ</h2>
+
+<ul><li>設定タブの <strong>📥 ファイルに保存</strong> で、全予約データを1つのファイルに書き出せます。<strong>ときどき取っておくと安心</strong>です。</li><li><strong>📤 ファイルから復元</strong> で読み込みます（<strong>今のデータを上書き</strong>します）。</li><li>データの最終的な保管場所は<strong>Googleスプレッドシート</strong>です。端末が壊れても、同期設定をすればスプレッドシートから元に戻せます。</li></ul>
+
+<hr>
+
+<p>*最終更新: 2026/10/07（アプリ v461 時点・新規作成）*</p>
+
+</body>
+</html>
