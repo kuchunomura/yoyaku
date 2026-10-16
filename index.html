@@ -218,6 +218,7 @@ details[open] summary{opacity:0.75}
   body{background:#fff}
 }
 @keyframes yspin{to{transform:translateY(-50%) rotate(360deg)}}
+.co-fold>summary::-webkit-details-marker{display:none}
 </style>
 </head>
 <body>
@@ -638,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=469;
-const APP_BUILD_DATE='2026/10/15 10:33';
+const APP_VERSION=470;
+const APP_BUILD_DATE='2026/10/16 10:04';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -954,7 +955,7 @@ function updStayCheckinDisp(){
 
 function setToday(id){
   const el=document.getElementById(id);
-  if(!el.value)el.value=new Date().toISOString().slice(0,10);
+  if(!el.value)el.value=todayStr(); // ★UTCだと朝9時前は前日が入っていた（v470）
   if(id==='day-date')updDayDateDisp();
   if(id==='stay-checkin')updStayCheckinDisp();
 }
@@ -1648,7 +1649,7 @@ function renderList(){
     const ddStyle='display:none;position:absolute;top:100%;left:0;z-index:20;background:#fff;border:1px solid #ccc;border-radius:8px;padding:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);margin-top:3px';
     const bedSel=BED_GROUPS.includes(grp)?'<div id="bedsel-'+s.id+'" style="'+ddStyle+'">'+['ベッド2台','ベッド1台'].map(o=>'<button class="btn-sm" onclick="setBed(\''+s.id+'\',\''+o+'\')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(bedLabel(s.bed)===o?'background:#e9e1d4;color:#5a4a2a;border-color:#d3c7b3':'')+'">'+o+'</button>').join('')+'</div>':'';
     const petSel='<div id="petsel-'+s.id+'" style="'+ddStyle+'">'+[0,1,2,3].map(n=>'<button class="btn-sm" onclick="setPet(\''+s.id+'\','+n+')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(((s.petCount||0)===n)?'background:#f1eef4;color:#5a4a6a;border-color:#ddd6e6':'')+'">'+(n===0?'ペット無':'ペット'+n)+'</button>').join('')+'</div>';
-    const div=document.createElement('div');div.className='card'+(s.done?' done':'')+(isCancelled(s)?' cancelled':'');
+    const div=document.createElement('div');div.className='card'+(s.done?' done':'')+(isCancelled(s)?' cancelled':'');div.id='card-'+s.id;
     div.style.background='#fdf5f4';
     div.innerHTML=
       '<div class="card-header">'+
@@ -1736,7 +1737,7 @@ function renderList(){
     else if(mura){ var muraBase=fac.fixedCount?0:price*ninzu; amountText='村内割引'+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(muraBase+rt).toLocaleString()+'円'; }
     else if(fac.fixedCount){ amountText=price.toLocaleString()+'円／'+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price+rt).toLocaleString()+'円'; }
     else { amountText=price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
-    const div=document.createElement('div');div.className='card'+(r.done?' done':'')+(isCancelled(r)?' cancelled':'');
+    const div=document.createElement('div');div.className='card'+(r.done?' done':'')+(isCancelled(r)?' cancelled':'');div.id='card-'+r.id;
     div.style.background='#eef4fb';
     const passPaid=isAnnualPassPaid(r,false);
     const dayOtaP=!passPaid&&otaPaid(r);
@@ -1857,9 +1858,34 @@ function renderList(){
   // 同クラスタを連続配置（sorted順を保ちつつ先頭出現位置にまとめる）
   const ordered=[],usedCl={};
   entries.forEach(e=>{ if(usedCl[e._cid])return; entries.forEach(x=>{if(x._cid===e._cid)ordered.push(x);}); usedCl[e._cid]=true; });
+  // 本日チェックアウト（未OUT）／本日チェックアウト済み（OUT済み）の宿泊カードは、一覧の先頭に2つの折りたたみ枠でまとめる。
+  // 開閉は端末ごとに記憶（yv_cofold・同期しない）。既定＝本日チェックアウトは開く／済みは閉じる。今日を表示している時だけ。
+  const _coMode=(!searchQ&&!dateFrom&&!dateTo&&((!dateFilter&&listFromToday)||dateFilter===today));
+  const _coPend=[],_coDone=[];
+  const _rest=_coMode?ordered.filter(e=>{
+    if(e.kind===0&&!e._cont&&e.item.checkout===today&&!isCancelled(e.item)){ ((e.item.wf&&e.item.wf.out)?_coDone:_coPend).push(e); return false; }
+    return true;
+  }):ordered;
+  const _coSec=(key,label,arr,col,bg,bd,defOpen)=>{
+    if(!arr.length)return;
+    const st=ld('yv_cofold')||{};
+    const det=document.createElement('details');det.className='co-fold';
+    det.open=(st[key]===undefined?defOpen:!!st[key]);
+    const sm=document.createElement('summary');
+    sm.style.cssText='cursor:pointer;list-style:none;font-weight:700;font-size:15px;color:'+col+';background:'+bg+';border:1px solid '+bd+';border-radius:8px;padding:6px 12px;margin:8px 0 8px';
+    const arw=document.createElement('span');arw.style.cssText='display:inline-block;width:1.2em';
+    sm.appendChild(arw);sm.appendChild(document.createTextNode(label+'（'+arr.length+'件）'));
+    const upd=()=>{arw.textContent=det.open?'▼':'▶';};upd();
+    det.addEventListener('toggle',()=>{upd();const o=ld('yv_cofold')||{};o[key]=det.open;sv('yv_cofold',o);});
+    det.appendChild(sm);
+    arr.forEach(e=>{const dv=buildStayCard(e.item);if(dv)det.appendChild(dv);});
+    c.appendChild(det);
+  };
+  _coSec('pend','本日チェックアウト',_coPend,'#b5651d','#fbe4d0','#e0b483',true);
+  _coSec('done','✅ 本日チェックアウト済み',_coDone,'#1c5c39','#e6f4ea','#7bbf96',false);
   lastDate=null;
   let prev=null;
-  ordered.forEach(e=>{
+  _rest.forEach(e=>{
     const div=e.kind===0?(e._cont?buildStayContinueCard(e.item,e._night):buildStayCard(e.item)):buildDayCard(e.item);
     if(!div)return;
     if(e.date!==lastDate){dateDivider(e.date);lastDate=e.date;prev=null;}
@@ -2001,6 +2027,20 @@ function _fmtChecksCore(memo,rental){
   });
   h+=fmtMemoText(htmlEscape(memo.slice(p)));
   return h;
+}
+function jumpToRes(id){
+  var r=reservations.find(function(x){return x.id===id;}), st=r?null:stays.find(function(x){return x.id===id;}), o=r||st;
+  if(!o){ showToast('⚠ 予約が見つかりません（同期で消えた可能性）','#c00'); return; }
+  var d=r?r.date:st.checkin;
+  if(isCancelled(o)) showCancelled=true;
+  facFilter='all'; dateFilter=d||null; listFromToday=!d?false:listFromToday; _clearSearchInput(); _clearRangeInputs();
+  renderFltTabs(); switchTab('list',true);
+  setTimeout(function(){
+    var el=document.getElementById('card-'+id); if(!el) return;
+    el.scrollIntoView({block:'center'});
+    el.style.transition='box-shadow .3s'; el.style.boxShadow='0 0 0 3px #e0a000';
+    setTimeout(function(){ el.style.boxShadow=''; },2500);
+  },60);
 }
 function toggleShowCancelled(){showCancelled=!showCancelled;renderFltTabs();renderList();renderCal();}
 // ペット数をタップで 0→1→2→3→0 と切替（料金も再計算）
@@ -3401,7 +3441,7 @@ function _verifyImportLanded(landed, type){
   Object.keys(landed||{}).forEach(function(wid){
     var r=arr.find(function(x){ return String(x.wpId)===wid; });
     if(!r){ miss.push(landed[wid].name||('予約'+wid)); }
-    else if(!landed[wid].csvCancel && isCancelled(r)){ hidden.push(landed[wid].name||('予約'+wid)); }
+    else if(!landed[wid].csvCancel && isCancelled(r)){ hidden.push({name:landed[wid].name||('予約'+wid), date:(type==='day'?r.date:r.checkin)||'', id:r.id}); }
   });
   return {miss:miss, hidden:hidden};
 }
@@ -3717,7 +3757,7 @@ function importCSV(){
         +'<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e0b4b4;color:#9a6070">※対象は<b>この施設・このCSVの主要月・CSV取込由来</b>の予約だけ（手入力・他施設・楽天等の外部/支払済み・<b>今回取り込んでいない月は消えません</b>）。誤って消えた場合は下の「🕘 取込履歴」で<b>月を選んで取消</b>で戻せます。</div></div>'):'')
       +(mismatch?('<div style="color:#c0392b;margin-top:2px;font-weight:600">⚠ '+mismatch+' 件は取込先の種別と一致しないため取り込みませんでした。<br>このCSVは'+(type==='day'?'<b>宿泊</b>予約のようです（ベッド情報・連泊あり）。上の選択を<b>「〇〇（宿泊）」</b>に変えて取り込み直してください。':'<b>日帰り</b>予約のようです（利用時間あり）。上の選択を<b>「☀ 日帰り」</b>の施設に変えてください。')+'</div>'):'')
       +(_vf.miss.length?('<div style="margin-top:8px;padding:9px 11px;background:#fdecec;border:2px solid #c0392b;border-radius:8px;font-size:13px;color:#7a1030;font-weight:700;line-height:1.6">⛔ 重大：CSVにあったのにアプリに読み取れていない予約が <b>'+_vf.miss.length+'件</b> あります。再度取込みしてください（直らなければ手入力で追加）：<br>'+_vf.miss.map(htmlEscape).join('、')+'<div style="font-weight:400;font-size:11px;color:#9a6070;margin-top:4px">※これが出たら開発者に知らせてください（同期の不具合の可能性）。</div></div>'):'')
-      +(_vf.hidden.length?('<div style="margin-top:8px;padding:9px 11px;background:#fff8e6;border:1px solid #e0c060;border-radius:8px;font-size:12px;color:#7a5a10;line-height:1.6">⚠ 次の予約はWordPressでは有効ですが、手動で<b>「キャンセル」</b>されたため一覧に出ません。各カードの<b>「↩ キャンセルを取り消し」</b>で表示できます：<br>'+_vf.hidden.map(htmlEscape).join('、')+'</div>'):'')
+      +(_vf.hidden.length?('<div style="margin-top:8px;padding:9px 11px;background:#fff8e6;border:1px solid #e0c060;border-radius:8px;font-size:12px;color:#7a5a10;line-height:1.6">⚠ 次の予約はWordPressでは有効ですが、手動で<b>「キャンセル」</b>されたため一覧に出ません。各カードの<b>「↩ キャンセルを取り消し」</b>で表示できます（タップでその予約へ）：'+_vf.hidden.slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));}).map(function(x){return '<div style="margin-top:3px">・<a href="javascript:void 0" data-id="'+htmlEscape(x.id)+'" onclick="jumpToRes(this.getAttribute(\'data-id\'))" style="color:#1565c0;text-decoration:underline"><b>'+htmlEscape(x.name)+'</b>　'+(x.date?htmlEscape(fmtDate(x.date)):'日付未定')+' →</a></div>';}).join('')+'</div>'):'')
       +((_batchAdded.length||_batchPrevUpdated.length||_batchDeleted.length)?('<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px;color:#9a6070">間違えた時の戻し方</summary><div style="font-size:11px;color:#9a6070;line-height:1.5;margin-top:4px;padding:6px 8px;background:#fff7f2;border:1px solid #e0c0b0;border-radius:8px">施設違い・削除しすぎ等があれば、下の「🕘 取込履歴」で<b>月を選んで「選択した取込を取り消す」</b>を押すと、この取込（追加・更新・削除すべて）を元に戻せます（後日でも可）。</div></details>'):'')
       +((type==='day'&&_dtDbg.length)?('<div style="margin-top:8px;padding:6px 8px;background:#fffbea;border:1px solid #e0cf90;border-radius:6px;font-size:11px;line-height:1.6">🔎 時刻の元データは、設定タブ →「🔎 時刻の元データを表示・コピー」で確認できます（同期後は他端末でも見られます）。</div>'):'');
     if(_vf.miss.length){ showToast('⛔ CSVにあったのにアプリに読み取れていない予約が'+_vf.miss.length+'件あります（'+_vf.miss.map(function(x){return x;}).join('、')+'）。再度取込みしてください','#c0392b',12000); } // 取りこぼしは最優先で赤く長く知らせる
@@ -4265,7 +4305,8 @@ function appendAbcLabel(grid,sundayStr){
 }
 
 function renderCal(){
-  const todayStr=new Date().toISOString().slice(0,10);
+  // ★toISOString()はUTC＝日本時間の朝9時までは前日になり、当日朝にカレンダーを開くと前日が「今日」表示だった（v470）。端末の日付を使う
+  const _calToday=todayStr();
   document.getElementById('cal-title').textContent=calYear+'年'+(calMonth+1)+'月';
   const grid=document.getElementById('cal-grid');grid.innerHTML='';
   // 左上コーナー（ABC列の見出し・空）
@@ -4289,7 +4330,7 @@ function renderCal(){
 
   for(let d=1;d<=daysInMonth;d++){
     const dateStr=getDateStr(calYear,calMonth,d);
-    const isToday=dateStr===todayStr;
+    const isToday=dateStr===_calToday;
     const isSel=dateStr===calSelDate;
     const dow=new Date(calYear,calMonth,d).getDay();
     // 日曜（週の先頭）に来たら、その週のABCラベルを日曜の左に置く（第1週は上で対応済み）
