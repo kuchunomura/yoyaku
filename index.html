@@ -639,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=472;
-const APP_BUILD_DATE='2026/10/16 10:14';
+const APP_VERSION=473;
+const APP_BUILD_DATE='2026/10/16 12:45';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -4189,6 +4189,13 @@ function delDayEvent(dateStr,idx){
   var o=loadDayEvents();if(o[dateStr]){o[dateStr].splice(idx,1);if(!o[dateStr].length)delete o[dateStr];}
   saveDayEvents(o);renderList();if(calSelDate===dateStr)renderCal();showToast('特記を削除しました','#555');
 }
+// 特記の✕は2タップで削除（誤タップ防止）：1回目＝「もう1タップで削除」に変わる／4秒以内にもう1回で削除・過ぎたら✕に戻る
+function delDayEventTap(btn,dateStr,idx){
+  if(btn._armT){ clearTimeout(btn._armT); btn._armT=null; delDayEvent(dateStr,idx); return; }
+  btn.textContent='もう1タップで削除';
+  btn.style.background='#fff4d6';btn.style.borderColor='#e0b000';btn.style.color='#8a6d00';btn.style.fontWeight='600';
+  btn._armT=setTimeout(function(){ btn._armT=null; btn.textContent='✕'; btn.style.background='';btn.style.borderColor='#fcc';btn.style.color='#c00';btn.style.fontWeight=''; },4000);
+}
 // 一覧で単一日選択中に、日付絞込バーの下へ特記の追加/削除パネルを表示
 function renderDateEventPanel(dateStr){
   var p=document.getElementById('date-event-panel');if(!p)return;
@@ -4199,7 +4206,7 @@ function renderDateEventPanel(dateStr){
     var c=EVENT_TYPES[e.type]||{icon:'📌',color:'#555'};
     return '<div style="display:flex;align-items:center;gap:6px;margin:4px 0">'+
       '<span style="flex:1;font-size:13px;font-weight:700;color:'+c.color+';background:'+c.color+'12;border:1px solid '+c.color+'33;border-radius:6px;padding:3px 9px">'+c.icon+' '+e.type+(e.detail?'：'+htmlEscape(e.detail):'')+'</span>'+
-      '<button class="btn-sm" onclick="delDayEvent(\''+dateStr+'\','+i+')" style="color:#c00;border-color:#fcc;padding:2px 8px;flex-shrink:0">✕</button>'+
+      '<button class="btn-sm" onclick="delDayEventTap(this,\''+dateStr+'\','+i+')" style="color:#c00;border-color:#fcc;padding:2px 8px;flex-shrink:0;white-space:nowrap">✕</button>'+
     '</div>';
   }).join('');
   var opts=['イベント','取材','予定'].map(function(t){return '<option value="'+t+'">'+t+'</option>';}).join('');
