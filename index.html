@@ -639,8 +639,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=470;
-const APP_BUILD_DATE='2026/10/16 10:04';
+const APP_VERSION=471;
+const APP_BUILD_DATE='2026/10/16 10:11';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1859,30 +1859,31 @@ function renderList(){
   const ordered=[],usedCl={};
   entries.forEach(e=>{ if(usedCl[e._cid])return; entries.forEach(x=>{if(x._cid===e._cid)ordered.push(x);}); usedCl[e._cid]=true; });
   // 本日チェックアウト（未OUT）／本日チェックアウト済み（OUT済み）の宿泊カードは、一覧の先頭に2つの折りたたみ枠でまとめる。
-  // 開閉は端末ごとに記憶（yv_cofold・同期しない）。既定＝本日チェックアウトは開く／済みは閉じる。今日を表示している時だけ。
+  // 既定は両方とも開く（自動ではたたまない）。見出しタップで手動で折りたたみ／表示。手動の開閉だけ端末ごとに記憶（yv_cofold2・同期しない）。今日を表示している時だけ。
+  // ※v470は済みを既定で閉じ、プログラムで開閉を設定した時のtoggleイベントまで記憶していた→v471でキーを変えて既定(開)に戻した。
   const _coMode=(!searchQ&&!dateFrom&&!dateTo&&((!dateFilter&&listFromToday)||dateFilter===today));
   const _coPend=[],_coDone=[];
   const _rest=_coMode?ordered.filter(e=>{
     if(e.kind===0&&!e._cont&&e.item.checkout===today&&!isCancelled(e.item)){ ((e.item.wf&&e.item.wf.out)?_coDone:_coPend).push(e); return false; }
     return true;
   }):ordered;
-  const _coSec=(key,label,arr,col,bg,bd,defOpen)=>{
+  const _coSec=(key,label,arr,col,bg,bd)=>{
     if(!arr.length)return;
-    const st=ld('yv_cofold')||{};
+    const st=ld('yv_cofold2')||{};
     const det=document.createElement('details');det.className='co-fold';
-    det.open=(st[key]===undefined?defOpen:!!st[key]);
+    det.open=(st[key]!==false); // 手動でたたんだ時だけ閉じる
+    let last=det.open; // 上の代入でも非同期にtoggleが飛ぶ→状態が変わった時(=手動)だけ記憶
     const sm=document.createElement('summary');
     sm.style.cssText='cursor:pointer;list-style:none;font-weight:700;font-size:15px;color:'+col+';background:'+bg+';border:1px solid '+bd+';border-radius:8px;padding:6px 12px;margin:8px 0 8px';
-    const arw=document.createElement('span');arw.style.cssText='display:inline-block;width:1.2em';
-    sm.appendChild(arw);sm.appendChild(document.createTextNode(label+'（'+arr.length+'件）'));
-    const upd=()=>{arw.textContent=det.open?'▼':'▶';};upd();
-    det.addEventListener('toggle',()=>{upd();const o=ld('yv_cofold')||{};o[key]=det.open;sv('yv_cofold',o);});
+    const ttl=document.createElement('span');sm.appendChild(ttl);
+    const upd=()=>{ttl.textContent=(det.open?'▼ ':'▶ ')+label+'（'+arr.length+'件）'+(det.open?'を折りたたむ':'を表示');};upd();
+    det.addEventListener('toggle',()=>{upd();if(det.open===last)return;last=det.open;const o=ld('yv_cofold2')||{};o[key]=det.open;sv('yv_cofold2',o);});
     det.appendChild(sm);
     arr.forEach(e=>{const dv=buildStayCard(e.item);if(dv)det.appendChild(dv);});
     c.appendChild(det);
   };
-  _coSec('pend','本日チェックアウト',_coPend,'#b5651d','#fbe4d0','#e0b483',true);
-  _coSec('done','✅ 本日チェックアウト済み',_coDone,'#1c5c39','#e6f4ea','#7bbf96',false);
+  _coSec('pend','本日チェックアウト',_coPend,'#b5651d','#fbe4d0','#e0b483');
+  _coSec('done','本日チェックアウト済み',_coDone,'#1c5c39','#e6f4ea','#7bbf96');
   lastDate=null;
   let prev=null;
   _rest.forEach(e=>{
