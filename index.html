@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=478;
-const APP_BUILD_DATE='2026/10/18 11:48';
+const APP_VERSION=479;
+const APP_BUILD_DATE='2026/10/18 11:54';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -4306,7 +4306,7 @@ function tapHeadEvent(src,key,idx){
 function openDayEventEdit(dateStr,idx){
   var evs=getDayEvents(dateStr); var e=evs[idx]; if(!e) return;
   var opts=['イベント','取材','予定'].map(function(t){return '<option value="'+t+'"'+(e.type===t?' selected':'')+'>'+t+'</option>';}).join('');
-  var ov=document.createElement('div'); ov.className='modal-overlay open'; ov.style.zIndex='9999';
+  var ov=document.createElement('div'); ov.className='modal-overlay open'; ov.style.zIndex='9999'; ov.style.alignItems='center'; ov.style.padding='16px';
   ov.innerHTML='<div class="modal" style="max-width:360px">'+
     '<div class="modal-title">特記を編集</div>'+
     '<div style="font-size:12px;color:#777;margin:-4px 0 8px">📌 '+fmtDate(dateStr)+'（この日の特記）</div>'+
