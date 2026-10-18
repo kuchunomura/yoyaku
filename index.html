@@ -62,6 +62,7 @@ textarea{resize:vertical;min-height:60px}
 .ftab:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.16),0 1px 2px rgba(0,0,0,.15)}
 .card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:6px 11px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
 .card.done{opacity:0.45}
+.card.done-soft{opacity:0.72}
 .card.cancelled{opacity:0.5}
 .card.cancelled .card-name,.card.cancelled .card-meta,.card.cancelled .card-total{color:#999}
 .date-divider{font-size:14px;font-weight:600;color:#224466;margin:14px 0 7px;padding-bottom:5px;border-bottom:4px solid #7a7f88}
@@ -652,8 +653,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=480;
-const APP_BUILD_DATE='2026/10/18 12:10';
+const APP_VERSION=481;
+const APP_BUILD_DATE='2026/10/18 12:15';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1780,7 +1781,7 @@ function renderList(){
     else { amountText=price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
     const dayComplete=!!(r.done&&r.guide);   // 会計+案内の両方が済んで初めて「会計済み」＝薄く＆折りたたみ
     const _ddOpen=_dayDoneOpen[r.id]===true; // 完了カードは既定で折りたたみ（手動で開いた分だけ展開）
-    const div=document.createElement('div');div.className='card'+(dayComplete?' done':'')+(isCancelled(r)?' cancelled':'');div.id='card-'+r.id;
+    const div=document.createElement('div');div.className='card'+(dayComplete?' done-soft':'')+(isCancelled(r)?' cancelled':'');div.id='card-'+r.id;
     div.style.background='#eef4fb';
     const passPaid=isAnnualPassPaid(r,false);
     const dayOtaP=!passPaid&&otaPaid(r);
