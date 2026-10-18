@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=479;
-const APP_BUILD_DATE='2026/10/18 11:54';
+const APP_VERSION=480;
+const APP_BUILD_DATE='2026/10/18 12:10';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1778,7 +1778,9 @@ function renderList(){
     else if(mura){ var _mN=(r.muraN==null?null:parseInt(r.muraN,10)); var muraBase=dayBookingTotal(fac,r.course,ninzu,true,_mN,0); var _mLbl=(_mN!=null&&_mN>0&&_mN<ninzu)?('村内割引（村民'+_mN+'名半額＋残り定価）'):'村内割引'; amountText=_mLbl+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(muraBase+rt).toLocaleString()+'円'; }
     else if(fac.fixedCount){ amountText=price.toLocaleString()+'円／'+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price+rt).toLocaleString()+'円'; }
     else { amountText=price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
-    const div=document.createElement('div');div.className='card'+(r.done?' done':'')+(isCancelled(r)?' cancelled':'');div.id='card-'+r.id;
+    const dayComplete=!!(r.done&&r.guide);   // 会計+案内の両方が済んで初めて「会計済み」＝薄く＆折りたたみ
+    const _ddOpen=_dayDoneOpen[r.id]===true; // 完了カードは既定で折りたたみ（手動で開いた分だけ展開）
+    const div=document.createElement('div');div.className='card'+(dayComplete?' done':'')+(isCancelled(r)?' cancelled':'');div.id='card-'+r.id;
     div.style.background='#eef4fb';
     const passPaid=isAnnualPassPaid(r,false);
     const dayOtaP=!passPaid&&otaPaid(r);
@@ -1814,9 +1816,15 @@ function renderList(){
         (nzWarn?'<span style="font-size:11px;font-weight:600;background:#fff6e9;color:#9a6a1a;border:1px solid #e6cfa8;border-radius:20px;padding:2px 8px">⚠人数要確認</span>':'')+
         (isOv?'<span class="badge-overlap">重複</span>':'')+
         (r.changed?'<span class="badge-changed">変更済み</span>':'')+
-        (r.done?'<span class="badge badge-done">会計済み</span>':'')+
+        (dayComplete?'<span class="badge badge-done">会計済み</span>':'')+
         (daySrcL?'<span style="font-size:11px;color:#888;border:1px solid #ddd;border-radius:10px;padding:1px 6px">'+daySrcL+'</span>':'')+
       '</div>'+
+      // 会計+案内の両方が済んだカードは詳細を折りたたみ（既定で閉じる）。ヘッダーの会計済みバッジは常に表示。
+      (dayComplete?('<div class="card-meta" data-act="toggleDayDone" data-id="'+r.id+'" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;margin-top:2px">'+
+        '<span style="font-size:14px;color:#667;font-weight:700">'+r.startTime+'〜'+end+(r.name?'　'+r.name:'')+(ninzu>0?'　'+ninzu+fac.priceUnit:'')+'</span>'+
+        '<span style="font-size:12px;color:#999;white-space:nowrap">'+(_ddOpen?'▲ 閉じる':'▼ 詳細')+'</span>'+
+      '</div>'):'')+
+      '<div id="daybody-'+r.id+'" style="display:'+((!dayComplete||_ddOpen)?'block':'none')+'">'+
       // 主要情報行：左に 日付 時間 人数 名前／右に 金額（宿泊カードと同じ配置）
       '<div class="card-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.6">'+
         '<span style="font-size:15.5px;color:#222;font-weight:700">'+
@@ -1843,7 +1851,8 @@ function renderList(){
         '<button data-act="toggleDayCancel" data-id="'+r.id+'" class="wf-btn'+(dayCancelArm===r.id?' arm':'')+'" style="flex:0 0 auto;padding:4px 12px;'+(r.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(dayCancelArm===r.id?'もう1タップで確定':(r.cancelled?'↩ キャンセルを取り消し':'キャンセル'))+'</button>'+
         '<button class="btn-sm" data-act="openEdit" data-id="'+r.id+'">編集</button>'+
         '<button class="btn-sm" data-act="delDay" data-id="'+r.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
-      '</div>';
+      '</div>'+
+      '</div>'; // daybody を閉じる
     return div;
   }
 
@@ -1968,6 +1977,8 @@ function toggleUnitSel(id){var el=document.getElementById('unitsel-'+id);if(!el)
 // カード下部の操作ボタン群（編集〜キャンセル）を▼で開閉
 var _cardOpen={};
 var _rentalOpen={};  // レンタル明細(details)の開閉をカードID単位で記憶（再描画=pull/10秒ごとで閉じないように）
+var _dayDoneOpen={}; // 会計+案内が揃った日帰りカードの詳細の開閉（既定=折りたたみ／手動で開いた分だけ記憶）
+function toggleDayDone(id){_dayDoneOpen[id]=!(_dayDoneOpen[id]===true);renderList();}
 function _noteRentalOpen(id,open){ if(open)_rentalOpen[id]=1; else delete _rentalOpen[id]; }
 function toggleCardBtns(id){var el=document.getElementById('cardbtns-'+id);var tg=document.getElementById('cardtog-'+id);var isOpen=el?(el.style.display!=='none'):(_cardOpen[id]!==false);_cardOpen[id]=!isOpen;var open=_cardOpen[id];if(el)el.style.display=open?(el.getAttribute('data-disp')||'block'):'none';if(tg)tg.textContent=open?'▲ 閉じる':'▼ 操作';}
 // カードの「📝メモ」ボタン＝👤スタッフメモの追記・編集・削除を編集画面に行かずに行う。
@@ -4901,6 +4912,7 @@ document.addEventListener('click',function(e){
   else if(act==='setStayUnit')setStayUnit(id,btn.dataset.unit);
   else if(act==='toggleUnitSel')toggleUnitSel(id);
   else if(act==='toggleCardBtns')toggleCardBtns(id);
+  else if(act==='toggleDayDone')toggleDayDone(id);
   else if(act==='addStaffMemo')addStaffMemoQuick(btn.dataset.t,id);
   else if(act==='toggleBed')toggleBed(id);
   else if(act==='togglePet')togglePet(id);
