@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=486;
-const APP_BUILD_DATE='2026/10/18 12:50';
+const APP_VERSION=487;
+const APP_BUILD_DATE='2026/10/18 12:55';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1945,8 +1945,8 @@ function renderList(){
     c.appendChild(det);
   };
   _coSec('daydone','（日帰り）会計・案内済み',_coDayDone,'#1c5c39','#e6f4ea','#7bbf96');
-  _coSec('pend','（宿泊）本日チェックアウト',_coPend,'#8a3b2e','#fbeae6','#d9a99d');       // 宿泊＝赤系（宿泊カードの色）
-  _coSec('done','（宿泊）本日チェックアウト済み',_coDone,'#8a3b2e','#f9e8e5','#d3a295');   // 宿泊＝赤系
+  _coSec('pend','（宿泊）本日チェックアウト',_coPend,'#9a5147','#fdf4f2','#ecd2cb');       // 宿泊＝赤系（薄め）
+  _coSec('done','（宿泊）本日チェックアウト済み',_coDone,'#9a5147','#fcf2f0','#ecd2cb');   // 宿泊＝赤系（薄め）
   lastDate=null;
   let prev=null;
   _rest.forEach(e=>{
