@@ -46,7 +46,7 @@ input[type=date]::-webkit-datetime-edit-text:first-child{display:none}
 .link-check-item input[type=checkbox]{width:20px;height:20px;flex-shrink:0;accent-color:#7a1030;cursor:pointer}
 .link-check-item label{flex:1;cursor:pointer;line-height:1.4}
 .date-disp-btn{width:100%;padding:10px;font-size:15px;border:1px solid #ccc;border-radius:8px;background:#fff;color:#111;cursor:pointer;box-sizing:border-box;margin-bottom:2px;-webkit-tap-highlight-color:rgba(0,0,0,0.1)}
-select{width:100%;padding:10px;font-size:15px;font-weight:500;color:#111;background:#e0e0e0;border:1px solid #aaa;border-radius:8px;font-family:inherit;-webkit-appearance:none;appearance:none}
+select{width:100%;padding:10px 34px 10px 10px;font-size:15px;font-weight:500;color:#111;background-color:#e0e0e0;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%23555' stroke-width='2'/></svg>");background-repeat:no-repeat;background-position:right 11px center;background-size:12px 8px;border:1px solid #aaa;border-radius:8px;font-family:inherit;-webkit-appearance:none;appearance:none}
 textarea{resize:vertical;min-height:60px}
 .btn-primary{width:100%;padding:14px;background:#111;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;margin-top:8px;font-family:inherit}
 .btn-sm{padding:6px 10px;font-size:12px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;color:#555;font-family:inherit}
@@ -333,6 +333,15 @@ details[open] summary{opacity:0.75}
     <label>予約日</label>
     <input type="date" id="day-date" oninput="updDayDateDisp()" onchange="updDayDateDisp()" onfocus="startDatePoll('day-date',updDayDateDisp)" onblur="stopDatePoll()">
     <div id="day-date-disp" class="date-disp"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px;background:#fff;border:1px solid #ddd;border-radius:8px">
+      <input type="checkbox" id="day-mura" style="width:22px;height:22px;cursor:pointer;flex-shrink:0" onchange="toggleMuraCount('day');calcTime()">
+      <label for="day-mura" style="font-size:14px;font-weight:600;color:#111;cursor:pointer">村内　（空中ウォーク・ツリーハウス昼：半額／BBQ：無料／レンタル：有料）</label>
+    </div>
+    <div id="day-mura-count-wrap" style="display:none;margin-top:6px;padding:8px 10px;background:#fff8e8;border:1px solid #EF9F27;border-radius:8px">
+      <label style="font-size:13px;font-weight:600;color:#8a5a00">うち村民の人数（空欄＝全員村民）</label>
+      <input type="number" id="day-mura-count" min="0" placeholder="例：10名中3名が村民なら 3" oninput="calcTime()" style="margin-top:4px">
+      <div style="font-size:11px;color:#8a6a2a;margin-top:3px;line-height:1.5">村民は半額、村民でない人は定価で合計します。全員村民なら空欄のままでOK。</div>
+    </div>
     <label>予約サイト・年間パス</label>
     <select id="day-source" onchange="onDaySourceChange()">
       <option value="">直接予約</option>
@@ -355,10 +364,6 @@ details[open] summary{opacity:0.75}
     <div class="separator"></div>
     <label>人数</label>
     <input type="number" id="add-ninzu" min="1" placeholder="人数を入力" oninput="calcTime()">
-    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px;background:#fff;border:1px solid #ddd;border-radius:8px">
-      <input type="checkbox" id="day-mura" style="width:22px;height:22px;cursor:pointer;flex-shrink:0" onchange="calcTime()">
-      <label for="day-mura" style="font-size:14px;font-weight:600;color:#111;cursor:pointer">村内　（空中ウォーク・ツリーハウス昼：半額／BBQ：無料／レンタル：有料）</label>
-    </div>
     <div id="bbq-rental-section" style="display:none">
       <div class="separator"></div>
       <button type="button" onclick="togColl(this,'rental-body-day')" style="display:block;width:100%;text-align:left;font-size:15px;font-weight:700;color:#6b4f20;background:#fff7e6;border:1.5px solid #d9b676;border-radius:8px;padding:11px 14px;margin-bottom:6px;cursor:pointer;user-select:none;font-family:inherit">▶ 備品レンタル</button>
@@ -388,6 +393,10 @@ details[open] summary{opacity:0.75}
     <label>施設</label>
     <select id="stay-facility" onchange="onStayFacilityChange()"><option value="">選択してください</option></select>
     <div id="stay-fac-info" style="font-size:12px;color:#666;margin-top:4px;line-height:1.6"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px;background:#fff;border:1px solid #ddd;border-radius:8px">
+      <input type="checkbox" id="stay-mura" style="width:22px;height:22px;cursor:pointer;flex-shrink:0" onchange="calcStay()">
+      <label for="stay-mura" style="font-size:14px;font-weight:600;color:#111;cursor:pointer">村内　（宿泊料金：半額／レンタル：有料）</label>
+    </div>
     <label>予約サイト・年間パス</label>
     <select id="stay-source" onchange="onSourceChange()">
       <option value="">直接予約</option>
@@ -435,10 +444,6 @@ details[open] summary{opacity:0.75}
       <option value="3">3匹（＋9,000円/泊）</option>
     </select>
     <div id="pet-warn" style="font-size:12px;color:#c00;margin-top:4px;display:none"></div>
-    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px;background:#fff;border:1px solid #ddd;border-radius:8px">
-      <input type="checkbox" id="stay-mura" style="width:22px;height:22px;cursor:pointer;flex-shrink:0" onchange="calcStay()">
-      <label for="stay-mura" style="font-size:14px;font-weight:600;color:#111;cursor:pointer">村内　（宿泊料金：半額／レンタル：有料）</label>
-    </div>
     <div id="stay-free-items" style="margin:6px 0"></div>
     <label>同日の日帰り予約との紐づけ</label>
     <div id="stay-daylink" class="link-check-list"></div>
@@ -643,8 +648,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=474;
-const APP_BUILD_DATE='2026/10/18 10:49';
+const APP_VERSION=475;
+const APP_BUILD_DATE='2026/10/18 11:13';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1091,7 +1096,10 @@ function calcTime(){
   if(fac.fixedCount){
     document.getElementById('price-total-text').textContent=mura?('BBQ無料'+(rt>0?' ＋ 備品 '+rt.toLocaleString()+'円':'')+'　合計　'+rt.toLocaleString()+'円'):(rt>0?'レンタル代 '+price.toLocaleString()+'円 ＋ 備品 '+rt.toLocaleString()+'円　合計 '+(price+rt).toLocaleString()+'円':'合計　'+price.toLocaleString()+'円');
   }else if(ninzu>0){
-    document.getElementById('price-total-text').textContent=(sgd?'宿泊者割引':(mura?'半額':''))+(rt>0?((sgd||mura)?' ＋ 備品 '+rt.toLocaleString()+'円':' 備品 '+rt.toLocaleString()+'円含む'):'')+'　合計　'+(price*ninzu+rt).toLocaleString()+'円（'+ninzu+fac.priceUnit+'）';
+    var _muraN=mura?readMuraCount('day'):null;
+    var _dayTot=dayBookingTotal(fac,addCourse,ninzu,mura,_muraN,sgd);
+    var _lbl=sgd?'宿泊者割引':(mura?((_muraN!=null&&_muraN>0&&_muraN<ninzu)?('村内割引（村民'+_muraN+'名半額＋残り定価）'):'半額'):'');
+    document.getElementById('price-total-text').textContent=_lbl+(rt>0?((sgd||mura)?' ＋ 備品 '+rt.toLocaleString()+'円':' 備品 '+rt.toLocaleString()+'円含む'):'')+'　合計　'+(_dayTot+rt).toLocaleString()+'円（'+ninzu+fac.priceUnit+'）';
   }else document.getElementById('price-total-text').textContent='';
 }
 
@@ -1275,6 +1283,22 @@ function dayUnitPrice(fac,course,mura,sgd){
   if(mura) return fac.fixedCount?0:Math.floor(base/2);
   if(sgd) return base-sgd;
   return base;
+}
+// 村内の「うち村民人数」入力を読む。空欄/未設定=全員村民(null)。prefix='day'
+function readMuraCount(prefix){var el=document.getElementById(prefix+'-mura-count');if(!el)return null;var v=String(el.value||'').trim();if(v==='')return null;var n=parseInt(v,10);return (n>=0)?n:null;}
+// 村内チェックに応じて「うち村民人数」欄の表示を切替
+function toggleMuraCount(prefix){var cb=document.getElementById(prefix+'-mura');var wrap=document.getElementById(prefix+'-mura-count-wrap');if(wrap)wrap.style.display=(cb&&cb.checked)?'':'none';}
+// 日帰りの合計（レンタル除く）。muraN=村民人数(null=全員村民), mura=村内フラグ, sgd=宿泊者割引。
+// 一部村民：村民は半額、村民でない人は定価で合算（BBQは1か所＝村内なら無料）。
+function dayBookingTotal(fac,course,ninzu,mura,muraN,sgd){
+  var base=fac.prices[course];
+  if(fac.fixedCount) return mura?0:base;        // BBQ=1か所。村内は無料
+  ninzu=parseInt(ninzu,10)||0;
+  if(!mura) return (sgd?base-sgd:base)*ninzu;
+  var half=Math.floor(base/2);
+  if(muraN==null||muraN>=ninzu) return half*ninzu; // 全員村民
+  if(muraN<=0) return base*ninzu;                  // 実質村民なし
+  return half*muraN + base*(ninzu-muraN);          // 村民:半額 ＋ 非村民:定価
 }
 // 予約の文字（名前・備考メモ）に「村民」または「村内」があれば村内割引とみなす。
 // チェックを付け忘れても、CSV取込や手入力で文字を書けば効くようにする（「村」単独＝十津川村などは対象外）。
@@ -1747,7 +1771,7 @@ function renderList(){
     // 金額表示（宿泊カードと同様に右側へ：単価×人数 ＋備品 計◯円）。レンタルは村内でも有料
     let amountText;
     if(sgd){ amountText='宿泊者割引(1人-'+sgd.toLocaleString()+'円) '+price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
-    else if(mura){ var muraBase=fac.fixedCount?0:price*ninzu; amountText='村内割引'+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(muraBase+rt).toLocaleString()+'円'; }
+    else if(mura){ var _mN=(r.muraN==null?null:parseInt(r.muraN,10)); var muraBase=dayBookingTotal(fac,r.course,ninzu,true,_mN,0); var _mLbl=(_mN!=null&&_mN>0&&_mN<ninzu)?('村内割引（村民'+_mN+'名半額＋残り定価）'):'村内割引'; amountText=_mLbl+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(muraBase+rt).toLocaleString()+'円'; }
     else if(fac.fixedCount){ amountText=price.toLocaleString()+'円／'+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price+rt).toLocaleString()+'円'; }
     else { amountText=price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
     const div=document.createElement('div');div.className='card'+(r.done?' done':'')+(isCancelled(r)?' cancelled':'');div.id='card-'+r.id;
@@ -2185,10 +2209,11 @@ function saveReservation(){
   const basePrice=fac2.prices[addCourse];
   const discountedPrice=dayUnitPrice(fac2,addCourse,mura,stayGuestDisc(addFacId,addCourse,linkedStayIds,mura));
   // メモ
-  const memoBase=mura?'村内':'';
+  const muraN=mura?readMuraCount('day'):null; // 一部村民の人数（null=全員村民）
+  const memoBase=mura?((muraN!=null&&muraN>0)?('村内（村民'+muraN+'名）'):'村内'):'';
   reservations.push({id:rid,facility:addFacId,course:addCourse,date:dt,startTime:st,
     name:document.getElementById('add-name').value,ninzu:document.getElementById('add-ninzu').value,
-    source:src,linkedStayIds,linkedDayIds,mura,discountedPrice,
+    source:src,linkedStayIds,linkedDayIds,mura,muraN,discountedPrice,
     memo:memoBase,
     rental:addFacId==='bbq'?getRD(rentalSt):[],customValues:getCFV(),done:false,changed:false,createdAt:Date.now()});
   applyCfRental(reservations[reservations.length-1]); // 項目欄（メモ）に書いた備品数をレンタルへ反映
@@ -2207,6 +2232,8 @@ function saveReservation(){
   document.getElementById('add-ninzu').value='';document.getElementById('add-name').value='';document.getElementById('day-date').value='';
   document.getElementById('day-source').value='';
   if(document.getElementById('day-mura'))document.getElementById('day-mura').checked=false;
+  if(document.getElementById('day-mura-count'))document.getElementById('day-mura-count').value='';
+  toggleMuraCount('day');
   rentalSt={};showToast('✓ 日帰り予約を保存しました');switchTab('list');
 }
 
@@ -2228,6 +2255,15 @@ function openEdit(id){
   let html=eventEditBlock('edit',r.event)+
     '<label>施設</label><select id="edit-facility" onchange="updEditCrs()">'+facOpts+'</select>'+crBlk+
     '<label>予約日</label><input type="date" id="edit-date" value="'+(r.date||'')+'">'+
+    '<div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px;background:#fff;border:1px solid #ddd;border-radius:8px">'+
+      '<input type="checkbox" id="edit-mura"'+(r.mura?' checked':'')+' style="width:22px;height:22px;cursor:pointer;flex-shrink:0" onchange="toggleMuraCount(\'edit\')">'+
+      '<label for="edit-mura" style="font-size:14px;font-weight:600;color:#111;cursor:pointer">村内　（空中ウォーク・ツリーハウス昼：半額／BBQ：無料／レンタル：有料）</label>'+
+    '</div>'+
+    '<div id="edit-mura-count-wrap" style="display:'+(r.mura?'':'none')+';margin-top:6px;padding:8px 10px;background:#fff8e8;border:1px solid #EF9F27;border-radius:8px">'+
+      '<label style="font-size:13px;font-weight:600;color:#8a5a00">うち村民の人数（空欄＝全員村民）</label>'+
+      '<input type="number" id="edit-mura-count" min="0" value="'+(r.muraN==null?'':r.muraN)+'" placeholder="例：10名中3名が村民なら 3" style="margin-top:4px">'+
+      '<div style="font-size:11px;color:#8a6a2a;margin-top:3px;line-height:1.5">村民は半額、村民でない人は定価で合計します。全員村民なら空欄でOK。</div>'+
+    '</div>'+
     '<label>予約サイト</label><select id="edit-day-src">'+srcOpts+'</select>'+
     '<label>開始時刻</label><input type="time" id="edit-start" value="'+r.startTime+'">'+
     '<label>予約者名</label><input type="text" id="edit-name" value="'+(r.name||'')+'">'+
@@ -2586,6 +2622,10 @@ function saveEdit(){
   r.name=document.getElementById('edit-name').value;r.ninzu=document.getElementById('edit-ninzu').value;
   r.ninzuManual=true; // 人数を手入力で確定＝金額からの自動修復(repairNinzuFromAmount)で勝手に戻さない
   r.source=document.getElementById('edit-day-src').value;
+  // 村内＋うち村民人数（一部村民対応）
+  var _emu=document.getElementById('edit-mura');
+  r.mura=!!(_emu&&_emu.checked);
+  r.muraN=r.mura?readMuraCount('edit'):null;
   r.event=readEventEdit('edit');
   // 宿泊紐づけ双方向同期
   const sl=document.getElementById('edit-staylink');
