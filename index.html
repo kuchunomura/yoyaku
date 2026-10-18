@@ -653,8 +653,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=481;
-const APP_BUILD_DATE='2026/10/18 12:15';
+const APP_VERSION=482;
+const APP_BUILD_DATE='2026/10/18 12:20';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1822,7 +1822,7 @@ function renderList(){
       '</div>'+
       // 会計+案内の両方が済んだカードは詳細を折りたたみ（既定で閉じる）。ヘッダーの会計済みバッジは常に表示。
       (dayComplete?('<div class="card-meta" data-act="toggleDayDone" data-id="'+r.id+'" style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;margin-top:2px">'+
-        '<span style="font-size:14px;color:#667;font-weight:700">'+r.startTime+'〜'+end+(r.name?'　'+r.name:'')+(ninzu>0?'　'+ninzu+fac.priceUnit:'')+'</span>'+
+        '<span style="font-size:14px;color:#667;font-weight:700">'+r.startTime+'〜'+end+(co?'　'+co.minLabel:'')+(r.name?'　'+r.name:'')+(ninzu>0?'　'+ninzu+fac.priceUnit:'')+'</span>'+
         '<span style="font-size:12px;color:#999;white-space:nowrap">'+(_ddOpen?'▲ 閉じる':'▼ 詳細')+'</span>'+
       '</div>'):'')+
       '<div id="daybody-'+r.id+'" style="display:'+((!dayComplete||_ddOpen)?'block':'none')+'">'+
