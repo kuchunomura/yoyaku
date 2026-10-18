@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=489;
-const APP_BUILD_DATE='2026/10/18 15:42';
+const APP_VERSION=490;
+const APP_BUILD_DATE='2026/10/18 16:01';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3678,6 +3678,11 @@ function importCSV(){
       var emailIdx=H.email>=0?H.email:csvFindIdx(f,/@/);
       // フォームの項目順は固定（…代表者お名前→メール→電話番号→住所→備品レンタル→同意）。
       // ヘッダー無しCSVは「メール(@)の位置」を基準に相対取得すると、住所空欄や短い電話番号でもズレない。
+      // ★ただしメール欄が空だと@が無くemailIdx=-1→名前(=email-1)等が全滅（名前が空＝予約メモに名前が出ず、名前セルが備考に混入）。
+      //   列順は固定なので、電話番号セル（日付・金額を除いた10〜11桁）を見つけてメール列を逆算する。
+      if(emailIdx<0 && H.name<0){
+        for(var _pi=2;_pi<f.length;_pi++){ var _pv=String(f[_pi]||'').trim(); if(!_pv||parseWpDateTime(_pv).date) continue; var _pd=_pv.replace(/[^\d]/g,''); if(_pd.length>=10 && _pd.length<=11 && /^[\d\-+()\s　]+$/.test(_pv)){ emailIdx=_pi-1; break; } }
+      }
       var nameIdx=H.name>=0?H.name:(emailIdx>0?emailIdx-1:-1);
       var phoneIdx=H.phone>=0?H.phone:(emailIdx>=0?emailIdx+1:csvFindIdx(f,/^[\d\-+()\s]{9,}$/));
       var addrIdx=H.addr>=0?H.addr:(emailIdx>=0?emailIdx+2:csvFindIdx(f,/[市区町村]/));
