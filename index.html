@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=477;
-const APP_BUILD_DATE='2026/10/18 11:40';
+const APP_VERSION=478;
+const APP_BUILD_DATE='2026/10/18 11:48';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1636,7 +1636,7 @@ function renderList(){
     if(d){const p=d.split('-').map(Number);const dt=new Date(p[0],p[1]-1,p[2]);const dow=dt.getDay();holName=getHolidays(p[0])[d]||'';if(dow===0||holName)col='#c0392b';else if(dow===6)col='#1565c0';}
     // 特記（イベント・取材・予定）を日付見出しの右側に表示
     const evs=d?eventsForDate(d):[];
-    const evParts=evs.map(e=>{const cc=EVENT_TYPES[e.type]||{icon:'📌',color:'#555'};return '<span style="margin-left:8px;font-size:12px;font-weight:700;color:'+cc.color+';background:'+cc.color+'12;border:1px solid '+cc.color+'33;border-radius:6px;padding:1px 8px">'+cc.icon+' '+e.type+(e.detail?'：'+htmlEscape(e.detail):'')+'</span>';});
+    const evParts=evs.map(e=>{const cc=EVENT_TYPES[e.type]||{icon:'📌',color:'#555'};var _k=(e._src==='day')?e._date:e._id;return '<span onclick="event.stopPropagation();tapHeadEvent(\''+e._src+'\',\''+_k+'\','+(e._idx==null?-1:e._idx)+')" title="タップで編集・削除" style="cursor:pointer;margin-left:8px;font-size:12px;font-weight:700;color:'+cc.color+';background:'+cc.color+'12;border:1px solid '+cc.color+'33;border-radius:6px;padding:1px 8px">'+cc.icon+' '+e.type+(e.detail?'：'+htmlEscape(e.detail):'')+' ✎</span>';});
     const todayBadge=(d&&d===today)?'<span style="margin-left:7px;font-size:12px;font-weight:700;color:#0a7d33;background:#e3f5e8;border:1px solid #9cd3ab;border-radius:8px;padding:1px 9px;vertical-align:2px">本日</span>':'';
     dv.innerHTML='<span style="font-weight:700;font-size:17px;color:'+col+'">'+(d?fmtMD(d):'日付未定')+'</span>'+todayBadge+(holName?'<span style="font-size:11px;color:#c0392b;margin-left:4px">'+holName+'</span>':'')+parts.join('')+evParts.join('');
     c.appendChild(dv);
@@ -4295,7 +4295,41 @@ function renderDateEventPanel(dateStr){
   '</div>';
 }
 // 指定日の特記一覧（キャンセル除く）。日単位＋日帰り=予約日＋宿泊=チェックイン日
-function eventsForDate(dateStr){var out=[];getDayEvents(dateStr).forEach(function(e){if(e&&e.type)out.push(e);});reservations.forEach(function(r){if(r.event&&r.event.type&&r.date===dateStr&&(showCancelled||!isCancelled(r)))out.push(r.event);});stays.forEach(function(s){if(s.event&&s.event.type&&s.checkin===dateStr&&(showCancelled||!isCancelled(s)))out.push(s.event);});return out;}
+function eventsForDate(dateStr){var out=[];getDayEvents(dateStr).forEach(function(e,i){if(e&&e.type)out.push({type:e.type,detail:e.detail,_src:'day',_date:dateStr,_idx:i});});reservations.forEach(function(r){if(r.event&&r.event.type&&r.date===dateStr&&(showCancelled||!isCancelled(r)))out.push({type:r.event.type,detail:r.event.detail,_src:'res',_id:r.id});});stays.forEach(function(s){if(s.event&&s.event.type&&s.checkin===dateStr&&(showCancelled||!isCancelled(s)))out.push({type:s.event.type,detail:s.event.detail,_src:'stay',_id:s.id});});return out;}
+// 日付見出しの特記チップをタップ＝由来に応じて編集/削除へ。day=専用モーダル／予約・宿泊=その予約の編集を開く
+function tapHeadEvent(src,key,idx){
+  if(src==='day'){ openDayEventEdit(key,idx); }
+  else if(src==='res'){ openEdit(key); }
+  else if(src==='stay'){ openEditStay(key); }
+}
+// 日単位の特記（イベント・取材・予定）を編集/削除する小モーダル
+function openDayEventEdit(dateStr,idx){
+  var evs=getDayEvents(dateStr); var e=evs[idx]; if(!e) return;
+  var opts=['イベント','取材','予定'].map(function(t){return '<option value="'+t+'"'+(e.type===t?' selected':'')+'>'+t+'</option>';}).join('');
+  var ov=document.createElement('div'); ov.className='modal-overlay open'; ov.style.zIndex='9999';
+  ov.innerHTML='<div class="modal" style="max-width:360px">'+
+    '<div class="modal-title">特記を編集</div>'+
+    '<div style="font-size:12px;color:#777;margin:-4px 0 8px">📌 '+fmtDate(dateStr)+'（この日の特記）</div>'+
+    '<label>種別</label><select id="dee-type">'+opts+'</select>'+
+    '<label>詳細</label><input type="text" id="dee-detail" value="'+htmlEscape(e.detail||'')+'" placeholder="例：ライトアップ／〇〇まつり">'+
+    '<div style="display:flex;gap:8px;align-items:center;margin-top:14px">'+
+      '<button class="btn-sm" id="dee-del" style="color:#c00;border-color:#fcc;padding:7px 12px">🗑 削除</button>'+
+      '<div style="flex:1"></div>'+
+      '<button class="btn-sm" id="dee-cancel" style="padding:7px 12px">閉じる</button>'+
+      '<button class="btn-primary" id="dee-save" style="width:auto;margin:0;padding:8px 18px">保存</button>'+
+    '</div>'+
+  '</div>';
+  document.body.appendChild(ov); document.body.style.overflow='hidden';
+  function close(){ ov.remove(); document.body.style.overflow=''; }
+  ov.addEventListener('click',function(ev){ if(ev.target===ov) close(); });
+  ov.querySelector('#dee-cancel').onclick=close;
+  ov.querySelector('#dee-save').onclick=function(){
+    var o=loadDayEvents();
+    if(o[dateStr]&&o[dateStr][idx]){ o[dateStr][idx]={type:ov.querySelector('#dee-type').value,detail:ov.querySelector('#dee-detail').value.trim()}; saveDayEvents(o); renderList(); if(calSelDate===dateStr)renderCal(); showToast('特記を更新しました'); }
+    close();
+  };
+  ov.querySelector('#dee-del').onclick=function(){ delDayEvent(dateStr,idx); close(); };
+}
 function setCalFilter(f){calFilter=f;renderCal();}
 // 火曜定休。例外的に営業する日（臨時営業）を保存
 let specialOpen=ld('yv_special_open')||[];
