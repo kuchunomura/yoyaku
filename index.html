@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=492;
-const APP_BUILD_DATE='2026/10/18 16:13';
+const APP_VERSION=493;
+const APP_BUILD_DATE='2026/10/19 09:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1938,7 +1938,7 @@ function renderList(){
       cb.textContent=left?('部屋掃除 残り'+left+'件'):'部屋掃除 完了';
       sm.appendChild(cb);
     }
-    const upd=()=>{ttl.textContent=(det.open?'▼ ':'▶ ')+label+'（'+arr.length+'件）'+(det.open?'表示中':'表示する');};upd();
+    const upd=()=>{ttl.textContent=(det.open?'▼ ':'▶ ')+label+'（'+arr.length+'件）'+(det.open?'を折りたたむ':'表示する');};upd();
     det.addEventListener('toggle',()=>{upd();if(det.open===last)return;last=det.open;const o=ld('yv_cofold2')||{};o[key]=det.open;sv('yv_cofold2',o);});
     det.appendChild(sm);
     arr.forEach(e=>{const dv=(e.kind===1?buildDayCard(e.item):buildStayCard(e.item));if(dv)det.appendChild(dv);});
