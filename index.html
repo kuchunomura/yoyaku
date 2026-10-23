@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=493;
-const APP_BUILD_DATE='2026/10/19 09:30';
+const APP_VERSION=494;
+const APP_BUILD_DATE='2026/10/23 10:40';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -831,6 +831,15 @@ function hasBlanketRental(memo){
   if(/[〜～].{0,30}まで|から.{0,30}まで/.test(s))return true;                          // 範囲指定
   return false;
 }
+// 数量が「1or2」「1か2」のように複数候補で未定／「見てから決める」等の保留表現＝数量・内容が確定できない＝要確認に回す。
+// 例「ベンチ1or2」「見てから決められます」「どちらか」。時刻(16:00〜17:00)や電話番号を誤検出しないよう、範囲(〜/-)は使わず二択(or/か/又は)に限定。
+function hasUncertainQty(memo){
+  var s=stripFormEn(String(memo||'').replace(/✓/g,''));
+  if(!s)return false;
+  if(/[0-9０-９]\s*(?:or|か|又は|または)\s*[0-9０-９]/i.test(s)) return true; // 1or2・1か2＝数量の二択
+  if(/見てから|当日決め|現地で決め|どちらか|いずれか|未定|決めかね|迷(?:い|っ|う)/.test(s)) return true; // 現地で決める等の保留
+  return false;
+}
 // 簡易ハッシュ（備考が同一かの判定用。内容が変われば値が変わる＝チェックが自動リセット）
 function _hash(s){s=String(s||'');var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h+s.charCodeAt(i))|0;}return (h>>>0).toString(36);}
 // チェック状態のキー：予約ID＋備考ハッシュ。再取込で予約が上書きされてもIDと内容が同じなら引き継ぐ。内容が変わればリセット
@@ -859,9 +868,10 @@ function renderQuestionAlerts(){
     var memo=String(o.memo||''); if(!memo)return;
     var _amb=hasAmbiguousQty(memo);
     var _blk=hasBlanketRental(memo);
+    var _unc=hasUncertainQty(memo);
     var _nz=ninzuMemoMismatch(o);
-    if(!Q_PATTERNS.test(memo) && !ALERT_PATTERNS.test(memo) && !_amb && !_blk && !_nz)return;
-    allItems.push({isStay:isStay,o:o,k:qackKey(o),past:!!(d&&d<today),amb:_amb,blk:_blk,nz:_nz});
+    if(!Q_PATTERNS.test(memo) && !ALERT_PATTERNS.test(memo) && !_amb && !_blk && !_unc && !_nz)return;
+    allItems.push({isStay:isStay,o:o,k:qackKey(o),past:!!(d&&d<today),amb:_amb,blk:_blk,unc:_unc,nz:_nz});
   }
   stays.forEach(function(s){scan(s,true);});
   reservations.forEach(function(r){scan(r,false);});
@@ -890,6 +900,7 @@ function renderQuestionAlerts(){
         '<div style="font-weight:600'+(done?';text-decoration:line-through':'')+'">'+icon+' '+(d?fmtMD(d):'日付未定')+'　'+facL+(o.name?'　'+o.name:'')+'</div>'+
         (it.amb?'<div style="font-size:11px;color:#b5651d;font-weight:700;margin-top:1px">⚠ 備品の数量手入力あり＝複数品にまたがる可能性（要確認）</div>':'')+
         (it.blk?'<div style="font-size:11px;color:#b5651d;font-weight:700;margin-top:1px">⚠ 備品を一括／範囲で指定（要確認：品目・数量を確認）</div>':'')+
+        (it.unc?'<div style="font-size:11px;color:#b5651d;font-weight:700;margin-top:1px">⚠ 数量・内容が未確定の書き方（例「1or2」「見てから決める」＝要確認）</div>':'')+
         (it.nz?'<div style="font-size:11px;color:#c0392b;font-weight:700;margin-top:1px">⚠ 備考の人数（'+it.nz+'）とデータの人数（'+(o.ninzu||'?')+'人）が違います（要確認）</div>':'')+
         '<div style="font-size:12px;color:#8a6f2a;margin-top:1px">'+fmtMemoText(htmlEscape(memoQExcerpt(o.memo)))+'</div>'+
       '</div>'+
