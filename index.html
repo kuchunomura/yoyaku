@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=495;
-const APP_BUILD_DATE='2026/10/23 10:49';
+const APP_VERSION=496;
+const APP_BUILD_DATE='2026/10/23 10:53';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1736,9 +1736,9 @@ function renderList(){
         '</span>'+
         stayAmtHtml+
       '</div>'+
-      ((s.rental||[]).length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"'+(_rentalOpen[s.id]?' open':'')+' ontoggle="_noteRentalOpen(\''+s.id+'\',this.open)"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+s.rental.length+'点（'+rt.toLocaleString()+'円）</summary><div style="margin-top:2px">'+s.rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
+      ((s.rental||[]).length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"'+(_rentalOpen[s.id]?' open':'')+' ontoggle="_noteRentalOpen(\''+s.id+'\',this.open)"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+s.rental.length+'点（'+rt.toLocaleString()+'円）'+(uncertainQtyLabel(s.memo)?'<span style="font-size:10.5px;font-weight:700;color:#c0392b;background:#fdecec;border:1px solid #e3b4b4;border-radius:4px;padding:0 5px;margin-left:6px">⚠ '+htmlEscape(uncertainQtyLabel(s.memo))+'</span>':'')+'</summary><div style="margin-top:2px">'+s.rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
       linkedH+
-      (uncertainQtyLabel(s.memo)?'<div class="card-meta" style="font-size:12.5px;font-weight:700;color:#c0392b;background:#fdecec;border:1px solid #e0a0a0;border-radius:6px;padding:2px 9px;margin-top:3px;display:inline-block">⚠ '+htmlEscape(uncertainQtyLabel(s.memo))+'</div>':'')+
+      (uncertainQtyLabel(s.memo)&&!(s.rental||[]).length?'<div class="card-meta" style="font-size:11px;font-weight:700;color:#c0392b;margin-top:2px">⚠ '+htmlEscape(uncertainQtyLabel(s.memo))+'</div>':'')+
       (s.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoChecks(s.memo,s.rental)+'</div>':'')+
       (s.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+s.addr+'</div>':'')+
       // IN/OUT時刻は独立した1行に（ボタンを横から押して折り返させないため）
@@ -1850,9 +1850,9 @@ function renderList(){
         '</span>'+
         dayAmtHtml+
       '</div>'+
-      (rental.length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"'+(_rentalOpen[r.id]?' open':'')+' ontoggle="_noteRentalOpen(\''+r.id+'\',this.open)"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+rental.length+'点（'+rt.toLocaleString()+'円）</summary><div style="margin-top:2px">'+rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
+      (rental.length?'<details class="card-meta" style="font-size:12px;color:#555;margin-top:2px"'+(_rentalOpen[r.id]?' open':'')+' ontoggle="_noteRentalOpen(\''+r.id+'\',this.open)"><summary style="cursor:pointer;color:#aaa;font-weight:400;list-style:none">▼ レンタル '+rental.length+'点（'+rt.toLocaleString()+'円）'+(uncertainQtyLabel(r.memo)?'<span style="font-size:10.5px;font-weight:700;color:#c0392b;background:#fdecec;border:1px solid #e3b4b4;border-radius:4px;padding:0 5px;margin-left:6px">⚠ '+htmlEscape(uncertainQtyLabel(r.memo))+'</span>':'')+'</summary><div style="margin-top:2px">'+rental.map(i=>i.name+'×'+(i.qty||1)).join('、')+'</div></details>':'')+
       linkedStayH+linkedDayH+fields.map(f=>{const v=(r.customValues||{})[f.id];return v?'<div class="card-meta"><span style="color:#aaa">'+f.name+'：</span>'+v+'</div>':''}).join('')+
-      (uncertainQtyLabel(r.memo)?'<div class="card-meta" style="font-size:12.5px;font-weight:700;color:#c0392b;background:#fdecec;border:1px solid #e0a0a0;border-radius:6px;padding:2px 9px;margin-top:3px;display:inline-block">⚠ '+htmlEscape(uncertainQtyLabel(r.memo))+'</div>':'')+
+      (uncertainQtyLabel(r.memo)&&!rental.length?'<div class="card-meta" style="font-size:11px;font-weight:700;color:#c0392b;margin-top:2px">⚠ '+htmlEscape(uncertainQtyLabel(r.memo))+'</div>':'')+
       (r.memo?'<div class="card-meta" style="font-size:12px;color:#555;font-weight:600"><span style="color:#aaa;font-weight:400">備考 </span>'+fmtMemoChecks(r.memo,r.rental)+'</div>':'')+
       (r.addr?'<div class="card-meta" style="font-size:12px;color:#666">'+r.addr+'</div>':'')+
       // 下部：施設の最終受付/終了（各カテゴリ最初のみ）＋操作ボタン（▼で開閉）
