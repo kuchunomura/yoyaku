@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=498;
-const APP_BUILD_DATE='2026/10/24 16:51';
+const APP_VERSION=499;
+const APP_BUILD_DATE='2026/10/26 09:55';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3040,6 +3040,10 @@ async function _syncToSheetImpl(silent){
       var _deSrv=(_gjson.dayevents&&typeof _gjson.dayevents==='object')?_gjson.dayevents:{};
       var _deMergedPush=_mergeDayEvents(ld('yv_dayevents_base'), ld('yv_dayevents')||{}, _deSrv);
       sv('yv_dayevents', _deMergedPush);
+      // ★送る内容の控え。POST完了待ちの間（数秒）にCSV取込等でローカルが変わっても、baseは「実際に送った内容」で保存する。
+      //   従来は完了後の reservations/stays をbaseにしていたため、送信中の取込(キャンセル反映等)がbaseに入り
+      //   「サーバが元に戻した」と誤判定→次の同期で取込が巻き戻っていた（3回目でやっと反映、の原因）。
+      var _sentR=JSON.parse(JSON.stringify(reservations)), _sentS=JSON.parse(JSON.stringify(stays));
       // ③ マージ結果でシート更新（baseRev添付＝CAS：サーバが不一致なら拒否）
       // ★POSTは40秒まで待つ（従来18秒＝GASの重い全再描画16〜17秒がギリギリ間に合わず中断→やり直し→競合の連鎖を招いていた。GAS高速化と併用）
       var res=await _fetchTimeout(url,{
@@ -3050,7 +3054,7 @@ async function _syncToSheetImpl(silent){
       if(json.status==='stale_client'){ _showStaleClientBlock(json); return; } // サーバが「この版は古い」と拒否＝これ以上書かず更新を促す（保存はしていない＝データを壊さない）
       if(json.status==='conflict'){ await new Promise(function(r){ setTimeout(r, 250+Math.floor(Math.random()*750)); }); continue; } // 他端末が先に書込＝少しばらつかせて取り直し再送（2端末が同時に叩き合う"競合渋滞"を緩和）
       if(json.status==='ok'){
-        _saveSyncBase(reservations,stays); // 書き込んだ内容＝新しいサーバ状態を base に
+        _saveSyncBase(_sentR,_sentS); // 書き込んだ内容＝新しいサーバ状態を base に（送信中のローカル変更は次のpushで送る）
         sv('yv_dayevents_base', _deMergedPush); // 特記も送った内容＝新サーバ状態を base に
         if(st)st.textContent='✓ '+new Date().toLocaleTimeString('ja-JP')+' 同期完了';
         markSync('保存'); renderListAuto();
