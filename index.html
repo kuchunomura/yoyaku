@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=500;
-const APP_BUILD_DATE='2026/10/30 09:18';
+const APP_VERSION=501;
+const APP_BUILD_DATE='2026/10/30 09:22';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1982,10 +1982,16 @@ function renderList(){
     arr.forEach(e=>{const dv=(e.kind===1?buildDayCard(e.item):buildStayCard(e.item));if(dv)det.appendChild(dv);});
     c.appendChild(det);
   };
+  // 今日を表示している時は、先頭（本日チェックアウト枠の上）に本日の日付見出しを出す。
+  // 昨日以前の日付のカード（チェックイン済みの連泊初日など）が残る時は従来どおり日付順の流れに任せる。
+  lastDate=null;
+  if(_coMode&&!_rest.some(e=>e.date&&e.date<today)){
+    dateDivider(today,!ordered.some(e=>e.date===today||(e.kind===0&&!e._cont&&e.item.checkout===today)));
+    lastDate=today;
+  }
   _coSec('pend','（宿泊）本日チェックアウト',_coPend,'#9a5147','#fdf4f2','#ecd2cb');       // 宿泊＝赤系（薄め）
   _coSec('done','（宿泊）本日チェックアウト済み',_coDone,'#9a5147','#fcf2f0','#ecd2cb');   // 宿泊＝赤系（薄め）
   _coSec('daydone','（日帰り）会計・案内済み',_coDayDone,'#1c5c39','#e6f4ea','#7bbf96');
-  lastDate=null;
   let prev=null;
   _rest.forEach(e=>{
     const div=e.kind===0?(e._cont?buildStayContinueCard(e.item,e._night):buildStayCard(e.item)):buildDayCard(e.item);
