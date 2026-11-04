@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=C:\Users\USER\AppData\Local\Temp\claude\C--Users-USER\b20a53ac-7b28-4b76-82ae-b0094496af19\scratchpad\ybump.js;
-const APP_BUILD_DATE='502';
+const APP_VERSION=503;
+const APP_BUILD_DATE='2026/11/04 09:24';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1787,7 +1787,7 @@ function renderList(){
       '</div>'+
       '<div class="card-meta" style="font-size:14px;color:#333;font-weight:600;line-height:1.6">'+
         s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+
-        '<span style="font-size:12px;color:#888;font-weight:400">　（チェックイン '+fmtMD(s.checkin)+'・料金と会計はチェックイン日の予約にまとめています）</span>'+
+        '<span style="font-size:12px;color:#888;font-weight:400">　（チェックイン '+fmtMD(s.checkin)+'）</span>'+
       '</div>';
     return div;
   }
