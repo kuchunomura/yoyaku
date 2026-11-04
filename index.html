@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=506;
-const APP_BUILD_DATE='2026/11/04 09:53';
+const APP_VERSION=507;
+const APP_BUILD_DATE='2026/11/04 10:21';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1106,7 +1106,7 @@ function calcTime(){
   if(!st){document.getElementById('time-display').textContent='';return;}
   const noteH=fac.note?'　<span style="font-size:12px;font-weight:400;color:#aaa">（'+fac.note+'）</span>':'';
   const _dd=normDate((document.getElementById('day-date')||{}).value||'');
-  const ovH=(addFacId==='tree'&&checkOverlap(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#c00">重複</span>':((addFacId==='tree'&&checkAdjacent(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#1565c0">連続</span>':'');
+  const ovH=(addFacId==='tree'&&checkOverlap(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#c00">重複</span>':((addFacId==='tree'&&checkAdjacent(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#1565c0">すぐに次のお客さんご利用</span>':'');
   document.getElementById('time-display').innerHTML=st+' 〜 '+getEnd(st,addCourse,addFacId)+noteH+ovH;
   // 宿泊者割引：宿泊(OTA含む)に紐づく空中ウォーク(115分/1DAY)は1人500円引き。村内割引が優先
   const sgd=stayGuestDisc(addFacId,addCourse,getDayStayLinkIds(),mura);
@@ -2005,7 +2005,7 @@ function renderList(){
     if(prev&&prev._cid===e._cid&&!isCancelled(prev.item)&&!isCancelled(e.item)){
       const conn=document.createElement('div');
       conn.style.cssText='text-align:center;margin:-10px 0 -2px;position:relative;z-index:2;pointer-events:none';
-      conn.innerHTML='<span style="display:inline-block;font-size:11px;font-weight:700;color:#1565c0;background:#dbe8fb;border:1px solid #1565c0;border-radius:20px;padding:1px 12px">連続</span>';
+      conn.innerHTML='<span style="display:inline-block;font-size:11px;font-weight:700;color:#1565c0;background:#dbe8fb;border:1px solid #1565c0;border-radius:20px;padding:1px 12px">すぐに次のお客さんご利用</span>';
       c.appendChild(conn);
     }
     c.appendChild(div);
@@ -4662,7 +4662,7 @@ function _pDayRow(r){
   var rt=(r.rental||[]).reduce(function(a,i){return a+i.price*i.qty;},0);
   var total=(fac.fixedCount?price:price*ninzu)+rt;
   return '<div class="prow">'+
-    '<div class="prtop"><div class="pr1">'+r.startTime+'〜'+end+(co?'　'+co.minLabel:'')+'　'+ninzu+fac.priceUnit+(r.name?'　'+r.name:'')+(mura?'　（村内）':'')+(_rzHasPartner(r.id,0)?'<span class="prz">連続→ 夜（宿泊IN）</span>':'')+'</div>'+
+    '<div class="prtop"><div class="pr1">'+r.startTime+'〜'+end+(co?'　'+co.minLabel:'')+'　'+ninzu+fac.priceUnit+(r.name?'　'+r.name:'')+(mura?'　（村内）':'')+(_rzHasPartner(r.id,0)?'<span class="prz">この後すぐ→ 夜（宿泊IN）</span>':'')+'</div>'+
     '<div class="pr2">計'+total.toLocaleString()+'円'+(rt>0?'（レンタル'+rt.toLocaleString()+'含む）':'')+'</div></div>'+
     ((r.rental||[]).length?'<div class="pr3" style="border-bottom:1px solid #bbb;padding-bottom:1px;margin-bottom:2px">レンタル：'+r.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
     // カスタム項目（例「メモ」＝BBQは備考欄が無いので手入力）と住所欄もカードと同じく印刷に出す
@@ -4683,7 +4683,7 @@ function _pStayInner(s){
   var money=s.unitPrice.toLocaleString()+'×'+s.ninzu+'×'+s.nights+((s.petFee||0)>0?'＋ペット'+s.petFee.toLocaleString():'')+(rt>0?'＋レンタル×'+(s.rental||[]).length+'　'+rt.toLocaleString():'')+'　計'+grand.toLocaleString()+'円';
   var coTodayP=(s.checkout&&s.checkout===todayStr())?'<span style="margin-left:4px;font-weight:700;color:#b5651d;font-size:0.72em;white-space:nowrap">▲本日OUT</span>':'';
   var _dp=_rzHasPartner(s.id,1);   // 昼から連続している相手（別ページになるので時刻を書いて分かるように）
-  var _rzS=_dp?('<span class="prz">連続← 昼 '+_dp.item.startTime+'〜'+getEnd(_dp.item.startTime,_dp.item.course,'tree')+'</span>'):'';
+  var _rzS=_dp?('<span class="prz">直前に← 昼 '+_dp.item.startTime+'〜'+getEnd(_dp.item.startTime,_dp.item.course,'tree')+'</span>'):'';
   return '<div class="prtop"><div class="pr1">'+s.nights+'泊 '+s.ninzu+'名'+(s.name?'　'+s.name:'')+bedTxt+petTxt+coTodayP+_rzS+'</div>'+
     '<div class="pr2">'+money+'</div></div>'+
     ((s.rental||[]).length?'<div class="pr3" style="border-bottom:1px solid #bbb;padding-bottom:1px;margin-bottom:2px">レンタル：'+s.rental.map(function(i){return i.name+'×'+(i.qty||1);}).join('、')+'</div>':'')+
@@ -4796,7 +4796,7 @@ function _pDayRowsRz(rows){
   groups.forEach(function(g){
     if(g.length<2){ out+=_pDayRow(g[0]); return; }
     out+='<div class="prz-group">';
-    g.forEach(function(r,i){ if(i)out+='<div class="pconn"><span>連続</span></div>'; out+=_pDayRow(r); });
+    g.forEach(function(r,i){ if(i)out+='<div class="pconn"><span>すぐに次のお客さんご利用</span></div>'; out+=_pDayRow(r); });
     out+='</div>';
   });
   return out;
