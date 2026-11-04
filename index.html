@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=505;
-const APP_BUILD_DATE='2026/11/04 09:48';
+const APP_VERSION=506;
+const APP_BUILD_DATE='2026/11/04 09:53';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1723,6 +1723,8 @@ function renderList(){
     const cancelBtn=(()=>{var cArmed=wfArm&&wfArm.id===s.id&&wfArm.key==='cancel';return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="cancel" class="wf-btn'+(cArmed?' arm':'')+'" style="'+(s.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(cArmed?'もう1タップで確定':(s.cancelled?'↩ キャンセルを取り消し':'キャンセル'))+'</button>';})();
     // OUT済みのとき、編集の左に置く「部屋掃除」（btn-smサイズ・2タップ確定／✅は1タップ解除）
     const cleanBtn=(()=>{if(!(s.wf&&s.wf.out))return '';var clArmed=wfArm&&wfArm.id===s.id&&wfArm.key==='clean';var st=wf.clean?'background:#e6f4ea;border-color:#7bbf96;color:#1c5c39;font-weight:600':(clArmed?'background:#fff4d6;border-color:#e0b000;color:#8a6d00;font-weight:600':'');return '<button class="btn-sm" data-act="toggleWf" data-id="'+s.id+'" data-wf="clean" style="'+st+'">'+(clArmed?'もう1タップ':((wf.clean?'✅':'')+'部屋掃除'))+'</button>';})();
+    // 2泊以上の宿泊に「🔋バッテリー交換」（メモの左に・btn-smサイズ・泊ごとにbattery_Nキー）。目立つようメモ列へ移動。
+    const batteryBtn=(()=>{if(!(s.nights>=2&&fac.bat))return '';var bk='battery_'+(contNight||1);var bArmed=wfArm&&wfArm.id===s.id&&wfArm.key===bk;var st=wf[bk]?'background:#e6f4ea;border-color:#7bbf96;color:#1c5c39;font-weight:600':(bArmed?'background:#fff4d6;border-color:#e0b000;color:#8a6d00;font-weight:600':'');return '<button class="btn-sm" data-act="toggleWf" data-id="'+s.id+'" data-wf="'+bk+'" style="'+st+'">'+(bArmed?'もう1タップ':((wf[bk]?'✅':'')+'🔋バッテリー交換'))+'</button>';})();
     const ddStyle='display:none;position:absolute;top:100%;left:0;z-index:20;background:#fff;border:1px solid #ccc;border-radius:8px;padding:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);margin-top:3px';
     const bedSel=BED_GROUPS.includes(grp)?'<div id="bedsel-'+s.id+'" style="'+ddStyle+'">'+['ベッド2台','ベッド1台'].map(o=>'<button class="btn-sm" onclick="setBed(\''+s.id+'\',\''+o+'\')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(bedLabel(s.bed)===o?'background:#e9e1d4;color:#5a4a2a;border-color:#d3c7b3':'')+'">'+o+'</button>').join('')+'</div>':'';
     const petSel='<div id="petsel-'+s.id+'" style="'+ddStyle+'">'+[0,1,2,3].map(n=>'<button class="btn-sm" onclick="setPet(\''+s.id+'\','+n+')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(((s.petCount||0)===n)?'background:#f1eef4;color:#5a4a6a;border-color:#ddd6e6':'')+'">'+(n===0?'ペット無':'ペット'+n)+'</button>').join('')+'</div>';
@@ -1761,13 +1763,14 @@ function renderList(){
       (showCiCo?'<div style="font-size:11px;color:#aaa;margin-top:6px">IN '+fac.ci+' ／ OUT '+fac.co+'</div>':'')+
       '<div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">'+
         cleanBtn+
+        batteryBtn+
         '<button class="btn-sm" data-act="addStaffMemo" data-id="'+s.id+'" data-t="stay">メモ</button>'+
         '<button class="btn-sm" data-act="openEditStay" data-id="'+s.id+'">編集</button>'+
         '<button class="btn-sm" data-act="delStay" data-id="'+s.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
         (contNight?'':'<button class="btn-sm" id="cardtog-'+s.id+'" data-act="toggleCardBtns" data-id="'+s.id+'" style="color:#666">'+(cardOpen?'▲ 閉じる':'▼ 操作')+'</button>')+
       '</div>'+
       '<div '+(contNight?'':'id="cardbtns-'+s.id+'" ')+'data-disp="block" style="display:'+(cardOpen?'block':'none')+'">'+
-        '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+((s.nights>=2&&fac.bat)?wfBtn('battery_'+(contNight||1),'🔋バッテリー交換'):'')+cancelBtn+'</div>'+
+        '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+cancelBtn+'</div>'+
       '</div>';
     return div;
   }
