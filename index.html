@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=504;
-const APP_BUILD_DATE='2026/11/04 09:37';
+const APP_VERSION=505;
+const APP_BUILD_DATE='2026/11/04 09:48';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1767,7 +1767,7 @@ function renderList(){
         (contNight?'':'<button class="btn-sm" id="cardtog-'+s.id+'" data-act="toggleCardBtns" data-id="'+s.id+'" style="color:#666">'+(cardOpen?'▲ 閉じる':'▼ 操作')+'</button>')+
       '</div>'+
       '<div '+(contNight?'':'id="cardbtns-'+s.id+'" ')+'data-disp="block" style="display:'+(cardOpen?'block':'none')+'">'+
-        '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+cancelBtn+'</div>'+
+        '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+((s.nights>=2&&fac.bat)?wfBtn('battery_'+(contNight||1),'🔋バッテリー交換'):'')+cancelBtn+'</div>'+
       '</div>';
     return div;
   }
