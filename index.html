@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=503;
-const APP_BUILD_DATE='2026/11/04 09:24';
+const APP_VERSION=504;
+const APP_BUILD_DATE='2026/11/04 09:37';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1679,7 +1679,7 @@ function renderList(){
   };
   const ciCoShown={};
   const dayInfoShown={};
-  function buildStayCard(s){
+  function buildStayCard(s,contNight){ // contNight=2以上なら連泊の「N泊目」カード（操作ボタン付きの通常カードのまま・バッジだけ追加）
     const grp=s.facGroup||((getSFac(s.facility)||{}).group)||'';
     const grpFacs=STAY_FACS.filter(x=>x.group===grp);
     const fac=getSFac(s.facility)||grpFacs[0];if(!fac)return null;
@@ -1718,7 +1718,7 @@ function renderList(){
     }).join('');
     const wf=s.wf||{};
     // OUT済みは操作パネルを既定で折り畳む（手動で開いた場合は _cardOpen で上書き）
-    const cardOpen=(_cardOpen[s.id]===undefined?!wf.out:_cardOpen[s.id]);
+    const cardOpen=contNight?true:(_cardOpen[s.id]===undefined?!wf.out:_cardOpen[s.id]); // 2泊目は折り畳まず操作パネル常時表示（id重複でトグルが誤作動しないように）
     const wfBtn=(k,lb)=>{var armed=wfArm&&wfArm.id===s.id&&wfArm.key===k;return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="'+k+'" class="wf-btn'+(wf[k]?' on':'')+(armed?' arm':'')+'">'+(armed?'もう1タップで確定':((wf[k]?'✅':'')+lb))+'</button>';};
     const cancelBtn=(()=>{var cArmed=wfArm&&wfArm.id===s.id&&wfArm.key==='cancel';return '<button data-act="toggleWf" data-id="'+s.id+'" data-wf="cancel" class="wf-btn'+(cArmed?' arm':'')+'" style="'+(s.cancelled?'background:#fdecec;border-color:#e0a0a0;color:#b00;font-weight:600':'')+'">'+(cArmed?'もう1タップで確定':(s.cancelled?'↩ キャンセルを取り消し':'キャンセル'))+'</button>';})();
     // OUT済みのとき、編集の左に置く「部屋掃除」（btn-smサイズ・2タップ確定／✅は1タップ解除）
@@ -1726,11 +1726,12 @@ function renderList(){
     const ddStyle='display:none;position:absolute;top:100%;left:0;z-index:20;background:#fff;border:1px solid #ccc;border-radius:8px;padding:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);margin-top:3px';
     const bedSel=BED_GROUPS.includes(grp)?'<div id="bedsel-'+s.id+'" style="'+ddStyle+'">'+['ベッド2台','ベッド1台'].map(o=>'<button class="btn-sm" onclick="setBed(\''+s.id+'\',\''+o+'\')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(bedLabel(s.bed)===o?'background:#e9e1d4;color:#5a4a2a;border-color:#d3c7b3':'')+'">'+o+'</button>').join('')+'</div>':'';
     const petSel='<div id="petsel-'+s.id+'" style="'+ddStyle+'">'+[0,1,2,3].map(n=>'<button class="btn-sm" onclick="setPet(\''+s.id+'\','+n+')" style="display:block;width:100%;text-align:left;white-space:nowrap;padding:5px 12px;font-size:12px;margin:2px 0;'+(((s.petCount||0)===n)?'background:#f1eef4;color:#5a4a6a;border-color:#ddd6e6':'')+'">'+(n===0?'ペット無':'ペット'+n)+'</button>').join('')+'</div>';
-    const div=document.createElement('div');div.className='card'+(s.done?' done':'')+(isCancelled(s)?' cancelled':'');div.id='card-'+s.id;
+    const div=document.createElement('div');div.className='card'+(s.done?' done':'')+(isCancelled(s)?' cancelled':'');div.id='card-'+s.id+(contNight?'__n'+contNight:''); // 2泊目は同じ予約を再描画するためidを分けてDOM重複を避ける
     div.style.background='#fdf5f4';
     div.innerHTML=
       '<div class="card-header">'+
         '<span class="badge badge-stay">宿泊</span>'+
+        (contNight?'<span class="badge badge-stay" style="background:#fbe9d8;color:#b5651d;border:1px solid #e6c199">'+contNight+'泊目</span>':'')+
         '<span style="font-size:12px;font-weight:600;color:#111'+(grpFacs.length>1?';cursor:pointer;text-decoration:underline dotted':'')+'"'+(grpFacs.length>1?' data-act="toggleUnitSel" data-id="'+s.id+'"':'')+'>'+(s.facility?fac.label:(grpFacs.length>1?(grp+'（棟未選択）'):(grpFacs[0]?grpFacs[0].label:grp)))+(grpFacs.length>1?' ▾':'')+'</span>'+
         eventChipHtml(s.event)+
         (BED_GROUPS.includes(grp)?'<span style="position:relative;display:inline-block"><span data-act="toggleBedSel" data-id="'+s.id+'" style="font-size:11px;cursor:pointer;color:#555;border-radius:10px;padding:1px 7px;white-space:nowrap;background:#f9e8e5;border:1px solid #ecd0cb">'+'<b>'+bedLabel(s.bed)+'</b>'+' ▾</span>'+bedSel+'</span>':'')+
@@ -1763,9 +1764,9 @@ function renderList(){
         '<button class="btn-sm" data-act="addStaffMemo" data-id="'+s.id+'" data-t="stay">メモ</button>'+
         '<button class="btn-sm" data-act="openEditStay" data-id="'+s.id+'">編集</button>'+
         '<button class="btn-sm" data-act="delStay" data-id="'+s.id+'" style="color:#6b4226;border-color:#cdb89c">削除</button>'+
-        '<button class="btn-sm" id="cardtog-'+s.id+'" data-act="toggleCardBtns" data-id="'+s.id+'" style="color:#666">'+(cardOpen?'▲ 閉じる':'▼ 操作')+'</button>'+
+        (contNight?'':'<button class="btn-sm" id="cardtog-'+s.id+'" data-act="toggleCardBtns" data-id="'+s.id+'" style="color:#666">'+(cardOpen?'▲ 閉じる':'▼ 操作')+'</button>')+
       '</div>'+
-      '<div id="cardbtns-'+s.id+'" data-disp="block" style="display:'+(cardOpen?'block':'none')+'">'+
+      '<div '+(contNight?'':'id="cardbtns-'+s.id+'" ')+'data-disp="block" style="display:'+(cardOpen?'block':'none')+'">'+
         '<div class="wf-row">'+wfBtn('prep','部屋準備')+wfBtn('pay','会計')+wfBtn('guide','案内')+wfBtn('out','OUT')+cancelBtn+'</div>'+
       '</div>';
     return div;
@@ -1994,7 +1995,7 @@ function renderList(){
   _coSec('daydone','（日帰り）会計・案内済み',_coDayDone,'#1c5c39','#e6f4ea','#7bbf96');
   let prev=null;
   _rest.forEach(e=>{
-    const div=e.kind===0?(e._cont?buildStayContinueCard(e.item,e._night):buildStayCard(e.item)):buildDayCard(e.item);
+    const div=e.kind===0?buildStayCard(e.item,e._cont?e._night:0):buildDayCard(e.item);
     if(!div)return;
     if(e.date!==lastDate){if(!searchQ)gapDividers(lastDate,e.date);dateDivider(e.date);lastDate=e.date;prev=null;}
     // 直前カードと同じ連続クラスタなら、間に跨るコネクタを挿入
