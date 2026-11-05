@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=507;
-const APP_BUILD_DATE='2026/11/04 10:21';
+const APP_VERSION=508;
+const APP_BUILD_DATE='2026/11/05 14:40';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -1109,11 +1109,13 @@ function calcTime(){
   const ovH=(addFacId==='tree'&&checkOverlap(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#c00">重複</span>':((addFacId==='tree'&&checkAdjacent(st,addCourse,null,_dd))?'　<span style="font-size:13px;font-weight:600;color:#1565c0">すぐに次のお客さんご利用</span>':'');
   document.getElementById('time-display').innerHTML=st+' 〜 '+getEnd(st,addCourse,addFacId)+noteH+ovH;
   // 宿泊者割引：宿泊(OTA含む)に紐づく空中ウォーク(115分/1DAY)は1人500円引き。村内割引が優先
-  const sgd=stayGuestDisc(addFacId,addCourse,getDayStayLinkIds(),mura);
+  const sgd=stayGuestDisc(addFacId,addCourse,getDayStayLinkIds(),mura,_dd);
   // 村内：BBQは無料・空中ウォーク・ツリーハウスは半額。レンタルは村内でも有料
   const price=dayUnitPrice(fac,addCourse,mura,sgd);
   const rt=calcRT(rentalSt);
-  if(sgd){
+  if(sgd&&fac.fixedCount){
+    document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 → 前日宿泊で無料';
+  }else if(sgd){
     document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 → 宿泊者割引 '+price.toLocaleString()+'円/1'+fac.priceUnit;
   }else if(mura){
     document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 → 村内割引';
@@ -1121,7 +1123,7 @@ function calcTime(){
     document.getElementById('price-unit-text').textContent=basePrice.toLocaleString()+'円 / 1'+fac.priceUnit+(fac.note?'　（'+fac.note+'）':'');
   }
   if(fac.fixedCount){
-    document.getElementById('price-total-text').textContent=mura?('BBQ無料'+(rt>0?' ＋ 備品 '+rt.toLocaleString()+'円':'')+'　合計　'+rt.toLocaleString()+'円'):(rt>0?'レンタル代 '+price.toLocaleString()+'円 ＋ 備品 '+rt.toLocaleString()+'円　合計 '+(price+rt).toLocaleString()+'円':'合計　'+price.toLocaleString()+'円');
+    document.getElementById('price-total-text').textContent=(mura||sgd)?((mura?'BBQ無料':'BBQ無料（前日宿泊）')+(rt>0?' ＋ 備品 '+rt.toLocaleString()+'円':'')+'　合計　'+rt.toLocaleString()+'円'):(rt>0?'レンタル代 '+price.toLocaleString()+'円 ＋ 備品 '+rt.toLocaleString()+'円　合計 '+(price+rt).toLocaleString()+'円':'合計　'+price.toLocaleString()+'円');
   }else if(ninzu>0){
     var _muraN=mura?readMuraCount('day'):null;
     var _dayTot=dayBookingTotal(fac,addCourse,ninzu,mura,_muraN,sgd);
@@ -1290,13 +1292,28 @@ function _likelyLink(a,b){
 // ※2026-08-06変更：楽天などOTA経由の宿泊も対象に含める（泊まる客の空中ウォークは500円引き）。以前は「OTAは精算済み」で対象外だった。
 const STAY_GUEST_DISC=500;
 const STAY_GUEST_DISC_COURSES=[115,0]; // 115分 / 1DAY
-// 紐づけ先に（OTA含む）宿泊があれば割引額(500)、無ければ0を返す。
-// 村内割引とは併用しない（半額の方が安いので村内が優先。POSレジも同じ順番にしてある）
-function stayGuestDisc(facId,course,linkedStayIds,mura){
-  if(mura) return 0; // 村内割引が優先
+// BBQの前日（宿泊日）をYYYY-MM-DDで返す。dayDateが無ければ空文字。
+function _prevDayStr(dayDate){ if(!dayDate) return ''; var p=String(dayDate).split('-').map(Number); if(p.length<3||!p[0]) return ''; var t=new Date(p[0],p[1]-1,p[2]-1); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
+// 紐づけ先に（OTA含む）宿泊があれば割引額、無ければ0を返す。村内割引とは併用しない。
+// ・空中ウォーク：1人500円引き（115分/1DAY）
+// ・BBQスペース：前日に泊まった宿泊があればスペース代を全額割引＝無料（レンタルは別途有料）
+function stayGuestDisc(facId,course,linkedStayIds,mura,dayDate){
+  if(mura) return 0; // 村内割引が優先（村内もBBQは無料）
+  var ids=linkedStayIds||[];
+  if(facId==='bbq'){
+    var prev=_prevDayStr(dayDate);
+    for(var b=0;b<ids.length;b++){
+      var sb=stays.find(function(x){return x.id===ids[b];});
+      if(!sb||isCancelled(sb)) continue;
+      // 前泊＝BBQ前日の夜に宿泊していれば無料。日付不明時は紐づけ宿泊があれば無料扱い。
+      if(!prev || (sb.checkin&&sb.checkout&&sb.checkin<=prev&&sb.checkout>prev)){
+        var bf=getFac('bbq'); return (bf&&bf.prices&&bf.prices[0])||3000; // スペース代を全額割引
+      }
+    }
+    return 0;
+  }
   if(facId!=='walk') return 0;
   if(STAY_GUEST_DISC_COURSES.indexOf(Number(course))<0) return 0;
-  var ids=linkedStayIds||[];
   for(var i=0;i<ids.length;i++){
     var s=stays.find(function(x){return x.id===ids[i];});
     if(s&&!isCancelled(s)) return STAY_GUEST_DISC; // OTA(楽天)宿泊も対象
@@ -1319,7 +1336,7 @@ function toggleMuraCount(prefix){var cb=document.getElementById(prefix+'-mura');
 // 一部村民：村民は半額、村民でない人は定価で合算（BBQは1か所＝村内なら無料）。
 function dayBookingTotal(fac,course,ninzu,mura,muraN,sgd){
   var base=fac.prices[course];
-  if(fac.fixedCount) return mura?0:base;        // BBQ=1か所。村内は無料
+  if(fac.fixedCount) return mura?0:Math.max(0,base-(sgd||0));   // BBQ=1か所。村内 or 前日宿泊(sgd=全額)で無料
   ninzu=parseInt(ninzu,10)||0;
   if(!mura) return (sgd?base-sgd:base)*ninzu;
   var half=Math.floor(base/2);
@@ -1804,7 +1821,7 @@ function renderList(){
     const mura=isMuraRes(r);
     const nzWarn=ninzuMemoMismatch(r); // 備考の人数とデータ人数が違う＝カードに「人数要確認」バッジ
     // 宿泊者割引：宿泊(OTA含む)に紐づく空中ウォーク(115分/1DAY)は1人500円引き（村内が優先）
-    const sgd=stayGuestDisc(r.facility,r.course,r.linkedStayIds,mura);
+    const sgd=stayGuestDisc(r.facility,r.course,r.linkedStayIds,mura,r.date);
     const price=dayUnitPrice(fac,r.course,mura,sgd);
     const ninzu=parseInt(r.ninzu)||0;
     const rental=r.rental||[];
@@ -1815,7 +1832,8 @@ function renderList(){
     const showDayInfo=!dayInfoShown[dayInfoKey];dayInfoShown[dayInfoKey]=true;
     // 金額表示（宿泊カードと同様に右側へ：単価×人数 ＋備品 計◯円）。レンタルは村内でも有料
     let amountText;
-    if(sgd){ amountText='宿泊者割引(1人-'+sgd.toLocaleString()+'円) '+price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
+    if(fac.fixedCount&&sgd){ amountText='前日宿泊でスペース無料'+(rt>0?' ＋備品'+rt.toLocaleString():'')+'　計'+rt.toLocaleString()+'円'; }
+    else if(sgd){ amountText='宿泊者割引(1人-'+sgd.toLocaleString()+'円) '+price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
     else if(mura){ var _mN=(r.muraN==null?null:parseInt(r.muraN,10)); var muraBase=dayBookingTotal(fac,r.course,ninzu,true,_mN,0); var _mLbl=(_mN!=null&&_mN>0&&_mN<ninzu)?('村内割引（村民'+_mN+'名半額＋残り定価）'):'村内割引'; amountText=_mLbl+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(muraBase+rt).toLocaleString()+'円'; }
     else if(fac.fixedCount){ amountText=price.toLocaleString()+'円／'+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price+rt).toLocaleString()+'円'; }
     else { amountText=price.toLocaleString()+'×'+(ninzu||0)+fac.priceUnit+(rt>0?'＋備品'+rt.toLocaleString():'')+'　計'+(price*(ninzu||0)+rt).toLocaleString()+'円'; }
@@ -1852,7 +1870,7 @@ function renderList(){
         '<span class="badge '+fac.badgeCls+'">'+fac.label+'</span>'+
         eventChipHtml(r.event)+
         (mura?'<span style="font-size:11px;font-weight:600;background:#fff8e8;color:#e67700;border:1px solid #EF9F27;border-radius:20px;padding:2px 8px">村内</span>':'')+
-        (sgd?'<span style="font-size:11px;font-weight:600;background:#f3e8ee;color:#7a1030;border:1px solid #c58aa4;border-radius:20px;padding:2px 8px">宿泊者割引</span>':'')+
+        (sgd?'<span style="font-size:11px;font-weight:600;background:#f3e8ee;color:#7a1030;border:1px solid #c58aa4;border-radius:20px;padding:2px 8px">'+(fac.fixedCount?'前日宿泊で無料':'宿泊者割引')+'</span>':'')+
         (nzWarn?'<span style="font-size:11px;font-weight:600;background:#fff6e9;color:#9a6a1a;border:1px solid #e6cfa8;border-radius:20px;padding:2px 8px">⚠人数要確認</span>':'')+
         (isOv?'<span class="badge-overlap">重複</span>':'')+
         (r.changed?'<span class="badge-changed">変更済み</span>':'')+
@@ -2267,7 +2285,7 @@ function saveReservation(){
   // 村内割引・宿泊者割引の料金計算
   const fac2=getFac(addFacId);
   const basePrice=fac2.prices[addCourse];
-  const discountedPrice=dayUnitPrice(fac2,addCourse,mura,stayGuestDisc(addFacId,addCourse,linkedStayIds,mura));
+  const discountedPrice=dayUnitPrice(fac2,addCourse,mura,stayGuestDisc(addFacId,addCourse,linkedStayIds,mura,dt));
   // メモ
   const muraN=mura?readMuraCount('day'):null; // 一部村民の人数（null=全員村民）
   const memoBase=mura?((muraN!=null&&muraN>0)?('村内（村民'+muraN+'名）'):'村内'):'';
