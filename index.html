@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=509;
-const APP_BUILD_DATE='2026/11/05 15:05';
+const APP_VERSION=510;
+const APP_BUILD_DATE='2026/11/06 15:22';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -4777,7 +4777,16 @@ function _pStayBlock(date){
     // 棟へ割り当て：施設(棟)が一致する予約を優先、残りは空き棟へ順に入れる
     var assigned={},leftovers=[];
     rows.forEach(function(s){var u=units.find(function(x){return x.id===s.facility;});if(u&&!assigned[u.id])assigned[u.id]=s;else leftovers.push(s);});
-    units.forEach(function(u){if(!assigned[u.id]&&leftovers.length)assigned[u.id]=leftovers.shift();});
+    // 棟未選択の予約は先の予約（チェックイン日→予約番号の順）から入れる。
+    // ペット無しはペット不可の棟から（ドーム＝ミラー→グレー→クリア）、ペット有りはペット可の棟から（ドーム＝クリア）
+    leftovers.sort(function(a,b){ if(a.checkin!==b.checkin)return a.checkin<b.checkin?-1:1; var wa=parseInt(a.wpId)||Infinity, wb=parseInt(b.wpId)||Infinity; if(wa!==wb)return wa<wb?-1:1; return String(a.id)<String(b.id)?-1:1; });
+    var petNg=units.filter(function(u){return u.pet==='不可';}), petOk=units.filter(function(u){return u.pet!=='不可';});
+    leftovers=leftovers.filter(function(s){
+      var pref=(s.petCount||0)>0?petOk.concat(petNg):petNg.concat(petOk);
+      var u=pref.find(function(x){return !assigned[x.id];});
+      if(u){assigned[u.id]=s;return false;}
+      return true;
+    });
     // 施設名は一番左に縦書き（.pcatv）。IN/OUTは従来どおり横書きで右側の帯に残す
     var c='<div class="pcatblock"><div class="pcatv">'+cat+'</div><div class="pcatbody">'+
       '<div class="pcat"><span class="pio">IN '+io.ci+' ／ OUT '+io.co+'　（'+units.length+'棟）</span></div>';
