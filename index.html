@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=510;
-const APP_BUILD_DATE='2026/11/06 15:22';
+const APP_VERSION=511;
+const APP_BUILD_DATE='2026/11/09 10:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3382,6 +3382,8 @@ function fmtDateTime(ts){var d=new Date(ts);var w=['日','月','火','水','木'
 var _recentImp=null;        // {key,months:{'YYYY-MM':1},t} 取込直後だけ色を変える
 var RECENT_IMP_MS=6000;     // 取込後ハイライトを出す時間（ミリ秒）
 var _csvChipSel=null;       // {key,month} クリックした月（色を変える）
+var _csvFarOpen=false;      // 月チップ：3か月より先（最大1年先）を展開表示するか
+function toggleCsvFar(){ _csvFarOpen=!_csvFarOpen; renderCsvImpLog(); }
 // 月チップをタップ：施設名＋取込日時をトースト表示し、その月を選択色にする
 function onCsvChipClick(key,month,msg){
   _csvChipSel={key:key,month:month};
@@ -3400,16 +3402,18 @@ function renderCsvImpLog(){
   var lmon=ld('yv_csvimp_lastmon')||{};
   // 'YYYY-MM,YYYY-MM' → '7月分' / '7〜8月分'
   function monLabel(csv){ if(!csv) return ''; var arr=String(csv).split(',').filter(Boolean).sort(); if(!arr.length) return ''; var ja=function(m){var p=m.split('-');return (+p[1])+'月';}; return (arr.length===1?ja(arr[0]):ja(arr[0])+'〜'+ja(arr[arr.length-1]))+'分'; }
-  // 月別チップ：今月＋翌2か月（OTA締切は先の月なので直近3か月の取込状況を月別に出す）
+  // 月別チップ：今月＋先1年分（計12か月）。既定は直近3か月＋「取込予定/取込済み」の先の月だけ表示、「▼先の月も表示」で全部開く
   var _tn=new Date(), months=[];
-  for(var _mi=0;_mi<3;_mi++){ var _dm=new Date(_tn.getFullYear(),_tn.getMonth()+_mi,1); months.push(_dm.getFullYear()+'-'+('0'+(_dm.getMonth()+1)).slice(-2)); }
+  for(var _mi=0;_mi<12;_mi++){ var _dm=new Date(_tn.getFullYear(),_tn.getMonth()+_mi,1); months.push(_dm.getFullYear()+'-'+('0'+(_dm.getMonth()+1)).slice(-2)); }
   function monChips(csv, mtsFac, isSel, facKey, facLabel){
     var set=String(csv||'').split(',').filter(Boolean);
     var esc=function(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");};
-    return months.map(function(m){
-      var has=set.indexOf(m)>=0, jm=(+m.split('-')[1])+'月';
+    return months.map(function(m,mi){
+      var has=set.indexOf(m)>=0;
+      var _yp=m.split('-'), jm=((+_yp[0])!==_tn.getFullYear()?("'"+String(_yp[0]).slice(-2)+' '):'')+(+_yp[1])+'月';
       var ts=mtsFac&&mtsFac[m];
       var isTarget=isSel && _pendingCsvMonths.indexOf(m)>=0; // このCSVがこの月に取り込まれる＝取込予定
+      if(!_csvFarOpen && mi>=3 && !has && !isTarget) return ''; // 折りたたみ：3か月より先の「空き」月は隠す（取込予定/取込済みは表示）
       var info=has?(ts?('取込 '+fmtDateTime(ts)):'取込済み（この端末では日時未記録）'):'未取込';
       var msg=(facLabel?facLabel+'　':'')+(isTarget?(jm+'分：このCSVはここへ取り込まれます（取込予定）'):(jm+'分：'+info)); // 左に施設名も併記
       var recentFlash=_recentImp && _recentImp.key===facKey && _recentImp.months[m] && (Date.now()-_recentImp.t<RECENT_IMP_MS); // 取込直後の数秒だけハイライト
@@ -3457,7 +3461,8 @@ function renderCsvImpLog(){
       var prev=monChips(r[2], mts[r[4]], isSelRow, r[4], r[0])+_pendNote+_dtStr+_tail;
       return nameCell+'<div>'+prev+'</div>';
     }).join('')
-    +'</div>';
+    +'</div>'
+    +'<div style="margin-top:6px"><span onclick="toggleCsvFar()" style="display:inline-block;cursor:pointer;font-size:12px;font-weight:700;color:#6b4f20;background:#fff;border:1px solid #d9b676;border-radius:6px;padding:3px 10px">'+(_csvFarOpen?'▲ 先の月を隠す（直近3か月だけ表示）':'▼ 先の月も表示（最大1年先）')+'</span></div>';
 }
 // ①施設ピッカー：🗓ログの施設名タップで取込先(隠しselect)を設定＝旧①ドロップダウンの代替。
 function selectCsvFac(key){
