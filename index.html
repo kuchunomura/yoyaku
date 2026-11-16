@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=514;
-const APP_BUILD_DATE='2026/11/15 11:05';
+const APP_VERSION=515;
+const APP_BUILD_DATE='2026/11/16 09:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2012,19 +2012,23 @@ function renderList(){
   _coSec('done','（宿泊）本日チェックアウト済み',_coDone,'#9a5147','#fcf2f0','#ecd2cb');   // 宿泊＝赤系（薄め）
   _coSec('daydone','（日帰り）会計・案内済み',_coDayDone,'#1c5c39','#e6f4ea','#7bbf96');
   let prev=null;
-  // 本日表示時：先頭の「本日チェックアウト（済み）」枠と、その下の「本日チェックイン・当日の予約」の間に仕切りを入れて混同を防ぐ
+  // 本日表示時：先頭の「本日チェックアウト（済み）」枠と、その下の本日分の予約の間に「本日の予約」仕切りを入れて混同を防ぐ
   const _coHas=_coMode&&(_coPend.length||_coDone.length||_coDayDone.length);
+  const _hasTodayRest=_rest.some(e=>e.date===today);
   let _coSepDone=false;
+  const _mkTodaySep=(noRes)=>{
+    const sep=document.createElement('div');
+    sep.style.cssText='margin:9px 0 4px;padding-bottom:3px;font-size:12px;font-weight:700;color:#b5651d;border-bottom:2px solid #e0b483';
+    sep.innerHTML='本日の予約'+(noRes?'<span style="margin-left:8px;font-weight:400;color:#999">予約なし</span>':'');
+    c.appendChild(sep);_coSepDone=true;prev=null;
+  };
+  // 本日チェックアウト等の枠はあるが本日の新規予約が無い時も「本日の予約：予約なし」を明示（記載漏れ防止）
+  if(_coHas&&!_hasTodayRest)_mkTodaySep(true);
   _rest.forEach(e=>{
     const div=e.kind===0?buildStayCard(e.item,e._cont?e._night:0):buildDayCard(e.item);
     if(!div)return;
     if(e.date!==lastDate){if(!searchQ)gapDividers(lastDate,e.date);dateDivider(e.date);lastDate=e.date;prev=null;}
-    else if(_coHas&&!_coSepDone&&e.date===today){
-      const sep=document.createElement('div');
-      sep.style.cssText='margin:9px 0 4px;padding-bottom:3px;font-size:12px;font-weight:700;color:#b5651d;border-bottom:2px solid #e0b483';
-      sep.textContent='本日の予約';
-      c.appendChild(sep);_coSepDone=true;prev=null;
-    }
+    else if(_coHas&&!_coSepDone&&e.date===today){ _mkTodaySep(false); }
     // 直前カードと同じ連続クラスタなら、間に跨るコネクタを挿入
     if(prev&&prev._cid===e._cid&&!isCancelled(prev.item)&&!isCancelled(e.item)){
       const conn=document.createElement('div');
