@@ -234,10 +234,7 @@ details[open] summary{opacity:0.75}
     <button class="tab" data-tab="settings" onclick="switchTab('settings')">設定</button>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 10px">
-    <span style="display:flex;align-items:center;gap:8px;white-space:nowrap">
-      <span id="app-version" style="font-size:13px;color:#555;font-weight:600"></span>
-      <a href="manual.html" target="_blank" rel="noopener" title="取扱説明書を開く" style="font-size:12px;color:#1f5f23;background:#eaf4ea;border:1px solid #9cc79e;border-radius:12px;padding:1px 9px;text-decoration:none;font-weight:700">📖 説明書</a>
-    </span>
+    <span id="app-version" style="font-size:13px;color:#555;font-weight:600;white-space:nowrap"></span>
     <div id="sync-indicator" onclick="loadFromSheet()" title="タップで今すぐ同期" style="font-size:11px;color:#999;text-align:right;cursor:pointer"></div>
   </div>
 
@@ -489,6 +486,7 @@ details[open] summary{opacity:0.75}
   </div>
 
   <div id="tab-settings" class="tab-content" style="display:none">
+    <a href="manual.html" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#eaf4ea;border:1px solid #9cc79e;border-radius:10px;padding:11px;margin-bottom:12px;color:#1f5f23;font-size:15px;font-weight:800;text-decoration:none">📖 取扱説明書を開く</a>
     <div class="section-title">📊 Googleスプレッドシート同期</div>
     <div style="background:#f0f6ff;border:1px solid #88aacc;border-radius:8px;padding:12px;margin-top:4px">
       <div style="font-size:13px;font-weight:800;color:#1a5a2a;margin-bottom:6px">🔄 同期する</div>
@@ -655,8 +653,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=516;
-const APP_BUILD_DATE='2026/11/20 11:40';
+const APP_VERSION=517;
+const APP_BUILD_DATE='2026/11/20 12:05';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
