@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=520;
-const APP_BUILD_DATE='2026/11/22 09:30';
+const APP_VERSION=521;
+const APP_BUILD_DATE='2026/11/22 10:00';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -2004,11 +2004,11 @@ function renderList(){
     // 済み枠：部屋掃除が終わっていない件数（wf.clean未チェック）を右に添える
     if(key==='done'){
       // 本日チェックアウトが全員済み（未OUTの枠が空）なら「全件完了」
-      if(!_coPend.length){ const ab=document.createElement('span'); ab.style.cssText='margin-left:8px;font-size:11.5px;font-weight:800;border-radius:8px;padding:0 8px;white-space:nowrap;color:#fff;background:#2e8b57;border:1px solid #2e8b57'; ab.textContent='✓ 全件完了'; sm.appendChild(ab); }
+      if(!_coPend.length){ const ab=document.createElement('span'); ab.style.cssText='margin-left:8px;font-size:11.5px;font-weight:800;border-radius:8px;padding:0 8px;white-space:nowrap;color:#fff;background:#2e8b57;border:1px solid #2e8b57'; ab.textContent='✓ チェックアウト全件完了'; sm.appendChild(ab); }
       const left=arr.filter(e=>!(e.item.wf&&e.item.wf.clean)).length;
       const cb=document.createElement('span');
       cb.style.cssText='margin-left:8px;font-size:11.5px;font-weight:700;border-radius:8px;padding:0 7px;white-space:nowrap;'+(left?'color:#8a6d00;background:#fff4d6;border:1px solid #e0c060':'color:#1c5c39;background:#fff;border:1px solid #7bbf96');
-      cb.textContent=left?('部屋掃除 残り'+left+'件'):'部屋掃除 完了';
+      cb.textContent=left?('部屋掃除 残り'+left+'件'):'部屋掃除 全件完了';
       sm.appendChild(cb);
     }
     const upd=()=>{ttl.textContent=(det.open?'▼ ':'▶ ')+label+'（'+arr.length+'件）'+(det.open?'を折りたたむ':'表示する');};upd();
