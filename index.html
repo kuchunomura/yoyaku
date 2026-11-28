@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=525;
-const APP_BUILD_DATE='2026/11/27 10:00';
+const APP_VERSION=526;
+const APP_BUILD_DATE='2026/11/28 09:30';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3443,7 +3443,8 @@ function renderCsvImpLog(){
       var ts=mtsFac&&mtsFac[m];
       var isTarget=isSel && _pendingCsvMonths.indexOf(m)>=0; // このCSVがこの月に取り込まれる＝取込予定
       if(!_csvFarOpen && mi>=3 && !has && !isTarget) return ''; // 折りたたみ：3か月より先の「空き」月は隠す（取込予定/取込済みは表示）
-      var info=has?(ts?('取込 '+fmtDateTime(ts)):'取込済み（この端末では日時未記録）'):'未取込';
+      var isLast=has && String(lmon[facKey]||'').split(',').indexOf(m)>=0; // 最後に取り込んだCSVの月
+      var info=has?(ts?('取込 '+fmtDateTime(ts)):'取込済み（この端末では日時未記録）')+(isLast?'（最後に取り込んだ月）':''):'未取込';
       var msg=(facLabel?facLabel+'　':'')+(isTarget?(jm+'分：このCSVはここへ取り込まれます（取込予定）'):(jm+'分：'+info)); // 左に施設名も併記
       var recentFlash=_recentImp && _recentImp.key===facKey && _recentImp.months[m] && (Date.now()-_recentImp.t<RECENT_IMP_MS); // 取込直後の数秒だけハイライト
       var clicked=_csvChipSel && _csvChipSel.key===facKey && _csvChipSel.month===m; // クリックした月
@@ -3451,9 +3452,10 @@ function renderCsvImpLog(){
       if(recentFlash) css='background:#fff59d;color:#7a5c00;border:2px solid #f0a000'; // 取込直後の黄色ハイライト
       else if(clicked) css='background:#cfe8ff;color:#0a4a80;border:2px solid #2b7fd0'; // クリックした月＝青
       else if(isTarget) css='background:#ffe0b2;color:#b06000;border:2px solid #e67700';
+      else if(isLast) css='background:#1a7a3a;color:#fff;border:1px solid #1a7a3a'; // 最後に取り込んだ月＝濃い緑
       else if(has) css='background:#d7f0dd;color:#1a7a3a;border:1px solid #9ccfab';
       else css='background:#f2f2f2;color:#bbb;border:1px solid #e0e0e0';
-      return '<span onclick="onCsvChipClick(\''+esc(facKey)+'\',\''+m+'\',\''+esc(msg)+'\')" style="display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:3px;cursor:pointer;'+css+'">'+(isTarget?'▶':'')+jm+(has?' ✓':' 未')+'</span>';
+      return '<span onclick="onCsvChipClick(\''+esc(facKey)+'\',\''+m+'\',\''+esc(msg)+'\')" style="display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:3px;cursor:pointer;'+css+'">'+(isTarget?'▶':'')+jm+(has?' ✓':' 未')+(isLast&&!isTarget?' 最後':'')+'</span>';
     }).join('');
   }
   // 月チップの✓は「今その施設・その月に予約が実在するか」で判定（取込ログの累積ではなく実データ）。
@@ -3477,8 +3479,9 @@ function renderCsvImpLog(){
       var nameCell='<div onclick="selectCsvFac(\''+escK(r[4])+'\')" style="cursor:pointer;border-radius:5px;padding:1px 6px;font-weight:'+(isSelRow?'800':'600')+';color:'+(isSelRow?'#1a7a3a':'#6b4f20')+';'+(isSelRow?'background:#d7f0dd;border:1px solid #9ccfab':'border:1px solid transparent')+'">'+(isSelRow?'✅ ':'')+htmlEscape(r[0])+'</div>';
       var hasData=!!(dataMonths[r[4]] && Object.keys(dataMonths[r[4]]).length); // その施設に予約が実在するか
       // 「日時（○月分）📄ファイル名」を丸ごと1かたまり(改行禁止)にする＝途中で改行しない。折り返すならチップの後（この塊ごと）で改行。
-      var _dtInner=(r[1]&&hasData)?'<span style="color:#1a7a3a;font-size:12.5px;font-weight:600">'+fmtDateTime(r[1])+'</span>':'<span style="color:#bbb;font-size:11px">未取込</span>';
-      var _tailInner=(hasData&&(lmon[r[4]]||r[3]))?(lmon[r[4]]?'<span style="color:#1a7a3a;font-size:12.5px;font-weight:600">（'+monLabel(lmon[r[4]])+'）</span>':'')+(r[3]?' <span style="color:#2471a3;font-weight:700;font-size:12.5px">📄'+htmlEscape(r[3])+'</span>':''):'';
+      var _lmB=(hasData&&lmon[r[4]])?'<span style="background:#1a7a3a;color:#fff;font-size:12px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:4px">'+monLabel(lmon[r[4]])+'</span>':'';
+      var _dtInner=(r[1]&&hasData)?'<span style="color:#555;font-size:11.5px">最後に取込 </span>'+_lmB+'<span style="color:#1a7a3a;font-size:12.5px;font-weight:600">'+fmtDateTime(r[1])+'</span>':'<span style="color:#bbb;font-size:11px">未取込</span>';
+      var _tailInner=(hasData&&r[3])?''+(r[3]?' <span style="color:#2471a3;font-weight:700;font-size:12.5px">📄'+htmlEscape(r[3])+'</span>':''):'';
       var _dtStr=' <span style="white-space:nowrap">'+_dtInner+_tailInner+'</span>';
       var _tail='';
       // 取込予定の新ファイルは「▶◯月✓」チップのすぐ右に📄で表示（「→ ◯月分を取込」の文言は無し＝▶と色で分かる）
