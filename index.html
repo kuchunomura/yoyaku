@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=527;
-const APP_BUILD_DATE='2026/11/28 10:00';
+const APP_VERSION=528;
+const APP_BUILD_DATE='2026/11/28 10:20';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3455,7 +3455,7 @@ function renderCsvImpLog(){
       else if(isLast) css='background:#a9dcb6;color:#14602e;border:2px solid #5fae76'; // 最後に取り込んだ月＝少し濃い緑（取込済みより一段濃く）
       else if(has) css='background:#d7f0dd;color:#1a7a3a;border:1px solid #9ccfab';
       else css='background:#f2f2f2;color:#bbb;border:1px solid #e0e0e0';
-      return '<span onclick="onCsvChipClick(\''+esc(facKey)+'\',\''+m+'\',\''+esc(msg)+'\')" style="display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:3px;cursor:pointer;'+css+'">'+(isTarget?'▶':'')+jm+(has?' ✓':' 未')+(isLast&&!isTarget?' 最後':'')+'</span>';
+      return '<span onclick="onCsvChipClick(\''+esc(facKey)+'\',\''+m+'\',\''+esc(msg)+'\')" style="display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:3px;cursor:pointer;'+css+'">'+(isTarget?'▶':'')+jm+(has?' ✓':' 未')+'</span>';
     }).join('');
   }
   // 月チップの✓は「今その施設・その月に予約が実在するか」で判定（取込ログの累積ではなく実データ）。
