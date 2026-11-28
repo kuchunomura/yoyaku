@@ -652,8 +652,8 @@ const STAY_FACS=[
 const SRC_BASE={rakuten:'楽天トラベル',jalan:'じゃらん',sou:'SOUエクスペリエンス',other1:'楽天体験',other2:'アソビュー',other3:'外部サイト③',pass_day:'年間パス（昼）',pass_night:'年間パス（夜）',invoice:'後日請求書払い（当日0円）',free:'0円（無料）'};
 
 // アプリのバージョン（更新ごとに+1。コミット数基準で開始）
-const APP_VERSION=526;
-const APP_BUILD_DATE='2026/11/28 09:30';
+const APP_VERSION=527;
+const APP_BUILD_DATE='2026/11/28 10:00';
 
 // ベッド構成を表示・切替するグループ（ドーム・ツリーハウス）
 const BED_GROUPS=['透明ドーム','ツリーハウス'];
@@ -3452,7 +3452,7 @@ function renderCsvImpLog(){
       if(recentFlash) css='background:#fff59d;color:#7a5c00;border:2px solid #f0a000'; // 取込直後の黄色ハイライト
       else if(clicked) css='background:#cfe8ff;color:#0a4a80;border:2px solid #2b7fd0'; // クリックした月＝青
       else if(isTarget) css='background:#ffe0b2;color:#b06000;border:2px solid #e67700';
-      else if(isLast) css='background:#1a7a3a;color:#fff;border:1px solid #1a7a3a'; // 最後に取り込んだ月＝濃い緑
+      else if(isLast) css='background:#a9dcb6;color:#14602e;border:2px solid #5fae76'; // 最後に取り込んだ月＝少し濃い緑（取込済みより一段濃く）
       else if(has) css='background:#d7f0dd;color:#1a7a3a;border:1px solid #9ccfab';
       else css='background:#f2f2f2;color:#bbb;border:1px solid #e0e0e0';
       return '<span onclick="onCsvChipClick(\''+esc(facKey)+'\',\''+m+'\',\''+esc(msg)+'\')" style="display:inline-block;font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:3px;cursor:pointer;'+css+'">'+(isTarget?'▶':'')+jm+(has?' ✓':' 未')+(isLast&&!isTarget?' 最後':'')+'</span>';
@@ -3479,7 +3479,7 @@ function renderCsvImpLog(){
       var nameCell='<div onclick="selectCsvFac(\''+escK(r[4])+'\')" style="cursor:pointer;border-radius:5px;padding:1px 6px;font-weight:'+(isSelRow?'800':'600')+';color:'+(isSelRow?'#1a7a3a':'#6b4f20')+';'+(isSelRow?'background:#d7f0dd;border:1px solid #9ccfab':'border:1px solid transparent')+'">'+(isSelRow?'✅ ':'')+htmlEscape(r[0])+'</div>';
       var hasData=!!(dataMonths[r[4]] && Object.keys(dataMonths[r[4]]).length); // その施設に予約が実在するか
       // 「日時（○月分）📄ファイル名」を丸ごと1かたまり(改行禁止)にする＝途中で改行しない。折り返すならチップの後（この塊ごと）で改行。
-      var _lmB=(hasData&&lmon[r[4]])?'<span style="background:#1a7a3a;color:#fff;font-size:12px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:4px">'+monLabel(lmon[r[4]])+'</span>':'';
+      var _lmB=(hasData&&lmon[r[4]])?'<span style="background:#a9dcb6;color:#14602e;border:1px solid #5fae76;font-size:12px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:4px">'+monLabel(lmon[r[4]])+'</span>':'';
       var _dtInner=(r[1]&&hasData)?'<span style="color:#555;font-size:11.5px">最後に取込 </span>'+_lmB+'<span style="color:#1a7a3a;font-size:12.5px;font-weight:600">'+fmtDateTime(r[1])+'</span>':'<span style="color:#bbb;font-size:11px">未取込</span>';
       var _tailInner=(hasData&&r[3])?''+(r[3]?' <span style="color:#2471a3;font-weight:700;font-size:12.5px">📄'+htmlEscape(r[3])+'</span>':''):'';
       var _dtStr=' <span style="white-space:nowrap">'+_dtInner+_tailInner+'</span>';
